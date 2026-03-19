@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 
-import { mockSharedPacks, mockProfiles } from '@/mock/data'
 import type { SharedPatternPack } from '@/types'
+import { getPacksApi } from '@/http_api/community'
 
 const searchQuery = ref('')
 const categoryFilter = ref('all')
@@ -12,6 +12,13 @@ const importSuccess = ref<number | null>(null)
 const publishName = ref('')
 const publishDesc = ref('')
 const publishCategory = ref('coding')
+
+const packs = ref<SharedPatternPack[]>([])
+
+onMounted(async () => {
+  const packRes = await getPacksApi()
+  if (packRes.data) packs.value = packRes.data
+})
 
 const categories = [
   { key: 'all', label: '全部' },
@@ -40,7 +47,7 @@ const categoryBtnColor: Record<string, string> = {
 }
 
 const filteredPacks = computed(() => {
-  let result: SharedPatternPack[] = mockSharedPacks
+  let result: SharedPatternPack[] = packs.value
   if (categoryFilter.value !== 'all') {
     result = result.filter(p => p.category === categoryFilter.value)
   }

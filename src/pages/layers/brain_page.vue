@@ -1,15 +1,23 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { useEventsStore } from '@/stores/events'
-import { mockPatterns } from '@/mock/data'
-import { mineAllPatterns } from '@/utils/pattern_mining'
 import type { BehaviorPattern } from '@/types'
 import type { MinedPattern } from '@/utils/pattern_mining'
+import { getPatternsApi } from '@/http_api/patterns'
+
+import { useEventsStore } from '@/stores/events'
+import { mineAllPatterns } from '@/utils/pattern_mining'
 
 const router = useRouter()
 const eventsStore = useEventsStore()
+
+const patterns = ref<BehaviorPattern[]>([])
+
+onMounted(async () => {
+  const res = await getPatternsApi()
+  if (res.data) patterns.value = res.data
+})
 
 // 运行挖掘算法
 const minedPatterns = computed(() => mineAllPatterns(eventsStore.events))
@@ -51,15 +59,15 @@ const confidenceColor = (c: number) => {
 }
 
 const learningPatterns = computed(() =>
-  mockPatterns.filter((p: BehaviorPattern) => p.status === 'learning')
+  patterns.value.filter((p: BehaviorPattern) => p.status === 'learning')
 )
 
 const confirmedPatterns = computed(() =>
-  mockPatterns.filter((p: BehaviorPattern) => p.status === 'confirmed')
+  patterns.value.filter((p: BehaviorPattern) => p.status === 'confirmed')
 )
 
 const exportablePatterns = computed(() =>
-  mockPatterns.filter((p: BehaviorPattern) => p.status === 'exportable')
+  patterns.value.filter((p: BehaviorPattern) => p.status === 'exportable')
 )
 
 const handleClickPattern = (pattern: BehaviorPattern) => {

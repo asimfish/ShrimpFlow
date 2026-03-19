@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { mockPatterns, mockWorkflows } from '@/mock/data'
+import type { BehaviorPattern, TeamWorkflow } from '@/types'
+import { getPatternsApi, getWorkflowsApi } from '@/http_api/patterns'
 
 const router = useRouter()
-const patterns = mockPatterns
-const workflows = mockWorkflows
+const patterns = ref<BehaviorPattern[]>([])
+const workflows = ref<TeamWorkflow[]>([])
 const expandedPatterns = ref<Set<number>>(new Set())
 const selectedForExport = ref<Set<number>>(new Set())
 const targetProject = ref('')
@@ -14,6 +15,12 @@ const exportSuccess = ref(false)
 
 // id=99 是特殊的"代码开发与Git提交规范"模式，点击展示 workflow 动画
 const showWorkflowDemo = ref(false)
+
+onMounted(async () => {
+  const [pRes, wRes] = await Promise.all([getPatternsApi(), getWorkflowsApi()])
+  if (pRes.data) patterns.value = pRes.data
+  if (wRes.data) workflows.value = wRes.data
+})
 
 const toggleExpand = (id: number) => {
   if (expandedPatterns.value.has(id)) expandedPatterns.value.delete(id)
@@ -58,7 +65,7 @@ const statusLabel: Record<string, string> = {
 }
 
 const getPatternNames = (ids: number[]) =>
-  ids.map(id => patterns.find(p => p.id === id)?.name).filter(Boolean)
+  ids.map(id => patterns.value.find(p => p.id === id)?.name).filter(Boolean)
 
 const confidenceColor = (c: number) => {
   if (c >= 85) return 'bg-emerald-500'

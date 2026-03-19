@@ -1,13 +1,25 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { mockWorkflows, mockPatterns } from '@/mock/data'
+import type { TeamWorkflow, BehaviorPattern } from '@/types'
+import { getWorkflowApi, getPatternsApi } from '@/http_api/patterns'
 
 const route = useRoute()
 const router = useRouter()
-const workflow = computed(() => mockWorkflows.find(w => w.id === Number(route.params.id)))
-const includedPatterns = computed(() => workflow.value?.patterns.map(id => mockPatterns.find(p => p.id === id)).filter(Boolean) ?? [])
+const workflow = ref<TeamWorkflow | null>(null)
+const allPatterns = ref<BehaviorPattern[]>([])
+
+onMounted(async () => {
+  const id = Number(route.params.id)
+  const [wRes, pRes] = await Promise.all([getWorkflowApi(id), getPatternsApi()])
+  if (wRes.data) workflow.value = wRes.data
+  if (pRes.data) allPatterns.value = pRes.data
+})
+
+const includedPatterns = computed(() =>
+  workflow.value?.patterns.map(id => allPatterns.value.find(p => p.id === id)).filter(Boolean) ?? []
+)
 
 const statusColorMap: Record<string, string> = {
   draft: 'bg-gray-500/20 text-gray-400',

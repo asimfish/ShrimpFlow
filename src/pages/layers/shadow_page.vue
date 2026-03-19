@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue'
 
 import { useEventsStore } from '@/stores/events'
-import { mockEvents, mockStats } from '@/mock/data'
 
 const eventsStore = useEventsStore()
 

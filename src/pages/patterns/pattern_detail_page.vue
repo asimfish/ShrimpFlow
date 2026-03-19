@@ -1,13 +1,20 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { mockPatterns } from '@/mock/data'
+import type { BehaviorPattern } from '@/types'
 import { dayjs } from '@/libs/dayjs'
+import { getPatternApi } from '@/http_api/patterns'
 
 const route = useRoute()
 const router = useRouter()
-const pattern = computed(() => mockPatterns.find(p => p.id === Number(route.params.id)))
+const pattern = ref<BehaviorPattern | null>(null)
+
+onMounted(async () => {
+  const id = Number(route.params.id)
+  const { data } = await getPatternApi(id)
+  if (data) pattern.value = data
+})
 
 const statusColorMap: Record<string, string> = {
   learning: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',

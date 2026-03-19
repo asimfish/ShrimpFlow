@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShrimpFlow — Developer Behavior Digital Twin</title>
+<meta name="description" content="ShrimpFlow: 开发者行为数字孪生平台。Record · Visualize · Learn · Become You. Powered by OpenClaw. OmniStack Team.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='13' cy='16' r='9' fill='none' stroke='%237c5cfc' stroke-width='1.5'/><circle cx='19' cy='16' r='9' fill='none' stroke='%23f59e0b' stroke-width='1.5'/><circle cx='16' cy='16' r='4' fill='%237c5cfc'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --void:#0a0a0f;--s1:#12121a;--s2:#1a1a2e;--s3:#242438;
+  --accent:#7c5cfc;--accent-g:#9b82ff;--accent-dim:rgba(124,92,252,0.12);
+  --oc:#f59e0b;--oc-dim:rgba(245,158,11,0.12);
+  --term:#38bdf8;--git:#34d399;--claude:#a78bfa;--env:#f87171;--success:#10b981;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--void);color:#c8c8d0;line-height:1.6;overflow-x:hidden}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--s1)}
+::-webkit-scrollbar-thumb{background:var(--s3);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--accent)}
+canvas#particles{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none}
+section{position:relative;z-index:1}
+.container{max-width:1200px;margin:0 auto;padding:0 32px}
+a{color:var(--accent-g);text-decoration:none;transition:color .2s}
+a:hover{color:#fff}
+.mono{font-family:'JetBrains Mono',monospace}
+
+/* Top nav */
+.top-nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:12px 32px;
+  background:rgba(10,10,15,.7);backdrop-filter:blur(16px);border-bottom:1px solid rgba(36,36,56,.5);
+  display:flex;align-items:center;justify-content:space-between;transition:all .3s}
+.top-nav.scrolled{background:rgba(10,10,15,.92);box-shadow:0 4px 24px rgba(0,0,0,.4)}
+.nav-left{display:flex;align-items:center;gap:12px}
+.nav-logo{height:32px;border-radius:6px}
+.nav-brand{font-size:16px;font-weight:700;color:#fff}
+.nav-links{display:flex;gap:24px}
+.nav-links a{font-size:14px;color:#888;font-weight:500;transition:color .2s}
+.nav-links a:hover{color:var(--accent-g)}
+.nav-links a.active{color:var(--accent-g)}
+.nav-github{display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;
+  background:var(--accent-dim);border:1px solid rgba(124,92,252,.3);font-size:14px;color:var(--accent-g);font-weight:500;transition:all .3s}
+.nav-github:hover{background:rgba(124,92,252,.2);transform:translateY(-1px)}
+
+/* Hero */
+.hero{min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding-top:80px}
+.hero-content{position:relative;z-index:2}
+.hero-logos{display:flex;align-items:center;justify-content:center;gap:24px;margin-bottom:32px}
+.hero-shrimp-logo{height:80px;filter:drop-shadow(0 4px 24px rgba(124,92,252,.2))}
+.hero h1{font-size:clamp(40px,7vw,72px);font-weight:900;letter-spacing:-2px;
+  background:linear-gradient(135deg,#fff 0%,var(--accent-g) 40%,var(--oc) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero .tagline{font-size:clamp(16px,2.5vw,22px);color:#777;margin-top:12px;letter-spacing:3px;font-weight:300}
+.hero .desc{max-width:640px;margin:24px auto 0;font-size:16px;color:#666;line-height:1.8}
+.hero .powered{margin-top:20px;font-size:14px;color:#555}
+.hero .powered span{color:var(--oc);font-weight:600}
+.cta-row{margin-top:36px;display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:10px;font-size:15px;font-weight:600;
+  border:1px solid var(--s3);transition:all .3s;cursor:pointer;font-family:inherit}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-primary:hover{background:#6a4ae0;transform:translateY(-2px);box-shadow:0 8px 32px rgba(124,92,252,.35)}
+.btn-ghost{background:transparent;color:var(--accent-g)}
+.btn-ghost:hover{background:var(--accent-dim);transform:translateY(-2px)}
+.btn-oc{background:var(--oc-dim);border-color:rgba(245,158,11,.3);color:var(--oc)}
+.btn-oc:hover{background:rgba(245,158,11,.2);transform:translateY(-2px)}
+.academy-bar{margin-top:48px;display:flex;align-items:center;justify-content:center;gap:16px;opacity:.6}
+.academy-bar img{height:28px;filter:brightness(0) invert(1);opacity:.5}
+.academy-bar span{font-size:13px;color:#555}
+.scroll-hint{position:absolute;bottom:32px;left:50%;transform:translateX(-50%);color:#444;font-size:13px;animation:bounce 2s infinite}
+@keyframes bounce{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(8px)}}
+
+/* Section common */
+.sec{padding:100px 0}
+.sec-title{font-size:clamp(28px,4vw,42px);font-weight:800;text-align:center;margin-bottom:12px;color:#fff}
+.sec-sub{text-align:center;color:#666;font-size:16px;margin-bottom:56px;max-width:640px;margin-left:auto;margin-right:auto}
+.reveal{opacity:0;transform:translateY(32px);transition:opacity .7s ease,transform .7s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.reveal-d1{transition-delay:.1s}.reveal-d2{transition-delay:.2s}.reveal-d3{transition-delay:.3s}.reveal-d4{transition-delay:.4s}
+
+/* Stats bar */
+.stats-bar{display:flex;justify-content:center;gap:48px;padding:48px 0;flex-wrap:wrap}
+.stat-item{text-align:center}
+.stat-num{font-size:clamp(36px,5vw,56px);font-weight:900;
+  background:linear-gradient(135deg,var(--accent-g),var(--oc));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.stat-label{font-size:14px;color:#666;margin-top:4px}
+
+/* Pipeline */
+.pipeline-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;position:relative}
+.pipe-card{background:var(--s2);border:1px solid var(--s3);border-radius:16px;padding:28px 24px;position:relative;transition:all .3s;cursor:pointer}
+.pipe-card:hover{transform:translateY(-6px);box-shadow:0 16px 48px rgba(0,0,0,.5)}
+.pipe-card.active{border-color:var(--accent);box-shadow:0 0 24px rgba(124,92,252,.15)}
+.pipe-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:22px}
+.pipe-card h3{font-size:20px;font-weight:700;margin-bottom:4px}
+.pipe-card .pipe-sub{font-size:13px;color:#666;margin-bottom:14px}
+.pipe-card ul{list-style:none;font-size:14px;color:#999;line-height:2}
+.pipe-arrow{position:absolute;top:50%;right:-14px;transform:translateY(-50%);color:#333;font-size:18px;z-index:2}
+.pipe-detail{margin-top:24px;background:var(--s2);border:1px solid var(--s3);border-radius:16px;padding:28px;
+  display:none;animation:slideDown .3s ease}
+.pipe-detail.show{display:block}
+@keyframes slideDown{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
+
+/* Interactive demo */
+.demo-container{background:var(--s1);border:1px solid var(--s3);border-radius:20px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.5)}
+.demo-toolbar{display:flex;align-items:center;gap:8px;padding:12px 20px;background:var(--s2);border-bottom:1px solid var(--s3)}
+.demo-dot{width:10px;height:10px;border-radius:50%}
+.demo-tabs{display:flex;gap:4px;margin-left:16px}
+.demo-tab{padding:6px 16px;border-radius:6px;font-size:13px;color:#888;cursor:pointer;transition:all .2s;border:none;background:none;font-family:inherit}
+.demo-tab:hover{color:#ccc;background:var(--s3)}
+.demo-tab.active{color:var(--accent-g);background:var(--accent-dim)}
+.demo-body{min-height:480px;position:relative}
+.demo-panel{display:none;padding:24px;animation:fadeIn .3s ease}
+.demo-panel.active{display:block}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+/* Event stream */
+.event-stream{display:flex;flex-direction:column;gap:6px;max-height:400px;overflow-y:auto;padding-right:8px}
+.event-item{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--s2);border:1px solid var(--s3);
+  border-radius:10px;font-size:13px;transition:all .3s;cursor:pointer;animation:eventIn .4s ease}
+.event-item:hover{border-color:var(--accent);background:rgba(124,92,252,.05)}
+.event-item .ev-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.event-item .ev-time{color:#555;font-family:'JetBrains Mono',monospace;font-size:11px;width:56px;flex-shrink:0}
+.event-item .ev-source{font-size:11px;padding:2px 8px;border-radius:4px;font-weight:500;flex-shrink:0}
+.event-item .ev-text{color:#aaa;flex:1}
+@keyframes eventIn{from{opacity:0;transform:translateX(-16px)}to{opacity:1;transform:translateX(0)}}
+
+/* Pattern cards in demo */
+.pattern-result{background:var(--s2);border:1px solid var(--s3);border-radius:12px;padding:20px;margin-bottom:12px;transition:all .3s}
+.pattern-result:hover{border-color:var(--accent)}
+.pattern-bar{height:6px;border-radius:3px;background:var(--s3);margin-top:8px;overflow:hidden}
+.pattern-bar-fill{height:100%;border-radius:3px;transition:width 1.5s ease}
+.pattern-sequence{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap}
+.pattern-step{padding:4px 10px;border-radius:6px;font-size:12px;font-weight:500}
+.pattern-arrow-sm{color:#444;font-size:14px}
+
+/* Screenshot gallery */
+.gallery{position:relative;overflow:hidden;border-radius:20px;border:1px solid var(--s3);background:var(--s1)}
+.gallery-track{display:flex;transition:transform .5s cubic-bezier(.4,0,.2,1)}
+.gallery-slide{min-width:100%;position:relative}
+.gallery-slide img{width:100%;display:block;border-radius:0}
+.gallery-slide .slide-caption{position:absolute;bottom:0;left:0;right:0;padding:24px 32px;
+  background:linear-gradient(transparent,rgba(10,10,15,.9));color:#fff}
+.gallery-slide .slide-caption h3{font-size:20px;font-weight:700;margin-bottom:4px}
+.gallery-slide .slide-caption p{font-size:14px;color:#aaa}
+.gallery-nav{display:flex;justify-content:center;gap:8px;margin-top:16px}
+.gallery-dot{width:8px;height:8px;border-radius:50%;background:var(--s3);cursor:pointer;transition:all .3s;border:none}
+.gallery-dot.active{background:var(--accent);width:24px;border-radius:4px}
+.gallery-btn{position:absolute;top:50%;transform:translateY(-50%);width:40px;height:40px;border-radius:50%;
+  background:rgba(10,10,15,.7);border:1px solid var(--s3);color:#fff;cursor:pointer;display:flex;align-items:center;
+  justify-content:center;z-index:5;transition:all .3s;backdrop-filter:blur(8px)}
+.gallery-btn:hover{background:var(--accent-dim);border-color:var(--accent)}
+.gallery-btn.prev{left:16px}
+.gallery-btn.next{right:16px}
+
+/* Algo */
+.algo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.algo-card{background:var(--s2);border:1px solid var(--s3);border-radius:16px;padding:28px;transition:all .3s}
+.algo-card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.4)}
+.algo-card h3{font-size:18px;font-weight:700;margin-bottom:4px}
+.algo-card .algo-en{font-size:12px;color:#555;margin-bottom:14px;font-family:'JetBrains Mono',monospace}
+.algo-card p{font-size:14px;color:#888;line-height:1.7}
+.algo-example{margin-top:12px;padding:12px 14px;background:var(--s1);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#aaa;line-height:1.7}
+
+/* Compare */
+.compare-wrap{display:grid;grid-template-columns:1fr auto 1fr;max-width:960px;margin:0 auto;
+  background:var(--s2);border:1px solid var(--s3);border-radius:16px;overflow:hidden}
+.compare-col{padding:32px}
+.compare-col h3{font-size:18px;font-weight:700;margin-bottom:16px}
+.compare-col ul{list-style:none;font-size:14px;color:#999;line-height:2.2}
+.compare-col ul li::before{content:'·';margin-right:8px;font-weight:700}
+.compare-vs{display:flex;align-items:center;justify-content:center;padding:0 24px;
+  font-size:28px;font-weight:900;color:#333;border-left:1px solid var(--s3);border-right:1px solid var(--s3)}
+
+/* Tech */
+.tech-grid{display:flex;flex-wrap:wrap;gap:16px;justify-content:center}
+.tech-chip{display:flex;align-items:center;gap:10px;padding:14px 24px;background:var(--s2);border:1px solid var(--s3);
+  border-radius:12px;font-size:15px;font-weight:500;color:#ccc;transition:all .3s}
+.tech-chip:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.tech-chip .tc-icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700}
+
+/* Data flow animation */
+.dataflow{display:flex;align-items:center;gap:0;overflow-x:auto;padding:20px 0}
+.df-node{padding:14px 20px;border-radius:12px;background:var(--s2);border:1px solid var(--s3);text-align:center;
+  min-width:120px;flex-shrink:0;transition:all .3s}
+.df-node:hover{transform:scale(1.05);border-color:var(--accent)}
+.df-node h4{font-size:14px;font-weight:600;margin-bottom:2px}
+.df-node p{font-size:11px;color:#666}
+.df-arrow{padding:0 8px;color:#444;font-size:20px;flex-shrink:0;animation:arrowPulse 2s infinite}
+@keyframes arrowPulse{0%,100%{opacity:.4}50%{opacity:1;color:var(--accent-g)}}
+
+/* Footer */
+.footer{border-top:1px solid var(--s3);padding:48px 0;text-align:center}
+.footer-logos{display:flex;align-items:center;justify-content:center;gap:24px;margin-bottom:24px}
+.footer-logos img{height:32px;opacity:.6;transition:opacity .3s}
+.footer-logos img:hover{opacity:1}
+.footer p{font-size:14px;color:#555}
+.footer-links{display:flex;gap:24px;justify-content:center;margin-bottom:16px}
+.footer-links a{font-size:14px;color:#666}
+
+/* Responsive */
+@media(max-width:900px){
+  .pipeline-grid{grid-template-columns:1fr 1fr;gap:16px}
+  .pipe-arrow{display:none}
+  .algo-grid{grid-template-columns:1fr}
+  .compare-wrap{grid-template-columns:1fr}
+  .compare-vs{border-left:none;border-right:none;border-top:1px solid var(--s3);border-bottom:1px solid var(--s3);padding:12px}
+  .stats-bar{gap:24px}
+  .nav-links{display:none}
+  .top-nav{padding:10px 16px}
+}
+@media(max-width:480px){
+  .pipeline-grid{grid-template-columns:1fr}
+  .cta-row{flex-direction:column;align-items:center}
+  .container{padding:0 16px}
+  .sec{padding:64px 0}
+  .hero-shrimp-logo{height:56px}
+}
+</style>
+</head>
+<body>
+
+<!-- Top Navigation -->
+<nav class="top-nav" id="topNav">
+  <div class="nav-left">
+    <img src="assets/shrimpflow_logo.jpg" alt="ShrimpFlow" class="nav-logo">
+    <span class="nav-brand">ShrimpFlow</span>
+  </div>
+  <div class="nav-links" id="navLinks">
+    <a href="#architecture">Architecture</a>
+    <a href="#demo">Live Demo</a>
+    <a href="#features">Features</a>
+    <a href="#algorithms">Algorithms</a>
+    <a href="#team">Team</a>
+  </div>
+  <a class="nav-github" href="https://github.com/ChangWinde/ShrimpFlow/tree/main" target="_blank">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+    GitHub
+  </a>
+</nav>
+
+<!-- Hero -->
+<section class="hero" id="hero">
+  <div class="hero-content">
+    <div class="hero-logos">
+      <img src="assets/shrimpflow_logo.jpg" alt="ShrimpFlow" class="hero-shrimp-logo">
+    </div>
+    <h1>ShrimpFlow</h1>
+    <p class="tagline">Developer Behavior Digital Twin</p>
+    <p class="desc">
+      统一采集 5 种开发数据源，通过四层处理管线自动发现行为模式，<br>
+      构建可解释、可编辑、可分享的开发者数字孪生
+    </p>
+    <p class="powered">Powered by <span>OpenClaw</span> · OmniStack Team</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="#demo">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Interactive Demo
+      </a>
+      <a class="btn btn-ghost" href="https://github.com/ChangWinde/ShrimpFlow/tree/main" target="_blank">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+        View Source
+      </a>
+      <a class="btn btn-oc" href="#architecture">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        Architecture
+      </a>
+    </div>
+    <div class="academy-bar">
+      <img src="assets/academy_logo.png" alt="Academy">
+      <span>OmniStack · OpenClaw Hackathon 2025</span>
+    </div>
+  </div>
+  <div class="scroll-hint">scroll to explore ↓</div>
+</section>
+
+<!-- Stats -->
+<section style="position:relative;z-index:1;border-bottom:1px solid var(--s3)">
+  <div class="container">
+    <div class="stats-bar reveal">
+      <div class="stat-item"><div class="stat-num" data-count="5">0</div><div class="stat-label">Data Sources</div></div>
+      <div class="stat-item"><div class="stat-num" data-count="4">0</div><div class="stat-label">Pipeline Layers</div></div>
+      <div class="stat-item"><div class="stat-num" data-count="3">0</div><div class="stat-label">Mining Algorithms</div></div>
+      <div class="stat-item"><div class="stat-num" data-count="1247">0</div><div class="stat-label">Events Tracked</div></div>
+      <div class="stat-item"><div class="stat-num" data-count="6">0</div><div class="stat-label">Patterns Learned</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- Architecture Pipeline -->
+<section class="sec" id="architecture">
+  <div class="container">
+    <h2 class="sec-title reveal">Four-Layer Pipeline</h2>
+    <p class="sec-sub reveal">5 种异构数据源 → 统一 DevEvent → 四层处理管线 → 团队工作流</p>
+
+    <!-- Data flow animation -->
+    <div class="dataflow reveal" style="margin-bottom:40px">
+      <div class="df-node" style="border-color:var(--term)"><h4 style="color:var(--term)">Terminal</h4><p>Shell 命令</p></div>
+      <div class="df-node" style="border-color:var(--git)"><h4 style="color:var(--git)">Git</h4><p>版本控制</p></div>
+      <div class="df-node" style="border-color:var(--oc)"><h4 style="color:var(--oc)">OpenClaw</h4><p>AI 对话</p></div>
+      <div class="df-node" style="border-color:var(--claude)"><h4 style="color:var(--claude)">Claude</h4><p>代码编辑</p></div>
+      <div class="df-node" style="border-color:var(--env)"><h4 style="color:var(--env)">Env</h4><p>系统环境</p></div>
+      <div class="df-arrow">→</div>
+      <div class="df-node" style="border-color:var(--accent);background:var(--accent-dim)"><h4 style="color:var(--accent-g)">DevEvent</h4><p>统一结构</p></div>
+      <div class="df-arrow">→</div>
+      <div class="df-node" style="border-color:var(--accent)"><h4 style="color:var(--accent-g)">Shadow</h4><p>采集</p></div>
+      <div class="df-arrow">→</div>
+      <div class="df-node" style="border-color:var(--oc)"><h4 style="color:var(--oc)">Mirror</h4><p>可视化</p></div>
+      <div class="df-arrow">→</div>
+      <div class="df-node" style="border-color:var(--claude)"><h4 style="color:var(--claude)">Brain</h4><p>模式学习</p></div>
+      <div class="df-arrow">→</div>
+      <div class="df-node" style="border-color:var(--success)"><h4 style="color:var(--success)">Autopilot</h4><p>团队下发</p></div>
+    </div>
+
+    <div class="pipeline-grid">
+      <div class="pipe-card reveal" style="border-top:3px solid var(--accent)" onclick="togglePipe(0)">
+        <div class="pipe-icon" style="background:var(--accent-dim)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-g)" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </div>
+        <h3 style="color:var(--accent-g)">Shadow</h3>
+        <p class="pipe-sub">Collect Layer</p>
+        <ul><li>Shell / Git Hook 采集</li><li>OpenClaw API 监听</li><li>统一 DevEvent 结构</li><li>本地 SQLite 加密存储</li></ul>
+        <div class="pipe-arrow">→</div>
+      </div>
+      <div class="pipe-card reveal reveal-d1" style="border-top:3px solid var(--oc)" onclick="togglePipe(1)">
+        <div class="pipe-icon" style="background:var(--oc-dim)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--oc)" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </div>
+        <h3 style="color:var(--oc)">Mirror</h3>
+        <p class="pipe-sub">Visualize Layer</p>
+        <ul><li>D3 力导向技能图谱</li><li>Canvas 多泳道时间线</li><li>日历热力图</li><li>实时事件流</li></ul>
+        <div class="pipe-arrow">→</div>
+      </div>
+      <div class="pipe-card reveal reveal-d2" style="border-top:3px solid var(--claude)" onclick="togglePipe(2)">
+        <div class="pipe-icon" style="background:rgba(167,139,250,.12)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--claude)" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/></svg>
+        </div>
+        <h3 style="color:var(--claude)">Brain</h3>
+        <p class="pipe-sub">Pattern Mining</p>
+        <ul><li>频繁序列挖掘</li><li>时间模式检测</li><li>关联规则挖掘</li><li>贝叶斯置信度更新</li></ul>
+        <div class="pipe-arrow">→</div>
+      </div>
+      <div class="pipe-card reveal reveal-d3" style="border-top:3px solid var(--success)" onclick="togglePipe(3)">
+        <div class="pipe-icon" style="background:rgba(16,185,129,.12)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/></svg>
+        </div>
+        <h3 style="color:var(--success)">Autopilot</h3>
+        <p class="pipe-sub">Distribute Layer</p>
+        <ul><li>Workflow 组合</li><li>团队一键下发</li><li>社区模式市场</li><li>反馈闭环优化</li></ul>
+      </div>
+    </div>
+    <!-- Pipe detail panel -->
+    <div class="pipe-detail" id="pipeDetail"></div>
+  </div>
+</section>
+
+<!-- Interactive Demo -->
+<section class="sec" id="demo" style="background:linear-gradient(180deg,transparent,rgba(124,92,252,.02),transparent)">
+  <div class="container">
+    <h2 class="sec-title reveal">Interactive Demo</h2>
+    <p class="sec-sub reveal">体验 ShrimpFlow 的实际工作流程: 从事件采集到模式发现</p>
+    <div class="demo-container reveal">
+      <div class="demo-toolbar">
+        <div class="demo-dot" style="background:#ff5f57"></div>
+        <div class="demo-dot" style="background:#febc2e"></div>
+        <div class="demo-dot" style="background:#28c840"></div>
+        <div class="demo-tabs">
+          <button class="demo-tab active" onclick="switchDemo(0)">Shadow: Event Stream</button>
+          <button class="demo-tab" onclick="switchDemo(1)">Brain: Pattern Mining</button>
+          <button class="demo-tab" onclick="switchDemo(2)">Autopilot: Workflow</button>
+        </div>
+      </div>
+      <div class="demo-body">
+        <!-- Panel 0: Event Stream -->
+        <div class="demo-panel active" id="demoPanel0">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <div>
+              <h3 style="font-size:16px;color:#fff">Real-time Event Stream</h3>
+              <p style="font-size:13px;color:#666">Shadow 层正在采集开发行为事件</p>
+            </div>
+            <button onclick="addRandomEvent()" style="padding:8px 16px;border-radius:8px;background:var(--accent-dim);border:1px solid rgba(124,92,252,.3);color:var(--accent-g);font-size:13px;cursor:pointer;font-family:inherit;transition:all .2s"
+              onmouseover="this.style.background='rgba(124,92,252,.2)'" onmouseout="this.style.background='var(--accent-dim)'">
+              + Simulate Event
+            </button>
+          </div>
+          <div class="event-stream" id="eventStream"></div>
+        </div>
+        <!-- Panel 1: Pattern Mining -->
+        <div class="demo-panel" id="demoPanel1">
+          <div style="margin-bottom:16px">
+            <h3 style="font-size:16px;color:#fff">Discovered Patterns</h3>
+            <p style="font-size:13px;color:#666">Brain 层从事件流中自动挖掘出的行为模式</p>
+          </div>
+          <div id="patternResults"></div>
+        </div>
+        <!-- Panel 2: Workflow -->
+        <div class="demo-panel" id="demoPanel2">
+          <div style="margin-bottom:16px">
+            <h3 style="font-size:16px;color:#fff">Team Workflow</h3>
+            <p style="font-size:13px;color:#666">Autopilot 层将模式组合为可分发的团队工作流</p>
+          </div>
+          <div id="workflowDemo"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Screenshot Gallery -->
+<section class="sec" id="features">
+  <div class="container">
+    <h2 class="sec-title reveal">Feature Gallery</h2>
+    <p class="sec-sub reveal">系统实际运行截图</p>
+    <div class="gallery reveal" id="gallery">
+      <button class="gallery-btn prev" onclick="galleryPrev()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <button class="gallery-btn next" onclick="galleryNext()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <div class="gallery-track" id="galleryTrack">
+        <div class="gallery-slide"><img src="assets/screenshot_1.png" alt="Dashboard" loading="lazy"><div class="slide-caption"><h3>Dashboard</h3><p>统计总览 - 事件分布、技能排行、行为模式洞察、四层进度</p></div></div>
+        <div class="gallery-slide"><img src="assets/screenshot_2.png" alt="Timeline" loading="lazy"><div class="slide-caption"><h3>Timeline</h3><p>Canvas 多泳道时间线 - 5 种数据源实时可视化，支持缩放和筛选</p></div></div>
+        <div class="gallery-slide"><img src="assets/screenshot_3.png" alt="Skill Graph" loading="lazy"><div class="slide-caption"><h3>Skill Graph</h3><p>D3 力导向技能图谱 - 三层结构展示技能关系与成长轨迹</p></div></div>
+        <div class="gallery-slide"><img src="assets/screenshot_4.png" alt="Patterns" loading="lazy"><div class="slide-caption"><h3>Behavior Patterns</h3><p>自动发现的行为模式 - 置信度可视化，支持导出为团队工作流</p></div></div>
+        <div class="gallery-slide"><img src="assets/screenshot_5.png" alt="OpenClaw" loading="lazy"><div class="slide-caption"><h3>OpenClaw Chat</h3><p>AI 对话会话管理 - 多轮对话、技能调用、知识检索</p></div></div>
+        <div class="gallery-slide"><img src="assets/screenshot_6.png" alt="Digest" loading="lazy"><div class="slide-caption"><h3>Daily Digest</h3><p>日报 - 日历热力图、AI 摘要、源分布、Git 统计</p></div></div>
+        <div class="gallery-slide"><img src="assets/screenshot_7.png" alt="Architecture" loading="lazy"><div class="slide-caption"><h3>Architecture</h3><p>系统架构可视化 - 数据流与四层处理管线交互展示</p></div></div>
+        <div class="gallery-slide"><img src="assets/screenshot_8.png" alt="Community" loading="lazy"><div class="slide-caption"><h3>Community Market</h3><p>模式社区 - 分享、导入、组合最佳实践</p></div></div>
+        <div class="gallery-slide"><img src="assets/screenshot_pattern.png" alt="Pattern Detail" loading="lazy"><div class="slide-caption"><h3>Pattern Detail</h3><p>模式详情 - 学习过程、证据链、置信度变化曲线</p></div></div>
+        <div class="gallery-slide"><img src="assets/screenshot_new2.png" alt="Profile" loading="lazy"><div class="slide-caption"><h3>Developer Profile</h3><p>开发者画像 - 个人档案、技能雷达图、活跃度分析</p></div></div>
+      </div>
+    </div>
+    <div class="gallery-nav" id="galleryNav"></div>
+  </div>
+</section>
+
+<!-- Algorithms -->
+<section class="sec" id="algorithms" style="background:linear-gradient(180deg,transparent,rgba(167,139,250,.02),transparent)">
+  <div class="container">
+    <h2 class="sec-title reveal">Pattern Mining Algorithms</h2>
+    <p class="sec-sub reveal">Brain 层三维挖掘: 序列 x 时间 x 关联</p>
+    <div class="algo-grid">
+      <div class="algo-card reveal" style="border-top:3px solid var(--accent)">
+        <h3 style="color:var(--accent-g)">Frequent Sequence</h3>
+        <div class="algo-en">频繁序列挖掘 · windowSize=3 · minSupport=3</div>
+        <p>滑动窗口扫描事件序列，统计子序列出现频次，发现重复行为模式</p>
+        <div class="algo-example">
+          <span style="color:var(--term)">git pull</span> →
+          <span style="color:var(--claude)">code edit</span> →
+          <span style="color:var(--git)">git commit</span><br>
+          <span style="color:var(--accent-g)">x 47 times → confidence: 92%</span>
+        </div>
+      </div>
+      <div class="algo-card reveal reveal-d1" style="border-top:3px solid var(--oc)">
+        <h3 style="color:var(--oc)">Time Pattern</h3>
+        <div class="algo-en">时间模式检测 · hourly[24] · weekly[7]</div>
+        <p>统计事件在 24h / 7d 维度的分布，发现周期性行为规律</p>
+        <div class="algo-example">
+          <span style="color:var(--oc)">10:00-11:00</span> code review<br>
+          <span style="color:var(--oc)">14:00-17:00</span> deep coding<br>
+          <span style="color:var(--accent-g)">→ Morning Review Pattern</span>
+        </div>
+      </div>
+      <div class="algo-card reveal reveal-d2" style="border-top:3px solid var(--success)">
+        <h3 style="color:var(--success)">Correlation Mining</h3>
+        <div class="algo-en">关联规则挖掘 · window=10min · minConf=30%</div>
+        <p>10 分钟时间窗口内，发现跨数据源的事件关联</p>
+        <div class="algo-example">
+          <span style="color:var(--oc)">openclaw chat</span> →
+          <span style="color:var(--term)">pytest</span> →
+          <span style="color:var(--git)">commit</span><br>
+          <span style="color:var(--accent-g)">confidence: 85%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Compare -->
+<section class="sec">
+  <div class="container">
+    <h2 class="sec-title reveal">Parametric vs Non-Parametric Memory</h2>
+    <p class="sec-sub reveal">与 OpenClaw-RL 互补的记忆机制</p>
+    <div class="compare-wrap reveal">
+      <div class="compare-col">
+        <h3 style="color:var(--oc)">OpenClaw-RL</h3>
+        <p style="font-size:13px;color:#555;margin-bottom:12px">参数化记忆 · 行为训入模型权重</p>
+        <ul>
+          <li>行为 → 梯度更新 → 神经网络权重</li>
+          <li>隐式存储，黑盒不可解释</li>
+          <li>需要大量训练数据 + GPU 算力</li>
+          <li>迁移需要 fine-tune 适配</li>
+          <li>需要重新训练才能更新</li>
+        </ul>
+      </div>
+      <div class="compare-vs">VS</div>
+      <div class="compare-col">
+        <h3 style="color:var(--accent-g)">ShrimpFlow</h3>
+        <p style="font-size:13px;color:#555;margin-bottom:12px">非参数化记忆 · 结构化模式存储</p>
+        <ul>
+          <li>行为 → 模式提取 → 结构化 JSON</li>
+          <li>显式存储，可审计可编辑</li>
+          <li>少量数据即可提取模式</li>
+          <li>可直接迁移、分享、组合</li>
+          <li>实时更新，即时生效</li>
+        </ul>
+      </div>
+    </div>
+    <p class="reveal" style="text-align:center;margin-top:24px;font-size:15px;color:var(--success);font-weight:500">
+      互补关系: ShrimpFlow 的显式模式 → 反哺为 RL 的 reward shaping hints
+    </p>
+  </div>
+</section>
+
+<!-- Tech Stack -->
+<section class="sec" id="tech">
+  <div class="container">
+    <h2 class="sec-title reveal">Tech Stack</h2>
+    <p class="sec-sub reveal">现代前端技术栈 + AI 驱动</p>
+    <div class="tech-grid reveal">
+      <div class="tech-chip"><div class="tc-icon" style="background:rgba(66,184,131,.15);color:#42b883">V</div>Vue 3.5</div>
+      <div class="tech-chip"><div class="tc-icon" style="background:rgba(49,120,198,.15);color:#3178c6">TS</div>TypeScript</div>
+      <div class="tech-chip"><div class="tc-icon" style="background:rgba(189,147,249,.15);color:#bd93f9">V</div>Vite 8</div>
+      <div class="tech-chip"><div class="tc-icon" style="background:rgba(56,189,248,.15);color:#38bdf8">T</div>Tailwind CSS 4</div>
+      <div class="tech-chip"><div class="tc-icon" style="background:rgba(245,158,11,.15);color:#f59e0b">D3</div>D3.js 7</div>
+      <div class="tech-chip"><div class="tc-icon" style="background:rgba(252,211,77,.15);color:#fcd34d">P</div>Pinia 3</div>
+      <div class="tech-chip"><div class="tc-icon" style="background:rgba(52,211,153,.15);color:#34d399">S</div>SQLite</div>
+      <div class="tech-chip"><div class="tc-icon" style="background:rgba(245,158,11,.15);color:#f59e0b">OC</div>OpenClaw API</div>
+    </div>
+  </div>
+</section>
+
+<!-- Team / Footer -->
+<footer class="footer" id="team">
+  <div class="container">
+    <div class="footer-logos">
+      <img src="assets/shrimpflow_logo.jpg" alt="ShrimpFlow" style="height:48px;border-radius:8px">
+      <img src="assets/academy_logo.png" alt="Academy" style="height:36px;filter:brightness(0) invert(1)">
+    </div>
+    <p style="font-size:18px;font-weight:600;color:#fff;margin-bottom:8px">OmniStack Team</p>
+    <p style="margin-bottom:24px">北京中关村学院 x 中关村人工智能研究院</p>
+    <div class="footer-links">
+      <a href="https://github.com/ChangWinde/ShrimpFlow/tree/main" target="_blank">GitHub</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#demo">Demo</a>
+      <a href="#features">Features</a>
+      <a href="#algorithms">Algorithms</a>
+    </div>
+    <p style="margin-top:16px;font-size:12px;color:#444">ShrimpFlow · Developer Behavior Digital Twin · Powered by OpenClaw · OpenClaw Hackathon 2025</p>
+  </div>
+</footer>
+
+<script>
+// === Particle Canvas ===
+const cvs = document.getElementById('particles');
+if (cvs) {
+  const ctx = cvs.getContext('2d');
+  let W, H;
+  const resize = () => { W = cvs.width = window.innerWidth; H = cvs.height = window.innerHeight; };
+  resize(); window.addEventListener('resize', resize);
+  const pts = Array.from({length: 50}, () => ({
+    x: Math.random() * W, y: Math.random() * H,
+    vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.4,
+    c: Math.random() > 0.5 ? 'rgba(124,92,252,' : 'rgba(245,158,11,',
+    r: Math.random() * 2 + 1
+  }));
+  const draw = () => {
+    ctx.clearRect(0, 0, W, H);
+    pts.forEach(p => {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0 || p.x > W) p.vx *= -1;
+      if (p.y < 0 || p.y > H) p.vy *= -1;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = p.c + '0.5)'; ctx.fill();
+    });
+    for (let i = 0; i < pts.length; i++) {
+      for (let j = i + 1; j < pts.length; j++) {
+        const dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d < 120) {
+          ctx.beginPath(); ctx.moveTo(pts[i].x, pts[i].y); ctx.lineTo(pts[j].x, pts[j].y);
+          ctx.strokeStyle = 'rgba(124,92,252,' + (1 - d / 120) * 0.15 + ')'; ctx.stroke();
+        }
+      }
+    }
+    requestAnimationFrame(draw);
+  };
+  draw();
+}
+
+// === Scroll Reveal ===
+const revealEls = document.querySelectorAll('.reveal');
+const revealObs = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('revealed'); revealObs.unobserve(e.target); } });
+}, { threshold: 0.15 });
+revealEls.forEach(el => revealObs.observe(el));
+
+// === Nav scroll state ===
+const topNav = document.getElementById('topNav');
+window.addEventListener('scroll', () => {
+  if (topNav) topNav.classList.toggle('scrolled', window.scrollY > 50);
+});
+
+// === Count-up animation ===
+const countEls = document.querySelectorAll('[data-count]');
+const countObs = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      const target = parseInt(e.target.dataset.count);
+      let current = 0;
+      const step = Math.max(1, Math.floor(target / 40));
+      const timer = setInterval(() => {
+        current += step;
+        if (current >= target) { current = target; clearInterval(timer); }
+        e.target.textContent = current.toLocaleString();
+      }, 30);
+      countObs.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.5 });
+countEls.forEach(el => countObs.observe(el));
+
+// === Pipeline Detail Toggle ===
+const pipeData = [
+  { title: 'Shadow - Collect Layer', color: '#7c5cfc', items: [
+    ['Hooks', 'Shell hook + Git hook + 文件系统监听'],
+    ['API', 'OpenClaw API 实时采集对话和技能调用'],
+    ['Format', '统一 DevEvent 结构: {source, type, payload, ts}'],
+    ['Storage', '本地 SQLite 加密存储, 端到端加密']
+  ]},
+  { title: 'Mirror - Visualize Layer', color: '#f59e0b', items: [
+    ['Timeline', 'Canvas 多泳道时间线, 5 种数据源并行展示'],
+    ['Graph', 'D3 力导向技能图谱, 三层结构 (domain/skill/action)'],
+    ['Heatmap', '日历热力图, 活跃度可视化'],
+    ['Realtime', 'WebSocket 推送, 实时事件流']
+  ]},
+  { title: 'Brain - Pattern Mining', color: '#a78bfa', items: [
+    ['Sequence', '频繁序列挖掘: 滑动窗口 + 子序列统计'],
+    ['Time', '时间模式检测: 24h/7d 维度分布分析'],
+    ['Correlation', '关联规则挖掘: 10min 窗口跨源关联'],
+    ['Confidence', '贝叶斯置信度更新: 证据累积机制']
+  ]},
+  { title: 'Autopilot - Distribute Layer', color: '#10b981', items: [
+    ['Compose', '多模式组合成 Workflow'],
+    ['Share', '一键下发给团队成员'],
+    ['Market', '社区模式市场, 导入最佳实践'],
+    ['Feedback', '执行结果反哺模式优化']
+  ]}
+];
+let activePipe = -1;
+const togglePipe = (idx) => {
+  const panel = document.getElementById('pipeDetail');
+  if (!panel) return;
+  if (activePipe === idx) {
+    panel.style.display = 'none';
+    activePipe = -1;
+    return;
+  }
+  activePipe = idx;
+  const d = pipeData[idx];
+  // clear and rebuild with DOM methods
+  while (panel.firstChild) panel.removeChild(panel.firstChild);
+  const h = document.createElement('h3');
+  h.style.cssText = 'font-size:16px;color:' + d.color + ';margin-bottom:16px';
+  h.textContent = d.title;
+  panel.appendChild(h);
+  const grid = document.createElement('div');
+  grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px';
+  d.items.forEach(([label, desc]) => {
+    const card = document.createElement('div');
+    card.style.cssText = 'background:var(--s1);border-radius:8px;padding:12px';
+    const lbl = document.createElement('div');
+    lbl.style.cssText = 'font-size:11px;color:#555;margin-bottom:4px;font-family:JetBrains Mono,monospace';
+    lbl.textContent = label;
+    const dsc = document.createElement('div');
+    dsc.style.cssText = 'font-size:13px;color:#aaa';
+    dsc.textContent = desc;
+    card.appendChild(lbl);
+    card.appendChild(dsc);
+    grid.appendChild(card);
+  });
+  panel.appendChild(grid);
+  panel.style.display = 'block';
+  panel.style.borderColor = d.color;
+};
+
+// === Event Stream Simulation ===
+const eventTypes = [
+  { source: 'terminal', type: 'command', color: '#38bdf8', examples: ['npm run dev', 'pnpm build', 'pytest -v', 'docker compose up', 'curl localhost:3000'] },
+  { source: 'git', type: 'commit', color: '#34d399', examples: ['feat: add pattern mining', 'fix: timeline render', 'refactor: event store', 'docs: update README', 'chore: bump deps'] },
+  { source: 'openclaw', type: 'chat', color: '#f59e0b', examples: ['explain this error', 'optimize this query', 'review my code', 'suggest test cases', 'help debug crash'] },
+  { source: 'claude', type: 'edit', color: '#a78bfa', examples: ['refactor auth module', 'add error handling', 'extract utility fn', 'fix type errors', 'optimize render'] },
+  { source: 'env', type: 'system', color: '#f87171', examples: ['CPU: 45%', 'Memory: 2.1GB', 'Node v20.11', 'macOS 14.2', 'VSCode 1.85'] }
+];
+let eventCount = 0;
+const addEvent = (evt) => {
+  const stream = document.getElementById('eventStream');
+  if (!stream) return;
+  eventCount++;
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--s1);border-radius:8px;margin-bottom:6px;animation:fadeIn .3s ease;border-left:3px solid ' + evt.color;
+  const badge = document.createElement('span');
+  badge.style.cssText = 'font-size:11px;padding:2px 8px;border-radius:4px;font-family:JetBrains Mono,monospace;background:' + evt.color + '15;color:' + evt.color;
+  badge.textContent = evt.source;
+  const txt = document.createElement('span');
+  txt.style.cssText = 'flex:1;font-size:13px;color:#ccc';
+  txt.textContent = evt.example;
+  const ts = document.createElement('span');
+  ts.style.cssText = 'font-size:11px;color:#444;font-family:JetBrains Mono,monospace';
+  const now = new Date();
+  ts.textContent = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0') + ':' + now.getSeconds().toString().padStart(2,'0');
+  row.appendChild(badge);
+  row.appendChild(txt);
+  row.appendChild(ts);
+  stream.insertBefore(row, stream.firstChild);
+  if (stream.children.length > 15) stream.removeChild(stream.lastChild);
+};
+const addRandomEvent = () => {
+  const et = eventTypes[Math.floor(Math.random() * eventTypes.length)];
+  addEvent({ source: et.source, color: et.color, example: et.examples[Math.floor(Math.random() * et.examples.length)] });
+};
+// auto-generate initial events
+for (let i = 0; i < 6; i++) setTimeout(() => addRandomEvent(), i * 300);
+// auto stream
+setInterval(addRandomEvent, 3000);
+
+// === Pattern Mining Results ===
+const patterns = [
+  { name: 'Morning Review Flow', confidence: 92, type: 'sequence', steps: ['git pull', 'code review', 'comment PR', 'approve merge'], color: '#7c5cfc' },
+  { name: 'TDD Cycle', confidence: 87, type: 'sequence', steps: ['write test', 'run test (fail)', 'implement', 'run test (pass)'], color: '#34d399' },
+  { name: 'Deep Focus Block', confidence: 78, type: 'time', steps: ['14:00 start', 'no context switch', 'single file edit', '17:00 commit'], color: '#f59e0b' },
+  { name: 'AI-Assisted Debug', confidence: 85, type: 'correlation', steps: ['error log', 'openclaw chat', 'code fix', 'test pass'], color: '#a78bfa' },
+  { name: 'Deploy Pipeline', confidence: 91, type: 'sequence', steps: ['git push', 'CI pass', 'docker build', 'deploy staging'], color: '#10b981' }
+];
+const renderPatterns = () => {
+  const container = document.getElementById('patternResults');
+  if (!container) return;
+  while (container.firstChild) container.removeChild(container.firstChild);
+  patterns.forEach(p => {
+    const card = document.createElement('div');
+    card.style.cssText = 'background:var(--s1);border-radius:10px;padding:16px;margin-bottom:10px;border-left:3px solid ' + p.color;
+    // header row
+    const header = document.createElement('div');
+    header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:10px';
+    const left = document.createElement('div');
+    const name = document.createElement('div');
+    name.style.cssText = 'font-size:14px;font-weight:600;color:#fff';
+    name.textContent = p.name;
+    const typeBadge = document.createElement('span');
+    typeBadge.style.cssText = 'font-size:11px;color:#666;font-family:JetBrains Mono,monospace';
+    typeBadge.textContent = p.type;
+    left.appendChild(name);
+    left.appendChild(typeBadge);
+    const confBadge = document.createElement('div');
+    confBadge.style.cssText = 'font-size:13px;font-weight:600;color:' + p.color;
+    confBadge.textContent = p.confidence + '%';
+    header.appendChild(left);
+    header.appendChild(confBadge);
+    card.appendChild(header);
+    // confidence bar
+    const barBg = document.createElement('div');
+    barBg.style.cssText = 'height:4px;background:var(--s3);border-radius:2px;margin-bottom:10px';
+    const barFill = document.createElement('div');
+    barFill.style.cssText = 'height:100%;border-radius:2px;background:' + p.color + ';width:' + p.confidence + '%;transition:width 1s ease';
+    barBg.appendChild(barFill);
+    card.appendChild(barBg);
+    // steps
+    const stepsRow = document.createElement('div');
+    stepsRow.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap';
+    p.steps.forEach((s, i) => {
+      const chip = document.createElement('span');
+      chip.style.cssText = 'font-size:12px;padding:3px 10px;border-radius:6px;background:' + p.color + '15;color:' + p.color;
+      chip.textContent = s;
+      stepsRow.appendChild(chip);
+      if (i < p.steps.length - 1) {
+        const arrow = document.createElement('span');
+        arrow.style.cssText = 'color:#444;font-size:12px;line-height:26px';
+        arrow.textContent = '\u2192';
+        stepsRow.appendChild(arrow);
+      }
+    });
+    card.appendChild(stepsRow);
+    container.appendChild(card);
+  });
+};
+
+// === Workflow Demo ===
+const renderWorkflow = () => {
+  const container = document.getElementById('workflowDemo');
+  if (!container) return;
+  while (container.firstChild) container.removeChild(container.firstChild);
+  const wf = {
+    name: 'Morning Standup Workflow',
+    desc: 'Autopilot 自动组合 3 个行为模式生成的团队工作流',
+    steps: [
+      { label: 'git pull --rebase', source: 'git', color: '#34d399' },
+      { label: 'review open PRs', source: 'openclaw', color: '#f59e0b' },
+      { label: 'run test suite', source: 'terminal', color: '#38bdf8' },
+      { label: 'update standup notes', source: 'claude', color: '#a78bfa' },
+      { label: 'push & notify team', source: 'git', color: '#34d399' }
+    ],
+    patterns: ['Morning Review Flow', 'TDD Cycle'],
+    confidence: 94
+  };
+  // workflow card
+  const card = document.createElement('div');
+  card.style.cssText = 'background:var(--s1);border-radius:12px;padding:24px;border:1px solid var(--s3)';
+  const title = document.createElement('div');
+  title.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:16px';
+  const tl = document.createElement('div');
+  const tn = document.createElement('h3');
+  tn.style.cssText = 'font-size:16px;color:#fff;margin-bottom:4px';
+  tn.textContent = wf.name;
+  const td = document.createElement('p');
+  td.style.cssText = 'font-size:13px;color:#666';
+  td.textContent = wf.desc;
+  tl.appendChild(tn);
+  tl.appendChild(td);
+  const confBox = document.createElement('div');
+  confBox.style.cssText = 'text-align:right';
+  const confNum = document.createElement('div');
+  confNum.style.cssText = 'font-size:24px;font-weight:700;color:var(--success)';
+  confNum.textContent = wf.confidence + '%';
+  const confLabel = document.createElement('div');
+  confLabel.style.cssText = 'font-size:11px;color:#555';
+  confLabel.textContent = 'confidence';
+  confBox.appendChild(confNum);
+  confBox.appendChild(confLabel);
+  title.appendChild(tl);
+  title.appendChild(confBox);
+  card.appendChild(title);
+  // steps flow
+  const flow = document.createElement('div');
+  flow.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px';
+  wf.steps.forEach((s, i) => {
+    const step = document.createElement('div');
+    step.style.cssText = 'display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;background:' + s.color + '12;border:1px solid ' + s.color + '30';
+    const dot = document.createElement('div');
+    dot.style.cssText = 'width:6px;height:6px;border-radius:50%;background:' + s.color;
+    const lbl = document.createElement('span');
+    lbl.style.cssText = 'font-size:13px;color:' + s.color;
+    lbl.textContent = s.label;
+    const src = document.createElement('span');
+    src.style.cssText = 'font-size:10px;color:#555;font-family:JetBrains Mono,monospace';
+    src.textContent = s.source;
+    step.appendChild(dot);
+    step.appendChild(lbl);
+    step.appendChild(src);
+    flow.appendChild(step);
+    if (i < wf.steps.length - 1) {
+      const arrow = document.createElement('span');
+      arrow.style.cssText = 'color:#444;font-size:16px';
+      arrow.textContent = '\u2192';
+      flow.appendChild(arrow);
+    }
+  });
+  card.appendChild(flow);
+  // source patterns
+  const srcRow = document.createElement('div');
+  srcRow.style.cssText = 'display:flex;gap:8px;align-items:center';
+  const srcLabel = document.createElement('span');
+  srcLabel.style.cssText = 'font-size:12px;color:#555';
+  srcLabel.textContent = 'Source Patterns:';
+  srcRow.appendChild(srcLabel);
+  wf.patterns.forEach(pn => {
+    const chip = document.createElement('span');
+    chip.style.cssText = 'font-size:12px;padding:3px 10px;border-radius:6px;background:var(--accent-dim);color:var(--accent-g)';
+    chip.textContent = pn;
+    srcRow.appendChild(chip);
+  });
+  card.appendChild(srcRow);
+  container.appendChild(card);
+};
+
+// === Demo Tab Switching ===
+const switchDemo = (idx) => {
+  document.querySelectorAll('.demo-tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+  document.querySelectorAll('.demo-panel').forEach((p, i) => p.classList.toggle('active', i === idx));
+  if (idx === 1) renderPatterns();
+  if (idx === 2) renderWorkflow();
+};
+
+// === Gallery ===
+let galleryIdx = 0;
+const slides = document.querySelectorAll('.gallery-slide');
+const totalSlides = slides.length;
+const galleryGo = (idx) => {
+  galleryIdx = ((idx % totalSlides) + totalSlides) % totalSlides;
+  const track = document.getElementById('galleryTrack');
+  if (track) track.style.transform = 'translateX(-' + (galleryIdx * 100) + '%)';
+  document.querySelectorAll('.gallery-dot').forEach((d, i) => d.classList.toggle('active', i === galleryIdx));
+};
+const galleryNext = () => galleryGo(galleryIdx + 1);
+const galleryPrev = () => galleryGo(galleryIdx - 1);
+// build dots
+const navDots = document.getElementById('galleryNav');
+if (navDots) {
+  for (let i = 0; i < totalSlides; i++) {
+    const dot = document.createElement('button');
+    dot.className = 'gallery-dot' + (i === 0 ? ' active' : '');
+    dot.onclick = () => galleryGo(i);
+    navDots.appendChild(dot);
+  }
+}
+// auto-play
+let galleryTimer = setInterval(galleryNext, 5000);
+const gallery = document.getElementById('gallery');
+if (gallery) {
+  gallery.addEventListener('mouseenter', () => clearInterval(galleryTimer));
+  gallery.addEventListener('mouseleave', () => { galleryTimer = setInterval(galleryNext, 5000); });
+}
+// keyboard
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft') galleryPrev();
+  if (e.key === 'ArrowRight') galleryNext();
+});
+
+// === Nav active highlight ===
+const sections = document.querySelectorAll('section[id]');
+const navLinks = document.querySelectorAll('#navLinks a');
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(s => {
+    if (window.scrollY >= s.offsetTop - 200) current = s.id;
+  });
+  navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + current));
+});
+
+// === fadeIn keyframe ===
+const style = document.createElement('style');
+style.textContent = '@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}';
+document.head.appendChild(style);
+</script>
+</body>
+</html>

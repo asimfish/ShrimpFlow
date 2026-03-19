@@ -1,12 +1,23 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 
+import type { StatsOverview, BehaviorPattern } from '@/types'
 import { useEventsStore } from '@/stores/events'
 import { useSkillsStore } from '@/stores/skills'
-import { mockStats, mockPatterns } from '@/mock/data'
+import { getStatsApi } from '@/http_api/stats'
+import { getPatternsApi } from '@/http_api/patterns'
 
 const eventsStore = useEventsStore()
 const skillsStore = useSkillsStore()
+
+const stats = ref<StatsOverview | null>(null)
+const patterns = ref<BehaviorPattern[]>([])
+
+onMounted(async () => {
+  const [sRes, pRes] = await Promise.all([getStatsApi(), getPatternsApi()])
+  if (sRes.data) stats.value = sRes.data
+  if (pRes.data) patterns.value = pRes.data
+})
 
 const now = Math.floor(Date.now() / 1000)
 const DAY = 86400
@@ -110,21 +121,21 @@ const weekComparison = computed(() => {
           <div class="flex items-center gap-3 mt-3">
             <span class="text-xs px-2.5 py-1 rounded-full bg-accent/15 text-accent">{{ devType.primary }}</span>
             <span class="text-xs px-2.5 py-1 rounded-full bg-openclaw/15 text-openclaw">AI 依赖度 {{ aiDependency }}%</span>
-            <span class="text-xs px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400">连续活跃 {{ mockStats.streak_days }} 天</span>
+            <span class="text-xs px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400">连续活跃 {{ stats?.streak_days }} 天</span>
           </div>
         </div>
         <!-- 统计 -->
         <div class="flex gap-6 text-center">
           <div>
-            <div class="text-2xl font-bold">{{ mockStats.total_events.toLocaleString() }}</div>
+            <div class="text-2xl font-bold">{{ stats?.total_events.toLocaleString() }}</div>
             <div class="text-[10px] text-gray-500 mt-0.5">总事件</div>
           </div>
           <div>
-            <div class="text-2xl font-bold text-openclaw">{{ mockStats.total_openclaw_sessions }}</div>
+            <div class="text-2xl font-bold text-openclaw">{{ stats?.total_openclaw_sessions }}</div>
             <div class="text-[10px] text-gray-500 mt-0.5">AI 交互</div>
           </div>
           <div>
-            <div class="text-2xl font-bold">{{ mockStats.total_skills }}</div>
+            <div class="text-2xl font-bold">{{ stats?.total_skills }}</div>
             <div class="text-[10px] text-gray-500 mt-0.5">技能</div>
           </div>
         </div>
@@ -259,7 +270,7 @@ const weekComparison = computed(() => {
     <div class="bg-surface-1 rounded-xl border border-surface-3 p-5">
       <div class="text-sm font-medium mb-4">核心行为模式</div>
       <div class="grid grid-cols-2 gap-3">
-        <div v-for="p in mockPatterns.filter(p => p.confidence >= 70).slice(0, 6)" :key="p.id"
+        <div v-for="p in patterns.filter(p => p.confidence >= 70).slice(0, 6)" :key="p.id"
           class="bg-surface-2 rounded-lg p-3 border border-surface-3"
         >
           <div class="flex items-center justify-between mb-1.5">

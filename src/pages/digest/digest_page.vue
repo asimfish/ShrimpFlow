@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
+import type { BehaviorPattern } from '@/types'
 import { useEventsStore } from '@/stores/events'
 import { useDigestStore } from '@/stores/digest'
 import { useOpenClawStore } from '@/stores/openclaw'
 import { useSkillsStore } from '@/stores/skills'
-import { mockPatterns } from '@/mock/data'
+import { getPatternsApi } from '@/http_api/patterns'
 import { dayjs } from '@/libs/dayjs'
 
 const router = useRouter()
@@ -14,6 +15,13 @@ const eventsStore = useEventsStore()
 const digestStore = useDigestStore()
 const openclawStore = useOpenClawStore()
 const skillsStore = useSkillsStore()
+
+const patterns = ref<BehaviorPattern[]>([])
+
+onMounted(async () => {
+  const pRes = await getPatternsApi()
+  if (pRes.data) patterns.value = pRes.data
+})
 
 const now = Math.floor(Date.now() / 1000)
 const DAY = 86400
@@ -99,7 +107,7 @@ const selectedDayOpenClawSessions = computed(() => {
 
 const dailyPatternProgress = computed(() => {
   if (!selectedDate.value) return []
-  return mockPatterns.filter(p => p.evolution.some(e => e.date === `${selectedDate.value.slice(5, 7)}-${selectedDate.value.slice(8, 10)}`))
+  return patterns.value.filter(p => p.evolution.some(e => e.date === `${selectedDate.value.slice(5, 7)}-${selectedDate.value.slice(8, 10)}`))
     .map(p => {
       const key = `${selectedDate.value.slice(5, 7)}-${selectedDate.value.slice(8, 10)}`
       const snap = p.evolution.find(e => e.date === key)!

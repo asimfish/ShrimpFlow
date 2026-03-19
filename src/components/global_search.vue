@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { useEventsStore } from '@/stores/events'
 import { useSkillsStore } from '@/stores/skills'
-import { mockPatterns, mockSessions } from '@/mock/data'
+import { searchApi } from '@/http_api/search'
 
 const router = useRouter()
-const eventsStore = useEventsStore()
 const skillsStore = useSkillsStore()
 
 const visible = ref(false)
@@ -22,38 +20,37 @@ type SearchResult = {
   action: () => void
 }
 
-const results = computed<SearchResult[]>(() => {
-  const q = query.value.toLowerCase().trim()
-  if (!q) return []
+const results = ref<SearchResult[]>([])
+
+watch(query, async (q) => {
+  const trimmed = q.toLowerCase().trim()
+  if (!trimmed) { results.value = []; return }
+
+  const { data } = await searchApi(trimmed)
+  if (!data) { results.value = []; return }
+
   const out: SearchResult[] = []
 
-  // 搜索会话
-  for (const s of mockSessions) {
-    if (s.title.toLowerCase().includes(q) || s.tags.some(t => t.includes(q))) {
-      out.push({
-        type: 'session', label: s.title, description: `OpenClaw · ${s.project}`,
-        color: 'text-openclaw',
-        action: () => { router.push('/openclaw'); close() },
-      })
-    }
+  for (const s of data.sessions) {
+    out.push({
+      type: 'session', label: s.title, description: `OpenClaw · ${s.category}`,
+      color: 'text-openclaw',
+      action: () => { router.push('/openclaw'); close() },
+    })
     if (out.length >= 12) break
   }
 
-  // 搜索模式
-  for (const p of mockPatterns) {
-    if (p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q)) {
-      out.push({
-        type: 'pattern', label: p.name, description: `置信度 ${p.confidence}%`,
-        color: 'text-purple-400',
-        action: () => { router.push(`/patterns/${p.id}`); close() },
-      })
-    }
+  for (const p of data.patterns) {
+    out.push({
+      type: 'pattern', label: p.name, description: `置信度 ${p.confidence}%`,
+      color: 'text-purple-400',
+      action: () => { router.push(`/patterns/${p.id}`); close() },
+    })
     if (out.length >= 12) break
   }
 
-  // 搜索技能
   for (const s of skillsStore.skills) {
-    if (s.name.toLowerCase().includes(q)) {
+    if (s.name.toLowerCase().includes(trimmed)) {
       out.push({
         type: 'skill', label: s.name, description: `Lv.${s.level}`,
         color: 'text-accent',
@@ -63,11 +60,7 @@ const results = computed<SearchResult[]>(() => {
     if (out.length >= 12) break
   }
 
-  // 搜索事件
-  const matchedEvents = eventsStore.events
-    .filter(e => e.action.toLowerCase().includes(q) || e.semantic.toLowerCase().includes(q))
-    .slice(0, 5)
-  for (const e of matchedEvents) {
+  for (const e of data.events) {
     const sourceColors: Record<string, string> = { openclaw: 'text-openclaw', terminal: 'text-terminal', git: 'text-git', claude_code: 'text-claude', env: 'text-env' }
     out.push({
       type: 'event', label: e.action.slice(0, 60), description: `${e.project} · ${e.source}`,
@@ -77,7 +70,7 @@ const results = computed<SearchResult[]>(() => {
     if (out.length >= 12) break
   }
 
-  return out.slice(0, 10)
+  results.value = out.slice(0, 10)
 })
 
 const close = () => {

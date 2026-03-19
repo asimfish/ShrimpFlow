@@ -1,13 +1,19 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { mockWorkflows, mockPatterns } from '@/mock/data'
-import type { TeamWorkflow } from '@/types'
+import type { BehaviorPattern, TeamWorkflow } from '@/types'
+import { getPatternsApi, getWorkflowsApi } from '@/http_api/patterns'
 
 const router = useRouter()
-const workflows = mockWorkflows
-const patterns = mockPatterns
+const workflows = ref<TeamWorkflow[]>([])
+const patterns = ref<BehaviorPattern[]>([])
+
+onMounted(async () => {
+  const [wRes, pRes] = await Promise.all([getWorkflowsApi(), getPatternsApi()])
+  if (wRes.data) workflows.value = wRes.data
+  if (pRes.data) patterns.value = pRes.data
+})
 
 const selectedPatterns = ref<Set<number>>(new Set())
 const workflowName = ref('')
@@ -35,7 +41,7 @@ const getStepStatus = (wfStatus: string) => {
 }
 
 const getPatternNames = (ids: number[]) =>
-  ids.map(id => patterns.find(p => p.id === id)?.name).filter(Boolean)
+  ids.map(id => patterns.value.find(p => p.id === id)?.name).filter(Boolean)
 
 const togglePattern = (id: number) => {
   if (selectedPatterns.value.has(id)) selectedPatterns.value.delete(id)

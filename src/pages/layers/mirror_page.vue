@@ -1,13 +1,20 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+
+import type { StatsOverview } from '@/types'
+import { getStatsApi } from '@/http_api/stats'
 
 import { useEventsStore } from '@/stores/events'
 import { useSkillsStore } from '@/stores/skills'
-import { mockStats } from '@/mock/data'
 
 const eventsStore = useEventsStore()
 const skillsStore = useSkillsStore()
-const stats = mockStats
+const stats = ref<StatsOverview | null>(null)
+
+onMounted(async () => {
+  const res = await getStatsApi()
+  if (res.data) stats.value = res.data
+})
 
 // 开发者画像数据
 const profile = {
@@ -191,7 +198,7 @@ const codingStats = computed(() => {
         </div>
         <div class="bg-surface-2 rounded-lg p-4">
           <div class="text-xs text-gray-500 mb-1">连续活跃</div>
-          <div class="text-lg font-bold text-[#22d3ee]">{{ stats.streak_days }} 天</div>
+          <div class="text-lg font-bold text-[#22d3ee]">{{ stats?.streak_days }}</div>
         </div>
       </div>
     </div>

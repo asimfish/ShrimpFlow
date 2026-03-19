@@ -2,17 +2,20 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
+import type { StatsOverview, BehaviorPattern } from '@/types'
 import { useEventsStore } from '@/stores/events'
 import { useSkillsStore } from '@/stores/skills'
 import { useOpenClawStore } from '@/stores/openclaw'
-import { mockStats, mockPatterns } from '@/mock/data'
+import { getStatsApi } from '@/http_api/stats'
+import { getPatternsApi } from '@/http_api/patterns'
 
 const router = useRouter()
 const eventsStore = useEventsStore()
 const skillsStore = useSkillsStore()
 const openclawStore = useOpenClawStore()
 
-const stats = mockStats
+const stats = ref<StatsOverview | null>(null)
+const patterns = ref<BehaviorPattern[]>([])
 
 // countUp 数字动画
 const animatedValues = ref({ total_events: 0, total_openclaw_sessions: 0, total_projects: 0, total_skills: 0, streak_days: 0 })
@@ -28,12 +31,17 @@ const animateNumber = (key: keyof typeof animatedValues.value, target: number, d
   requestAnimationFrame(step)
 }
 
-onMounted(() => {
-  animateNumber('total_events', stats.total_events, 1200)
-  animateNumber('total_openclaw_sessions', stats.total_openclaw_sessions, 1000)
-  animateNumber('total_projects', stats.total_projects, 800)
-  animateNumber('total_skills', stats.total_skills, 900)
-  animateNumber('streak_days', stats.streak_days, 700)
+onMounted(async () => {
+  const [sRes, pRes] = await Promise.all([getStatsApi(), getPatternsApi()])
+  if (sRes.data) {
+    stats.value = sRes.data
+    animateNumber('total_events', sRes.data.total_events, 1200)
+    animateNumber('total_openclaw_sessions', sRes.data.total_openclaw_sessions, 1000)
+    animateNumber('total_projects', sRes.data.total_projects, 800)
+    animateNumber('total_skills', sRes.data.total_skills, 900)
+    animateNumber('streak_days', sRes.data.streak_days, 700)
+  }
+  if (pRes.data) patterns.value = pRes.data
 })
 
 const sourceDistribution = computed(() => {
@@ -53,7 +61,7 @@ const recentEvents = computed(() =>
 )
 
 const topPatterns = computed(() =>
-  [...mockPatterns].sort((a, b) => b.confidence - a.confidence).slice(0, 3)
+  [...patterns.value].sort((a, b) => b.confidence - a.confidence).slice(0, 3)
 )
 
 const sourceColor: Record<string, string> = {
@@ -172,7 +180,7 @@ const formatTime = (ts: number) => {
       <div class="bg-surface-1 rounded-xl p-4 border border-surface-3 cursor-pointer glow-card" @click="router.push('/timeline')">
         <div class="text-xs text-gray-400">总事件数</div>
         <div class="text-2xl font-bold mt-1 count-up">{{ animatedValues.total_events.toLocaleString() }}</div>
-        <div class="text-xs text-gray-500 mt-1">跨越 {{ stats.total_days }} 天</div>
+        <div class="text-xs text-gray-500 mt-1">跨越 {{ stats?.total_days }} 天</div>
       </div>
       <div class="bg-surface-1 rounded-xl p-4 border border-surface-3 cursor-pointer glow-card openclaw-pulse" @click="router.push('/openclaw')">
         <div class="text-xs text-openclaw">OpenClaw 会话</div>
@@ -182,7 +190,7 @@ const formatTime = (ts: number) => {
       <div class="bg-surface-1 rounded-xl p-4 border border-surface-3 cursor-pointer glow-card" @click="router.push('/timeline')">
         <div class="text-xs text-gray-400">活跃项目</div>
         <div class="text-2xl font-bold mt-1 count-up">{{ animatedValues.total_projects }}</div>
-        <div class="text-xs text-gray-500 mt-1">最活跃: {{ stats.most_active_project }}</div>
+        <div class="text-xs text-gray-500 mt-1">最活跃: {{ stats?.most_active_project }}</div>
       </div>
       <div class="bg-surface-1 rounded-xl p-4 border border-surface-3 cursor-pointer glow-card" @click="router.push('/skills')">
         <div class="text-xs text-gray-400">技能追踪</div>
@@ -202,7 +210,7 @@ const formatTime = (ts: number) => {
               <div
                 class="h-full rounded-full transition-all"
                 :class="source === 'openclaw' ? 'bg-openclaw' : source === 'terminal' ? 'bg-terminal' : source === 'git' ? 'bg-git' : source === 'claude_code' ? 'bg-claude' : 'bg-env'"
-                :style="{ width: `${(count / stats.total_events) * 100}%` }"
+                :style="{ width: `${(count / (stats?.total_events ?? 1)) * 100}%` }"
               />
             </div>
             <div class="text-xs text-gray-400 w-10 text-right">{{ count }}</div>

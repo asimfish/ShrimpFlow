@@ -1,0 +1,98 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-void: #0a0a0f;
+  --color-surface-1: #12121a;
+  --color-surface-2: #1a1a2e;
+  --color-surface-3: #242438;
+  --color-accent: #7c5cfc;
+  --color-accent-glow: #a78bfa;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-danger: #f87171;
+  --color-info: #38bdf8;
+  --color-openclaw: #f59e0b;
+  --color-terminal: #38bdf8;
+  --color-git: #34d399;
+  --color-claude: #a78bfa;
+  --color-env: #f87171;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: 'Inter', sans-serif;
+}
+
+body {
+  font-family: var(--font-sans);
+}
+
+code, pre, .font-mono {
+  font-family: var(--font-mono);
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-surface-1);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-3);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent);
+}
+
+/* 卡片 hover 光效 */
+.glow-card {
+  transition: all 0.3s ease;
+}
+.glow-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px -8px rgba(124, 92, 252, 0.15);
+}
+
+/* countUp 数字动画 */
+@keyframes count-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.count-up {
+  animation: count-fade-in 0.6s ease-out;
+}
+
+/* 侧边栏选中项辉光 */
+.nav-glow {
+  box-shadow: inset 3px 0 0 var(--color-accent), 0 0 20px -8px rgba(124, 92, 252, 0.3);
+}
+
+/* 按钮 hover 光晕 */
+.btn-glow:hover {
+  box-shadow: 0 0 20px -4px rgba(124, 92, 252, 0.4);
+}
+
+/* 脉冲呼吸动画 */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+  50% { box-shadow: 0 0 12px 4px rgba(245, 158, 11, 0.15); }
+}
+.openclaw-pulse {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* 渐变边框 */
+.gradient-border {
+  position: relative;
+}
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(124, 92, 252, 0.3), rgba(245, 158, 11, 0.3), rgba(52, 211, 153, 0.3));
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}

@@ -35,3 +35,7 @@ server/shrimpflow.db
 
 # Claude
 .claude/settings.local.json
+
+# Large assets (hosted on HuggingFace)
+docs/assets/demo_video.mp4
+docs/assets/shrimpflow_logo.jpg

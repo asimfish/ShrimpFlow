@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OmniStack — AI-Driven Commit Chronicle</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+SC:wght@300;400;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-deep: #0a0e17;
+    --bg-card: #111827;
+    --accent-cyan: #06d6a0;
+    --accent-blue: #118ab2;
+    --accent-yellow: #ffd166;
+    --accent-pink: #ef476f;
+    --accent-purple: #8338ec;
+    --text-primary: #e2e8f0;
+    --text-dim: #64748b;
+    --text-bright: #f8fafc;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    font-family: 'Noto Sans SC', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .grid-bg {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(6, 214, 160, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(6, 214, 160, 0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+
+  .container {
+    position: relative; z-index: 1;
+    max-width: 1200px; margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* ===== HERO ===== */
+  .hero {
+    text-align: center; padding: 60px 0 50px;
+    position: relative;
+  }
+
+  .hero::before {
+    content: ''; position: absolute; top: 20%; left: 50%; transform: translateX(-50%);
+    width: 600px; height: 600px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(6, 214, 160, 0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 18px; border-radius: 20px;
+    background: rgba(6, 214, 160, 0.1); border: 1px solid rgba(6, 214, 160, 0.25);
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    color: var(--accent-cyan); letter-spacing: 1px; text-transform: uppercase;
+    margin-bottom: 28px;
+    animation: fadeSlideDown 0.8s ease-out;
+  }
+
+  .hero-badge .dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--accent-cyan);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  .hero h1 {
+    font-family: 'Space Mono', monospace; font-size: clamp(36px, 6vw, 72px);
+    font-weight: 700; color: var(--text-bright); line-height: 1.1;
+    letter-spacing: -2px;
+    animation: fadeSlideDown 0.8s ease-out 0.1s both;
+  }
+
+  .hero h1 span {
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero .subtitle {
+    font-size: 18px; color: var(--text-dim); margin-top: 16px;
+    font-weight: 300; letter-spacing: 0.5px;
+    animation: fadeSlideDown 0.8s ease-out 0.2s both;
+  }
+
+  .hero .subtitle strong { color: var(--accent-yellow); font-weight: 700; }
+
+  .hero .time-range {
+    font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    color: var(--text-dim); margin-top: 12px;
+    animation: fadeSlideDown 0.8s ease-out 0.3s both;
+  }
+
+  /* ===== STATS GRID ===== */
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+    margin: 48px 0;
+  }
+
+  .stat-card {
+    background: var(--bg-card); border-radius: 16px;
+    padding: 28px 24px; text-align: center;
+    border: 1px solid rgba(255,255,255,0.04);
+    position: relative; overflow: hidden;
+    transition: transform 0.3s, box-shadow 0.3s;
+  }
+
+  .stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+  }
+
+  .stat-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  }
+
+  .stat-card:nth-child(1)::before { background: linear-gradient(90deg, var(--accent-cyan), transparent); }
+  .stat-card:nth-child(2)::before { background: linear-gradient(90deg, var(--accent-blue), transparent); }
+  .stat-card:nth-child(3)::before { background: linear-gradient(90deg, var(--accent-yellow), transparent); }
+  .stat-card:nth-child(4)::before { background: linear-gradient(90deg, var(--accent-pink), transparent); }
+
+  .stat-number {
+    font-family: 'Space Mono', monospace; font-size: 42px; font-weight: 700;
+    line-height: 1;
+  }
+  .stat-card:nth-child(1) .stat-number { color: var(--accent-cyan); }
+  .stat-card:nth-child(2) .stat-number { color: var(--accent-blue); }
+  .stat-card:nth-child(3) .stat-number { color: var(--accent-yellow); }
+  .stat-card:nth-child(4) .stat-number { color: var(--accent-pink); }
+
+  .stat-label { font-size: 13px; color: var(--text-dim); margin-top: 8px; letter-spacing: 0.5px; }
+  .stat-sub { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); margin-top: 4px; opacity: 0.7; }
+
+  /* ===== SECTION HEADER ===== */
+  .section-header {
+    display: flex; align-items: center; gap: 12px;
+    margin: 56px 0 24px; font-family: 'Space Mono', monospace;
+    font-size: 14px; color: var(--text-dim); text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+
+  .section-header::after {
+    content: ''; flex: 1; height: 1px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.08), transparent);
+  }
+
+  /* ===== HEATMAP ===== */
+  .heatmap-container {
+    background: var(--bg-card); border-radius: 16px; padding: 32px;
+    border: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .heatmap-grid {
+    display: grid; grid-template-columns: 80px repeat(24, 1fr); gap: 3px;
+    align-items: center;
+  }
+
+  .heatmap-day-label {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--text-dim); text-align: right; padding-right: 12px;
+  }
+
+  .heatmap-hour-labels {
+    display: grid; grid-template-columns: 80px repeat(24, 1fr); gap: 3px;
+    margin-bottom: 6px;
+  }
+
+  .heatmap-hour-label {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px;
+    color: var(--text-dim); text-align: center; opacity: 0.6;
+  }
+
+  .heatmap-cell {
+    aspect-ratio: 1; border-radius: 3px;
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: default; position: relative;
+  }
+
+  .heatmap-cell:hover {
+    transform: scale(1.5); z-index: 2;
+    box-shadow: 0 0 12px rgba(6, 214, 160, 0.4);
+  }
+
+  .heatmap-cell .tooltip {
+    display: none; position: absolute; bottom: calc(100% + 8px); left: 50%;
+    transform: translateX(-50%); background: #1e293b; color: var(--text-bright);
+    font-size: 11px; padding: 4px 10px; border-radius: 6px; white-space: nowrap;
+    font-family: 'JetBrains Mono', monospace;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4); z-index: 10;
+  }
+
+  .heatmap-cell:hover .tooltip { display: block; }
+
+  /* ===== TYPE CHART ===== */
+  .type-chart {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+    margin-top: 8px;
+  }
+
+  .type-card {
+    background: var(--bg-card); border-radius: 16px; padding: 28px;
+    border: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .type-bar-group { margin-top: 20px; }
+
+  .type-bar-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+
+  .type-bar-label {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    color: var(--text-dim); width: 80px; text-align: right;
+  }
+
+  .type-bar-track {
+    flex: 1; height: 24px; background: rgba(255,255,255,0.03);
+    border-radius: 6px; overflow: hidden;
+  }
+
+  .type-bar-fill {
+    height: 100%; border-radius: 6px;
+    transition: width 1.5s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex; align-items: center; padding-left: 10px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--bg-deep);
+    font-weight: 700;
+  }
+
+  /* ===== DONUT ===== */
+  .donut-container {
+    display: flex; justify-content: center; align-items: center;
+    gap: 32px; padding: 16px 0;
+  }
+
+  .donut-legend { display: flex; flex-direction: column; gap: 8px; }
+
+  .legend-item {
+    display: flex; align-items: center; gap: 8px;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+  /* ===== ITERATION FLOW ===== */
+  .iter-flow {
+    background: var(--bg-card); border-radius: 16px; padding: 32px;
+    border: 1px solid rgba(255,255,255,0.04);
+    overflow-x: auto;
+  }
+
+  .iter-flow-track {
+    display: flex; gap: 4px; align-items: flex-end;
+    min-width: max-content; height: 200px;
+    padding-bottom: 28px; position: relative;
+  }
+
+  .iter-flow-track::after {
+    content: ''; position: absolute; bottom: 24px; left: 0; right: 0;
+    height: 1px; background: rgba(255,255,255,0.06);
+  }
+
+  .iter-bar-group {
+    display: flex; flex-direction: column; align-items: center;
+    position: relative;
+  }
+
+  .iter-bar {
+    width: 28px; border-radius: 4px 4px 0 0;
+    transition: height 1s cubic-bezier(0.16, 1, 0.3, 1);
+    cursor: default;
+  }
+
+  .iter-bar:hover { opacity: 0.8; }
+
+  .iter-bar-label {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px;
+    color: var(--text-dim); position: absolute; bottom: 0;
+    left: 50%; transform: translateX(-50%);
+  }
+
+  /* ===== TIMELINE ===== */
+  .timeline { position: relative; padding-left: 40px; }
+
+  .timeline::before {
+    content: ''; position: absolute; left: 16px; top: 0; bottom: 0;
+    width: 2px; background: linear-gradient(to bottom, var(--accent-cyan), var(--accent-blue), var(--accent-purple), transparent);
+  }
+
+  .timeline-group {
+    margin-bottom: 36px; position: relative;
+    animation: fadeSlideLeft 0.6s ease-out both;
+  }
+
+  .timeline-group::before {
+    content: ''; position: absolute; left: -28px; top: 8px;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--accent-cyan); border: 2px solid var(--bg-deep);
+    box-shadow: 0 0 12px rgba(6, 214, 160, 0.4);
+  }
+
+  .timeline-date {
+    font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    color: var(--accent-cyan); margin-bottom: 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .timeline-date .count-badge {
+    background: rgba(6, 214, 160, 0.12); padding: 2px 10px;
+    border-radius: 10px; font-size: 11px; color: var(--accent-cyan);
+  }
+
+  .iteration-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+
+  .iter-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    border: 1px solid rgba(255,255,255,0.06);
+    transition: all 0.2s;
+  }
+
+  .iter-chip:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  }
+
+  .iter-chip.feat { background: rgba(6, 214, 160, 0.1); color: var(--accent-cyan); border-color: rgba(6, 214, 160, 0.2); }
+  .iter-chip.test { background: rgba(17, 138, 178, 0.1); color: var(--accent-blue); border-color: rgba(17, 138, 178, 0.2); }
+  .iter-chip.docs { background: rgba(255, 209, 102, 0.1); color: var(--accent-yellow); border-color: rgba(255, 209, 102, 0.2); }
+  .iter-chip.fix { background: rgba(239, 71, 111, 0.1); color: var(--accent-pink); border-color: rgba(239, 71, 111, 0.2); }
+  .iter-chip.refactor { background: rgba(131, 56, 236, 0.1); color: var(--accent-purple); border-color: rgba(131, 56, 236, 0.2); }
+
+  /* ===== CALL TO ACTION ===== */
+  .cta-banner {
+    margin-top: 56px; padding: 40px; border-radius: 16px;
+    background: linear-gradient(135deg, rgba(6, 214, 160, 0.08), rgba(17, 138, 178, 0.08));
+    border: 1px solid rgba(6, 214, 160, 0.15);
+    text-align: center; position: relative; overflow: hidden;
+  }
+
+  .cta-banner::before {
+    content: ''; position: absolute; top: -50%; right: -20%; width: 300px; height: 300px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(6, 214, 160, 0.06), transparent);
+    pointer-events: none;
+  }
+
+  .cta-banner h2 {
+    font-family: 'Space Mono', monospace; font-size: 24px;
+    color: var(--text-bright); margin-bottom: 12px;
+  }
+
+  .cta-banner h2 em {
+    font-style: normal;
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-yellow));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .cta-banner p {
+    color: var(--text-dim); font-size: 14px; line-height: 1.8;
+    max-width: 600px; margin: 0 auto;
+  }
+
+  .cta-banner .metric-row {
+    display: flex; justify-content: center; gap: 40px; margin-top: 24px;
+  }
+
+  .cta-metric {
+    text-align: center;
+  }
+
+  .cta-metric .val {
+    font-family: 'Space Mono', monospace; font-size: 28px;
+    font-weight: 700; color: var(--accent-cyan);
+  }
+
+  .cta-metric .lbl {
+    font-size: 11px; color: var(--text-dim); margin-top: 4px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ===== FOOTER ===== */
+  .footer {
+    text-align: center; margin-top: 64px; padding: 32px 0;
+    border-top: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .footer p {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .footer .logo-text {
+    font-family: 'Space Mono', monospace; font-size: 16px;
+    font-weight: 700; color: var(--accent-cyan); margin-bottom: 8px;
+  }
+
+  /* ===== ANIMATIONS ===== */
+  @keyframes fadeSlideDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeSlideLeft {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.5); }
+  }
+
+  .animate-in { animation: fadeSlideDown 0.6s ease-out both; }
+
+  @media (max-width: 768px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .type-chart { grid-template-columns: 1fr; }
+    .hero h1 { letter-spacing: -1px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+
+<div class="container">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-badge"><span class="dot"></span> AI-Autonomous Development</div>
+    <h1><span>OmniStack</span><br>Commit Chronicle</h1>
+    <p class="subtitle">32 轮迭代 &middot; <strong>118 次提交</strong> &middot; 全程 AI 自动驱动</p>
+    <p class="time-range">2026-03-17 20:13 → 2026-03-19 18:03 &nbsp;|&nbsp; ~46 小时持续进化</p>
+  </section>
+
+  <!-- STATS -->
+  <div class="stats-grid">
+    <div class="stat-card animate-in" style="animation-delay:0.1s">
+      <div class="stat-number" data-target="118">0</div>
+      <div class="stat-label">总提交数</div>
+      <div class="stat-sub">~2.6 commits / hour</div>
+    </div>
+    <div class="stat-card animate-in" style="animation-delay:0.2s">
+      <div class="stat-number" data-target="32">0</div>
+      <div class="stat-label">迭代轮次</div>
+      <div class="stat-sub">feat + test + docs 三合一</div>
+    </div>
+    <div class="stat-card animate-in" style="animation-delay:0.3s">
+      <div class="stat-number" data-target="142" data-suffix="K">0</div>
+      <div class="stat-label">新增代码行</div>
+      <div class="stat-sub">+142,493 insertions</div>
+    </div>
+    <div class="stat-card animate-in" style="animation-delay:0.4s">
+      <div class="stat-number" data-target="97" data-suffix="K">0</div>
+      <div class="stat-label">重构删除行</div>
+      <div class="stat-sub">-97,398 deletions</div>
+    </div>
+  </div>
+
+  <!-- HEATMAP -->
+  <div class="section-header">Commit Heatmap — 提交热力图</div>
+  <div class="heatmap-container">
+    <div class="heatmap-hour-labels">
+      <div></div>
+      <div class="heatmap-hour-label">0</div><div class="heatmap-hour-label">1</div>
+      <div class="heatmap-hour-label">2</div><div class="heatmap-hour-label">3</div>
+      <div class="heatmap-hour-label">4</div><div class="heatmap-hour-label">5</div>
+      <div class="heatmap-hour-label">6</div><div class="heatmap-hour-label">7</div>
+      <div class="heatmap-hour-label">8</div><div class="heatmap-hour-label">9</div>
+      <div class="heatmap-hour-label">10</div><div class="heatmap-hour-label">11</div>
+      <div class="heatmap-hour-label">12</div><div class="heatmap-hour-label">13</div>
+      <div class="heatmap-hour-label">14</div><div class="heatmap-hour-label">15</div>
+      <div class="heatmap-hour-label">16</div><div class="heatmap-hour-label">17</div>
+      <div class="heatmap-hour-label">18</div><div class="heatmap-hour-label">19</div>
+      <div class="heatmap-hour-label">20</div><div class="heatmap-hour-label">21</div>
+      <div class="heatmap-hour-label">22</div><div class="heatmap-hour-label">23</div>
+    </div>
+    <div class="heatmap-grid" id="heatmapGrid"></div>
+  </div>
+
+  <!-- TYPE & DONUT -->
+  <div class="section-header">Commit Taxonomy — 提交分类</div>
+  <div class="type-chart">
+    <div class="type-card">
+      <h3 style="font-family:'Space Mono',monospace;font-size:14px;color:var(--text-bright);margin-bottom:4px;">Type Distribution</h3>
+      <p style="font-size:12px;color:var(--text-dim)">每次提交的类型分布</p>
+      <div class="type-bar-group">
+        <div class="type-bar-row">
+          <span class="type-bar-label">feat</span>
+          <div class="type-bar-track"><div class="type-bar-fill" style="width:0%;background:var(--accent-cyan)" data-width="100%">43</div></div>
+        </div>
+        <div class="type-bar-row">
+          <span class="type-bar-label">docs</span>
+          <div class="type-bar-track"><div class="type-bar-fill" style="width:0%;background:var(--accent-yellow)" data-width="42%">18</div></div>
+        </div>
+        <div class="type-bar-row">
+          <span class="type-bar-label">test</span>
+          <div class="type-bar-track"><div class="type-bar-fill" style="width:0%;background:var(--accent-blue)" data-width="40%">17</div></div>
+        </div>
+        <div class="type-bar-row">
+          <span class="type-bar-label">refactor</span>
+          <div class="type-bar-track"><div class="type-bar-fill" style="width:0%;background:var(--accent-purple)" data-width="16%">7</div></div>
+        </div>
+        <div class="type-bar-row">
+          <span class="type-bar-label">fix</span>
+          <div class="type-bar-track"><div class="type-bar-fill" style="width:0%;background:var(--accent-pink)" data-width="14%">6</div></div>
+        </div>
+        <div class="type-bar-row">
+          <span class="type-bar-label">other</span>
+          <div class="type-bar-track"><div class="type-bar-fill" style="width:0%;background:var(--text-dim)" data-width="7%">3</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="type-card">
+      <h3 style="font-family:'Space Mono',monospace;font-size:14px;color:var(--text-bright);margin-bottom:4px;">Iteration Rhythm</h3>
+      <p style="font-size:12px;color:var(--text-dim)">每轮迭代的标准交付模式</p>
+      <div class="donut-container">
+        <svg width="160" height="160" viewBox="0 0 160 160">
+          <circle cx="80" cy="80" r="60" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="20"/>
+          <circle cx="80" cy="80" r="60" fill="none" stroke="var(--accent-cyan)" stroke-width="20"
+            stroke-dasharray="137 240" stroke-dashoffset="0" transform="rotate(-90 80 80)"/>
+          <circle cx="80" cy="80" r="60" fill="none" stroke="var(--accent-blue)" stroke-width="20"
+            stroke-dasharray="57 320" stroke-dashoffset="-137" transform="rotate(-90 80 80)"/>
+          <circle cx="80" cy="80" r="60" fill="none" stroke="var(--accent-yellow)" stroke-width="20"
+            stroke-dasharray="57 320" stroke-dashoffset="-194" transform="rotate(-90 80 80)"/>
+          <circle cx="80" cy="80" r="60" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="20"
+            stroke-dasharray="126 252" stroke-dashoffset="-251" transform="rotate(-90 80 80)"/>
+          <text x="80" y="74" text-anchor="middle" fill="var(--text-bright)" font-family="Space Mono,monospace" font-size="22" font-weight="700">3</text>
+          <text x="80" y="92" text-anchor="middle" fill="var(--text-dim)" font-family="JetBrains Mono,monospace" font-size="10">per iteration</text>
+        </svg>
+        <div class="donut-legend">
+          <div class="legend-item"><span class="legend-dot" style="background:var(--accent-cyan)"></span> feat — 功能实现</div>
+          <div class="legend-item"><span class="legend-dot" style="background:var(--accent-blue)"></span> test — 测试覆盖</div>
+          <div class="legend-item"><span class="legend-dot" style="background:var(--accent-yellow)"></span> docs — 文档归档</div>
+          <div class="legend-item" style="margin-top:8px;opacity:0.6"><span class="legend-dot" style="background:rgba(255,255,255,0.2)"></span> + fix / refactor / chore</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ITERATION FLOW -->
+  <div class="section-header">Iteration Flow — 迭代节奏</div>
+  <div class="iter-flow">
+    <div class="iter-flow-track" id="iterFlow"></div>
+  </div>
+
+  <!-- COMMIT TIMELINE -->
+  <div class="section-header">Commit Timeline — 提交时间线（精选）</div>
+  <div class="timeline" id="timeline"></div>
+
+  <!-- CTA BANNER -->
+  <div class="cta-banner">
+    <h2>AI × 人类 = <em>无限进化</em></h2>
+    <p>
+      这不只是代码提交记录，这是一场 AI 驱动的 46 小时马拉松。<br>
+      从项目初始化到 32 轮迭代，每一轮都包含功能实现、测试覆盖、文档归档。<br>
+      全自动、高质量、持续进化。
+    </p>
+    <div class="metric-row">
+      <div class="cta-metric">
+        <div class="val">46h</div>
+        <div class="lbl">持续开发</div>
+      </div>
+      <div class="cta-metric">
+        <div class="val">2.6/h</div>
+        <div class="lbl">提交频率</div>
+      </div>
+      <div class="cta-metric">
+        <div class="val">45K</div>
+        <div class="lbl">净增代码行</div>
+      </div>
+      <div class="cta-metric">
+        <div class="val">0</div>
+        <div class="lbl">人工干预</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="logo-text">OmniStack</div>
+    <p>全栈机器人学习框架 — Powered by AI-Driven Iterative Development</p>
+    <p style="margin-top:8px;opacity:0.5">Generated from git log · 2026-03-20</p>
+  </div>
+
+</div>
+
+<script>
+const heatmapData = {
+  '2026-03-17': {20:9, 22:2, 23:4},
+  '2026-03-18': {0:2, 1:2, 2:1, 9:2, 10:2, 11:6, 12:2, 13:2, 16:5, 17:12, 18:1, 19:1, 20:1, 21:2},
+  '2026-03-19': {0:6, 1:3, 4:3, 9:3, 10:3, 11:6, 12:13, 13:15, 15:7, 18:3}
+};
+
+const dayLabels = ['03-17 Thu', '03-18 Fri', '03-19 Sat'];
+const dayKeys = ['2026-03-17', '2026-03-18', '2026-03-19'];
+const maxVal = 15;
+
+function getHeatColor(val) {
+  if (val === 0) return 'rgba(255,255,255,0.02)';
+  const t = Math.min(val / maxVal, 1);
+  return `rgba(6, ${Math.round(80 + 134 * t)}, ${Math.round(60 + 100 * t)}, ${(0.3 + t * 0.7).toFixed(2)})`;
+}
+
+const grid = document.getElementById('heatmapGrid');
+dayKeys.forEach((dk, di) => {
+  const label = document.createElement('div');
+  label.className = 'heatmap-day-label';
+  label.textContent = dayLabels[di];
+  grid.appendChild(label);
+
+  for (let h = 0; h < 24; h++) {
+    const cell = document.createElement('div');
+    cell.className = 'heatmap-cell';
+    const val = (heatmapData[dk] && heatmapData[dk][h]) || 0;
+    cell.style.background = getHeatColor(val);
+    if (val > 0) {
+      cell.style.boxShadow = `0 0 ${val}px rgba(6, 214, 160, ${(val/maxVal * 0.3).toFixed(2)})`;
+    }
+    const tip = document.createElement('span');
+    tip.className = 'tooltip';
+    tip.textContent = `${dk} ${String(h).padStart(2,'0')}:00 — ${val} commits`;
+    cell.appendChild(tip);
+    grid.appendChild(cell);
+  }
+});
+
+// Iteration flow bars
+const flow = document.getElementById('iterFlow');
+
+for (let i = 1; i <= 15; i++) {
+  const g = document.createElement('div');
+  g.className = 'iter-bar-group'; g.style.opacity = '0.35';
+  const bar = document.createElement('div');
+  bar.className = 'iter-bar';
+  bar.style.height = '0px'; bar.style.width = '16px';
+  bar.style.background = 'var(--text-dim)';
+  bar.dataset.height = '84px';
+  bar.title = `Iter ${i}: ~3 commits (pre-iteration phase)`;
+  g.appendChild(bar);
+  const lbl = document.createElement('div');
+  lbl.className = 'iter-bar-label'; lbl.textContent = i; lbl.style.fontSize = '8px';
+  g.appendChild(lbl);
+  flow.appendChild(g);
+}
+
+const iterData = [
+  {label:'16', commits:3}, {label:'17', commits:3}, {label:'18', commits:3},
+  {label:'19', commits:3}, {label:'20', commits:4}, {label:'21', commits:3},
+  {label:'22', commits:3}, {label:'23', commits:3}, {label:'24', commits:3},
+  {label:'25', commits:3}, {label:'26', commits:3}, {label:'27', commits:3},
+  {label:'28', commits:3}, {label:'29', commits:3}, {label:'30', commits:3},
+  {label:'31', commits:4}, {label:'32', commits:3},
+];
+
+iterData.forEach(d => {
+  const g = document.createElement('div');
+  g.className = 'iter-bar-group';
+  const bar = document.createElement('div');
+  bar.className = 'iter-bar';
+  bar.style.height = '0px';
+  bar.style.background = 'linear-gradient(to top, var(--accent-cyan), var(--accent-blue))';
+  bar.dataset.height = (d.commits * 40) + 'px';
+  bar.title = `Iter ${d.label}: ${d.commits} commits`;
+  g.appendChild(bar);
+  const lbl = document.createElement('div');
+  lbl.className = 'iter-bar-label'; lbl.textContent = d.label;
+  g.appendChild(lbl);
+  flow.appendChild(g);
+});
+
+// Timeline
+const commits = [
+  {date:'03-17', items:[
+    {type:'feat',msg:'Initial project setup + iter 1–4 foundation'},
+    {type:'feat',msg:'Training pipeline configurability + profiler'},
+    {type:'docs',msg:'Git and Python conventions established'},
+  ]},
+  {date:'03-18', items:[
+    {type:'feat',msg:'Phase A training loop + MuJoCo adapter + eval CLI'},
+    {type:'feat',msg:'Experiment tracking, E2E loop, CI'},
+    {type:'feat',msg:'Action alignment, inspector, augmentation, multi-dataset'},
+    {type:'feat',msg:'Structured data schema v2, FieldSelector, DeltaTransform'},
+    {type:'fix', msg:'System reliability hardening (20 issues audit)'},
+    {type:'refactor',msg:'Replace print() with structured logging (×4)'},
+    {type:'feat',msg:'V2 full pipeline — bimanual training E2E verified'},
+    {type:'feat',msg:'iMLE policy + GeneratorDiT1d Transformer'},
+    {type:'feat',msg:'Sweep system + performance optimizations'},
+  ]},
+  {date:'03-19', items:[
+    {type:'feat',msg:'VLA policy, env registry + LIBERO, DDP, lineage v2 (iter16)'},
+    {type:'feat',msg:'VLA language conditioning, eval temporal ensemble (iter17)'},
+    {type:'feat',msg:'RTC guided inference, multi-task training (iter18)'},
+    {type:'feat',msg:'VLA checkpoint, CrossAttentionActionHead (iter19)'},
+    {type:'feat',msg:'KV cache, positional encoding, proprio token (iter20)'},
+    {type:'feat',msg:'Global normalizer, LoRA peft, VLA slim ckpt (iter21–22)'},
+    {type:'feat',msg:'DeltaNorm, RoPE, input validation, WebSocket API (iter23–24)'},
+    {type:'feat',msg:'Eval metrics, action transforms, ObservationBuffer (iter25–27)'},
+    {type:'feat',msg:'Multi-task eval, HTML dashboard, domain rand (iter28–30)'},
+    {type:'fix',msg:'Tech debt payoff — lint zero, mypy CI gate (iter31–32)'},
+    {type:'test',msg:'Merge 15 test files → 6 feature-domain files (iter32)'},
+  ]},
+];
+
+const tl = document.getElementById('timeline');
+commits.forEach((group, gi) => {
+  const div = document.createElement('div');
+  div.className = 'timeline-group';
+  div.style.animationDelay = (gi * 0.15) + 's';
+
+  const dateEl = document.createElement('div');
+  dateEl.className = 'timeline-date';
+  dateEl.innerHTML = `2026-${group.date} <span class="count-badge">${group.items.length} highlights</span>`;
+  div.appendChild(dateEl);
+
+  const row = document.createElement('div');
+  row.className = 'iteration-row';
+  group.items.forEach(item => {
+    const chip = document.createElement('span');
+    chip.className = `iter-chip ${item.type}`;
+    const icons = {feat:'\u25B6', test:'\u2713', docs:'\u25CB', fix:'\u2716', refactor:'\u21BB'};
+    chip.innerHTML = `<span style="font-size:10px">${icons[item.type]||'\u25CF'}</span> ${item.msg}`;
+    row.appendChild(chip);
+  });
+  div.appendChild(row);
+  tl.appendChild(div);
+});
+
+// Animate counters
+function animateCounters() {
+  document.querySelectorAll('.stat-number[data-target]').forEach(el => {
+    const target = parseInt(el.dataset.target);
+    const suffix = el.dataset.suffix || '';
+    const duration = 1500;
+    const start = performance.now();
+    function tick(now) {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      el.textContent = Math.round(target * eased) + suffix;
+      if (progress < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  });
+}
+
+function animateBars() {
+  document.querySelectorAll('.type-bar-fill[data-width]').forEach((el, i) => {
+    setTimeout(() => { el.style.width = el.dataset.width; }, 300 + i * 100);
+  });
+  document.querySelectorAll('.iter-bar[data-height]').forEach((el, i) => {
+    setTimeout(() => { el.style.height = el.dataset.height; }, 200 + i * 40);
+  });
+}
+
+setTimeout(animateCounters, 400);
+setTimeout(animateBars, 600);
+</script>
+</body>
+</html>

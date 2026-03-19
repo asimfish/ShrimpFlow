@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ShrimpFlow — Developer Behavior Digital Twin</title>
-<meta name="description" content="ShrimpFlow: 开发者行为数字孪生平台。Record · Visualize · Learn · Become You. Powered by OpenClaw. OmniStack Team.">
+<meta name="description" content="ShrimpFlow: 开发者行为数字孪生平台。Record · Visualize · Learn · Become You. Powered by OpenClaw. AudaxLab Team.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='13' cy='16' r='9' fill='none' stroke='%237c5cfc' stroke-width='1.5'/><circle cx='19' cy='16' r='9' fill='none' stroke='%23f59e0b' stroke-width='1.5'/><circle cx='16' cy='16' r='4' fill='%237c5cfc'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -35,8 +35,9 @@ a:hover{color:#fff}
   display:flex;align-items:center;justify-content:space-between;transition:all .3s}
 .top-nav.scrolled{background:rgba(10,10,15,.92);box-shadow:0 4px 24px rgba(0,0,0,.4)}
 .nav-left{display:flex;align-items:center;gap:12px}
-.nav-logo{height:32px;border-radius:6px}
-.nav-brand{font-size:16px;font-weight:700;color:#fff}
+.nav-logo{height:32px;filter:drop-shadow(0 0 8px rgba(60,130,246,.3))}
+.nav-brand{font-size:17px;font-weight:800;color:#fff;
+  background:linear-gradient(135deg,#fff,var(--accent-g));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .nav-links{display:flex;gap:24px}
 .nav-links a{font-size:14px;color:#888;font-weight:500;transition:color .2s}
 .nav-links a:hover{color:var(--accent-g)}
@@ -46,38 +47,53 @@ a:hover{color:#fff}
 .nav-github:hover{background:rgba(124,92,252,.2);transform:translateY(-1px)}
 
 /* Hero */
-.hero{min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding-top:80px}
-.hero-content{position:relative;z-index:2}
-.hero-logos{display:flex;align-items:center;justify-content:center;gap:24px;margin-bottom:32px}
-.hero-shrimp-logo{height:80px;filter:drop-shadow(0 4px 24px rgba(124,92,252,.2))}
-.hero h1{font-size:clamp(40px,7vw,72px);font-weight:900;letter-spacing:-2px;
-  background:linear-gradient(135deg,#fff 0%,var(--accent-g) 40%,var(--oc) 100%);
+.hero{min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:100px 32px 60px;
+  background:radial-gradient(ellipse at 50% 30%,rgba(60,130,246,.06) 0%,transparent 60%),radial-gradient(ellipse at 50% 70%,rgba(60,180,248,.04) 0%,transparent 50%)}
+.hero-content{position:relative;z-index:2;max-width:720px}
+.hero-logo-main{margin-bottom:32px}
+.hero-shrimp-logo{height:160px;filter:drop-shadow(0 0 48px rgba(60,130,246,.2)) drop-shadow(0 0 96px rgba(60,180,248,.1));
+  animation:logoFloat 4s ease-in-out infinite}
+@keyframes logoFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.hero-subtitle{font-size:clamp(18px,3vw,24px);font-weight:600;color:#ccc;margin-bottom:28px;letter-spacing:1px}
+.hero-message{max-width:600px;margin:0 auto 28px;text-align:left;padding:24px 28px;
+  background:linear-gradient(145deg,var(--s2),var(--s1));border:1px solid var(--s3);border-radius:16px;
+  border-left:3px solid var(--accent)}
+.hero-message p{font-size:15px;color:#bbb;line-height:1.8;margin-bottom:12px}
+.hero-message p:last-child{margin-bottom:0}
+.hero-msg-dim{font-size:14px;color:#666}
+.hero-msg-highlight{font-size:16px;font-weight:600;color:var(--accent-g)}
+.hero-slogan{font-size:clamp(20px,3.5vw,28px);font-weight:800;margin-bottom:6px;
+  background:linear-gradient(135deg,#fff 0%,var(--accent-g) 50%,var(--oc) 100%);
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.hero .tagline{font-size:clamp(16px,2.5vw,22px);color:#777;margin-top:12px;letter-spacing:3px;font-weight:300}
-.hero .desc{max-width:640px;margin:24px auto 0;font-size:16px;color:#666;line-height:1.8}
-.hero .powered{margin-top:20px;font-size:14px;color:#555}
-.hero .powered span{color:var(--oc);font-weight:600}
-.cta-row{margin-top:36px;display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+.hero-slogan-sub{font-size:14px;color:#666;margin-bottom:36px;letter-spacing:1px}
+.cta-row{margin-bottom:48px;display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+.hero-identity{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap;
+  padding:16px 24px;background:var(--s1);border:1px solid var(--s3);border-radius:12px}
+.hi-row{display:flex;align-items:center;gap:10px;padding:0 20px}
+.hi-team span{font-size:14px;font-weight:600;color:#ddd}
+.hi-academy span{font-size:13px;color:#888}
+.hi-event span{font-size:12px;color:#555}
+.hi-logo-team{height:32px;filter:drop-shadow(0 0 8px rgba(245,100,20,.2))}
+.hi-logo-academy{height:24px;filter:brightness(0) invert(1);opacity:.5}
+.hi-divider{width:1px;height:24px;background:var(--s3);flex-shrink:0}
 .btn{display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:10px;font-size:15px;font-weight:600;
   border:1px solid var(--s3);transition:all .3s;cursor:pointer;font-family:inherit}
-.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
-.btn-primary:hover{background:#6a4ae0;transform:translateY(-2px);box-shadow:0 8px 32px rgba(124,92,252,.35)}
+.btn-primary{background:linear-gradient(135deg,var(--accent),#6a4ae0);border-color:var(--accent);color:#fff}
+.btn-primary:hover{background:linear-gradient(135deg,#6a4ae0,#5535c9);transform:translateY(-2px);box-shadow:0 8px 32px rgba(124,92,252,.4)}
 .btn-ghost{background:transparent;color:var(--accent-g)}
 .btn-ghost:hover{background:var(--accent-dim);transform:translateY(-2px)}
 .btn-oc{background:var(--oc-dim);border-color:rgba(245,158,11,.3);color:var(--oc)}
 .btn-oc:hover{background:rgba(245,158,11,.2);transform:translateY(-2px)}
-.academy-bar{margin-top:48px;display:flex;align-items:center;justify-content:center;gap:16px;opacity:.6}
-.academy-bar img{height:28px;filter:brightness(0) invert(1);opacity:.5}
-.academy-bar span{font-size:13px;color:#555}
 .scroll-hint{position:absolute;bottom:32px;left:50%;transform:translateX(-50%);color:#444;font-size:13px;animation:bounce 2s infinite}
 @keyframes bounce{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(8px)}}
 
 /* Section common */
 .sec{padding:100px 0}
-.sec-title{font-size:clamp(28px,4vw,42px);font-weight:800;text-align:center;margin-bottom:12px;color:#fff}
+.sec-title{font-size:clamp(28px,4vw,42px);font-weight:800;text-align:center;margin-bottom:12px;
+  background:linear-gradient(135deg,#fff 30%,var(--accent-g));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .sec-sub{text-align:center;color:#666;font-size:16px;margin-bottom:56px;max-width:640px;margin-left:auto;margin-right:auto}
 .reveal{opacity:0;transform:translateY(32px);transition:opacity .7s ease,transform .7s ease}
-.reveal.visible{opacity:1;transform:translateY(0)}
+.reveal.revealed{opacity:1;transform:translateY(0)}
 .reveal-d1{transition-delay:.1s}.reveal-d2{transition-delay:.2s}.reveal-d3{transition-delay:.3s}.reveal-d4{transition-delay:.4s}
 
 /* Stats bar */
@@ -90,8 +106,8 @@ a:hover{color:#fff}
 
 /* Pipeline */
 .pipeline-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;position:relative}
-.pipe-card{background:var(--s2);border:1px solid var(--s3);border-radius:16px;padding:28px 24px;position:relative;transition:all .3s;cursor:pointer}
-.pipe-card:hover{transform:translateY(-6px);box-shadow:0 16px 48px rgba(0,0,0,.5)}
+.pipe-card{background:linear-gradient(145deg,var(--s2),var(--s1));border:1px solid var(--s3);border-radius:16px;padding:28px 24px;position:relative;transition:all .3s;cursor:pointer}
+.pipe-card:hover{transform:translateY(-6px);box-shadow:0 16px 48px rgba(0,0,0,.5);border-color:rgba(124,92,252,.3)}
 .pipe-card.active{border-color:var(--accent);box-shadow:0 0 24px rgba(124,92,252,.15)}
 .pipe-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:22px}
 .pipe-card h3{font-size:20px;font-weight:700;margin-bottom:4px}
@@ -104,7 +120,7 @@ a:hover{color:#fff}
 @keyframes slideDown{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
 
 /* Interactive demo */
-.demo-container{background:var(--s1);border:1px solid var(--s3);border-radius:20px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.5)}
+.demo-container{background:var(--s1);border:1px solid var(--s3);border-radius:20px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.5),0 0 0 1px rgba(124,92,252,.05)}
 .demo-toolbar{display:flex;align-items:center;gap:8px;padding:12px 20px;background:var(--s2);border-bottom:1px solid var(--s3)}
 .demo-dot{width:10px;height:10px;border-radius:50%}
 .demo-tabs{display:flex;gap:4px;margin-left:16px}
@@ -137,7 +153,7 @@ a:hover{color:#fff}
 .pattern-arrow-sm{color:#444;font-size:14px}
 
 /* Screenshot gallery */
-.gallery{position:relative;overflow:hidden;border-radius:20px;border:1px solid var(--s3);background:var(--s1)}
+.gallery{position:relative;overflow:hidden;border-radius:20px;border:1px solid var(--s3);background:var(--s1);box-shadow:0 24px 64px rgba(0,0,0,.4)}
 .gallery-track{display:flex;transition:transform .5s cubic-bezier(.4,0,.2,1)}
 .gallery-slide{min-width:100%;position:relative}
 .gallery-slide img{width:100%;display:block;border-radius:0}
@@ -157,8 +173,8 @@ a:hover{color:#fff}
 
 /* Algo */
 .algo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
-.algo-card{background:var(--s2);border:1px solid var(--s3);border-radius:16px;padding:28px;transition:all .3s}
-.algo-card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.4)}
+.algo-card{background:linear-gradient(145deg,var(--s2),var(--s1));border:1px solid var(--s3);border-radius:16px;padding:28px;transition:all .3s}
+.algo-card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.4);border-color:rgba(124,92,252,.25)}
 .algo-card h3{font-size:18px;font-weight:700;margin-bottom:4px}
 .algo-card .algo-en{font-size:12px;color:#555;margin-bottom:14px;font-family:'JetBrains Mono',monospace}
 .algo-card p{font-size:14px;color:#888;line-height:1.7}
@@ -166,7 +182,7 @@ a:hover{color:#fff}
 
 /* Compare */
 .compare-wrap{display:grid;grid-template-columns:1fr auto 1fr;max-width:960px;margin:0 auto;
-  background:var(--s2);border:1px solid var(--s3);border-radius:16px;overflow:hidden}
+  background:linear-gradient(145deg,var(--s2),var(--s1));border:1px solid var(--s3);border-radius:16px;overflow:hidden}
 .compare-col{padding:32px}
 .compare-col h3{font-size:18px;font-weight:700;margin-bottom:16px}
 .compare-col ul{list-style:none;font-size:14px;color:#999;line-height:2.2}
@@ -176,29 +192,80 @@ a:hover{color:#fff}
 
 /* Tech */
 .tech-grid{display:flex;flex-wrap:wrap;gap:16px;justify-content:center}
-.tech-chip{display:flex;align-items:center;gap:10px;padding:14px 24px;background:var(--s2);border:1px solid var(--s3);
+.tech-chip{display:flex;align-items:center;gap:10px;padding:14px 24px;background:linear-gradient(145deg,var(--s2),var(--s1));border:1px solid var(--s3);
   border-radius:12px;font-size:15px;font-weight:500;color:#ccc;transition:all .3s}
-.tech-chip:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.tech-chip:hover{border-color:var(--accent);transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.3),0 0 16px rgba(124,92,252,.1)}
 .tech-chip .tc-icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700}
 
 /* Data flow animation */
 .dataflow{display:flex;align-items:center;gap:0;overflow-x:auto;padding:20px 0}
-.df-node{padding:14px 20px;border-radius:12px;background:var(--s2);border:1px solid var(--s3);text-align:center;
+.df-node{padding:14px 20px;border-radius:12px;background:linear-gradient(145deg,var(--s2),var(--s1));border:1px solid var(--s3);text-align:center;
   min-width:120px;flex-shrink:0;transition:all .3s}
-.df-node:hover{transform:scale(1.05);border-color:var(--accent)}
+.df-node:hover{transform:scale(1.08);border-color:var(--accent);box-shadow:0 4px 16px rgba(0,0,0,.3)}
 .df-node h4{font-size:14px;font-weight:600;margin-bottom:2px}
 .df-node p{font-size:11px;color:#666}
 .df-arrow{padding:0 8px;color:#444;font-size:20px;flex-shrink:0;animation:arrowPulse 2s infinite}
 @keyframes arrowPulse{0%,100%{opacity:.4}50%{opacity:1;color:var(--accent-g)}}
 
 /* Footer */
-.footer{border-top:1px solid var(--s3);padding:48px 0;text-align:center}
-.footer-logos{display:flex;align-items:center;justify-content:center;gap:24px;margin-bottom:24px}
-.footer-logos img{height:32px;opacity:.6;transition:opacity .3s}
-.footer-logos img:hover{opacity:1}
+.footer{border-top:1px solid var(--s3);padding:64px 0;text-align:center;
+  background:linear-gradient(180deg,transparent,rgba(124,92,252,.02))}
+.footer-identity{display:flex;flex-direction:column;align-items:center;gap:16px;margin-bottom:32px}
+.fi-project{margin-bottom:4px}
+.fi-team{display:flex;align-items:center;gap:12px}
+.fi-academy{display:flex;align-items:center;gap:10px}
 .footer p{font-size:14px;color:#555}
 .footer-links{display:flex;gap:24px;justify-content:center;margin-bottom:16px}
 .footer-links a{font-size:14px;color:#666}
+
+/* Showcase: Video + Interactive */
+.showcase-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:48px}
+
+/* ClawProfile */
+.cp-flow{display:flex;align-items:stretch;gap:0;margin-bottom:48px}
+.cp-flow-step{flex:1;text-align:center;padding:20px 16px;background:linear-gradient(145deg,var(--s2),var(--s1));border:1px solid var(--s3);position:relative;transition:all .3s;cursor:pointer}
+.cp-flow-step:first-child{border-radius:16px 0 0 16px}
+.cp-flow-step:last-child{border-radius:0 16px 16px 0}
+.cp-flow-step:hover,.cp-flow-step.active{z-index:2;transform:translateY(-4px);box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.cp-flow-step.active{border-color:var(--accent)}
+.cp-flow-num{width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;margin-bottom:8px}
+.cp-flow-step h4{font-size:14px;font-weight:700;color:#fff;margin-bottom:4px}
+.cp-flow-step p{font-size:11px;color:#666;line-height:1.4}
+.cp-flow-arrow{position:absolute;right:-10px;top:50%;transform:translateY(-50%);z-index:3;color:#444;font-size:16px}
+.cp-viewer{background:linear-gradient(145deg,var(--s2),var(--s1));border:1px solid var(--s3);border-radius:16px;overflow:hidden;min-height:420px}
+.cp-viewer-header{padding:16px 24px;border-bottom:1px solid var(--s3);display:flex;align-items:center;justify-content:space-between}
+.cp-viewer-header h3{font-size:16px;font-weight:700;color:#fff}
+.cp-viewer-body{padding:24px;animation:fadeIn .3s ease}
+.cp-profile-bar{display:flex;align-items:center;gap:20px;padding:20px 24px;background:var(--s1);border:1px solid var(--s3);border-radius:12px;margin-bottom:24px}
+.cp-avatar{width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,var(--accent),var(--oc));display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#fff;flex-shrink:0}
+.cp-meta{flex:1}
+.cp-meta h4{font-size:16px;font-weight:700;color:#fff}
+.cp-meta p{font-size:13px;color:#666}
+.cp-stats-row{display:flex;gap:16px}
+.cp-stat{text-align:center;padding:8px 16px;background:var(--s2);border-radius:8px;border:1px solid var(--s3)}
+.cp-stat .num{font-size:18px;font-weight:800}
+.cp-stat .lbl{font-size:10px;color:#555;margin-top:2px}
+@media(max-width:900px){
+  .cp-flow{flex-direction:column;gap:8px}
+  .cp-flow-step{border-radius:12px}
+  .cp-flow-arrow{display:none}
+  .cp-profile-bar{flex-direction:column;text-align:center}
+  .cp-stats-row{flex-wrap:wrap;justify-content:center}
+}
+.showcase-card{background:linear-gradient(145deg,var(--s2),var(--s1));border:1px solid var(--s3);border-radius:16px;overflow:hidden;transition:all .3s}
+.showcase-card:hover{border-color:rgba(124,92,252,.3);box-shadow:0 12px 40px rgba(0,0,0,.4);transform:translateY(-4px)}
+.showcase-card-full{grid-column:1/-1}
+.showcase-header{padding:20px 24px 0;display:flex;align-items:center;gap:12px}
+.showcase-header .sh-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.showcase-header h3{font-size:16px;font-weight:700;color:#fff}
+.showcase-header p{font-size:13px;color:#666;margin-top:2px}
+.showcase-body{padding:16px 24px 24px}
+.showcase-video{width:100%;border-radius:12px;background:#000;aspect-ratio:16/9}
+.showcase-iframe{width:100%;height:480px;border:none;border-radius:12px;background:var(--void)}
+@media(max-width:900px){
+  .showcase-grid{grid-template-columns:1fr}
+  .showcase-iframe{height:360px}
+}
 
 /* Responsive */
 @media(max-width:900px){
@@ -216,16 +283,21 @@ a:hover{color:#fff}
   .cta-row{flex-direction:column;align-items:center}
   .container{padding:0 16px}
   .sec{padding:64px 0}
-  .hero-shrimp-logo{height:56px}
+  .hero-shrimp-logo{height:100px}
+  .hero-identity{flex-direction:column;gap:12px}
+  .hi-divider{width:40px;height:1px}
+  .fi-team{flex-direction:column;gap:8px}
 }
 </style>
 </head>
 <body>
 
+<canvas id="particles"></canvas>
+
 <!-- Top Navigation -->
 <nav class="top-nav" id="topNav">
   <div class="nav-left">
-    <img src="assets/shrimpflow_logo.jpg" alt="ShrimpFlow" class="nav-logo">
+    <img src="assets/shrimpflow_logo_new.png" alt="ShrimpFlow" class="nav-logo">
     <span class="nav-brand">ShrimpFlow</span>
   </div>
   <div class="nav-links" id="navLinks">
@@ -233,9 +305,11 @@ a:hover{color:#fff}
     <a href="#demo">Live Demo</a>
     <a href="#features">Features</a>
     <a href="#algorithms">Algorithms</a>
+    <a href="#clawprofile">ClawProfile</a>
+    <a href="#showcase">Showcase</a>
     <a href="#team">Team</a>
   </div>
-  <a class="nav-github" href="https://github.com/ChangWinde/ShrimpFlow/tree/main" target="_blank">
+  <a class="nav-github" href="https://github.com/asimfish/ShrimpFlow/tree/main" target="_blank">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
     GitHub
   </a>
@@ -244,33 +318,59 @@ a:hover{color:#fff}
 <!-- Hero -->
 <section class="hero" id="hero">
   <div class="hero-content">
-    <div class="hero-logos">
-      <img src="assets/shrimpflow_logo.jpg" alt="ShrimpFlow" class="hero-shrimp-logo">
+    <!-- Project Logo (主角) -->
+    <div class="hero-logo-main">
+      <img src="assets/shrimpflow_logo_new.png" alt="ShrimpFlow" class="hero-shrimp-logo">
     </div>
-    <h1>ShrimpFlow</h1>
-    <p class="tagline">Developer Behavior Digital Twin</p>
-    <p class="desc">
-      统一采集 5 种开发数据源，通过四层处理管线自动发现行为模式，<br>
-      构建可解释、可编辑、可分享的开发者数字孪生
-    </p>
-    <p class="powered">Powered by <span>OpenClaw</span> · OmniStack Team</p>
+
+    <!-- Subtitle -->
+    <p class="hero-subtitle">程序员的行为记忆与协作驱动系统</p>
+
+    <!-- Core message -->
+    <div class="hero-message">
+      <p>AI 编程助手最大的问题不是不够聪明，而是不够了解你。每次对话结束，上下文随即消失 —— 它不记得你昨天解决过什么问题，不了解你偏好的代码风格，也不知道你积累了哪些技术判断。</p>
+      <p class="hero-msg-dim">ShrimpFlow 记录你在终端、Git、OpenClaw、Claude Code 中的每一次操作和对话 session，将其可视化为日报、周报和完整的开发生涯画像。然后通过模式挖掘，将碎片化的行为数据归纳为你的 lifelong 行为模式数字孪生。</p>
+      <p class="hero-msg-highlight">最终，这些行为模式被打包为 ClawProfile，一键下发给 Team Flow 驱动个性化项目开发 —— 你也可以在社区分享自己的虾行为模式，或导入其他大佬的 ClawProfile 来接管你的开发 workflow。</p>
+    </div>
+
+    <!-- Slogan -->
+    <p class="hero-slogan">让每一只虾都可以成为澳洲大龙虾</p>
+    <p class="hero-slogan-sub">Make Hinton in Your Compute —— 导入顶级程序员的行为模式，从小虾直接进化成滔天大虾</p>
+
     <div class="cta-row">
       <a class="btn btn-primary" href="#demo">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
         Interactive Demo
       </a>
-      <a class="btn btn-ghost" href="https://github.com/ChangWinde/ShrimpFlow/tree/main" target="_blank">
+      <a class="btn btn-ghost" href="https://github.com/asimfish/ShrimpFlow/tree/main" target="_blank">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
         View Source
       </a>
-      <a class="btn btn-oc" href="#architecture">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-        Architecture
+      <a class="btn btn-oc" href="#showcase">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Watch Demo
+      </a>
+      <a class="btn btn-ghost" href="https://github.com/asimfish/ShrimpFlow/blob/main/ShrimpFlow.pdf" target="_blank">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Technical Report
       </a>
     </div>
-    <div class="academy-bar">
-      <img src="assets/academy_logo.png" alt="Academy">
-      <span>OmniStack · OpenClaw Hackathon 2025</span>
+
+    <!-- 三级标识: 项目 → 团队 → 学院 (有层次) -->
+    <div class="hero-identity">
+      <div class="hi-row hi-team">
+        <img src="assets/audaxlab_logo.png" alt="AudaxLab" class="hi-logo-team">
+        <span>AudaxLab Team</span>
+      </div>
+      <div class="hi-divider"></div>
+      <div class="hi-row hi-academy">
+        <img src="assets/academy_logo.png" alt="Academy" class="hi-logo-academy">
+        <span>北京中关村学院</span>
+      </div>
+      <div class="hi-divider"></div>
+      <div class="hi-row hi-event">
+        <span>Powered by OpenClaw · Hackathon 2025</span>
+      </div>
     </div>
   </div>
   <div class="scroll-hint">scroll to explore ↓</div>
@@ -515,6 +615,147 @@ a:hover{color:#fff}
   </div>
 </section>
 
+<!-- ClawProfile Showcase -->
+<section class="sec" id="clawprofile" style="background:linear-gradient(180deg,transparent,rgba(124,92,252,.03),transparent)">
+  <div class="container">
+    <h2 class="sec-title reveal">ClawProfile</h2>
+    <p class="sec-sub reveal">点击下方流程步骤，查看每一层的真实数据结构</p>
+
+    <!-- Profile bar -->
+    <div class="cp-profile-bar reveal">
+      <div class="cp-avatar">PS</div>
+      <div class="cp-meta">
+        <h4>peter_steinberger.clawprofile</h4>
+        <p>Senior iOS Engineer · Multi-Agent Orchestration Expert</p>
+      </div>
+      <div class="cp-stats-row">
+        <div class="cp-stat"><div class="num" style="color:var(--accent-g)">1,247</div><div class="lbl">Events</div></div>
+        <div class="cp-stat"><div class="num" style="color:var(--oc)">23</div><div class="lbl">Patterns</div></div>
+        <div class="cp-stat"><div class="num" style="color:var(--success)">5</div><div class="lbl">Workflows</div></div>
+        <div class="cp-stat"><div class="num" style="color:var(--claude)">89</div><div class="lbl">Days</div></div>
+      </div>
+    </div>
+
+    <!-- Flow steps (clickable tabs) -->
+    <div class="cp-flow reveal" id="cpFlow">
+      <div class="cp-flow-step active" style="border-top:3px solid var(--term)" onclick="switchCpTab(0)">
+        <div class="cp-flow-num" style="background:rgba(56,189,248,.15);color:var(--term)">1</div>
+        <h4 style="color:var(--term)">Record</h4>
+        <p>采集终端、Git、OpenClaw 等操作</p>
+        <span class="cp-flow-arrow">→</span>
+      </div>
+      <div class="cp-flow-step" style="border-top:3px solid var(--oc)" onclick="switchCpTab(1)">
+        <div class="cp-flow-num" style="background:var(--oc-dim);color:var(--oc)">2</div>
+        <h4 style="color:var(--oc)">Visualize</h4>
+        <p>日报、周报、开发生涯画像</p>
+        <span class="cp-flow-arrow">→</span>
+      </div>
+      <div class="cp-flow-step" style="border-top:3px solid var(--claude)" onclick="switchCpTab(2)">
+        <div class="cp-flow-num" style="background:rgba(167,139,250,.15);color:var(--claude)">3</div>
+        <h4 style="color:var(--claude)">Analyze</h4>
+        <p>归纳为 lifelong 行为模式</p>
+        <span class="cp-flow-arrow">→</span>
+      </div>
+      <div class="cp-flow-step" style="border-top:3px solid var(--success)" onclick="switchCpTab(3)">
+        <div class="cp-flow-num" style="background:rgba(16,185,129,.15);color:var(--success)">4</div>
+        <h4 style="color:var(--success)">Distribute</h4>
+        <p>下发给 Team Flow 驱动开发</p>
+        <span class="cp-flow-arrow">→</span>
+      </div>
+      <div class="cp-flow-step" style="border-top:3px solid var(--accent)" onclick="switchCpTab(4)">
+        <div class="cp-flow-num" style="background:var(--accent-dim);color:var(--accent-g)">5</div>
+        <h4 style="color:var(--accent-g)">Share</h4>
+        <p>打包分享，导入大佬模式</p>
+      </div>
+    </div>
+
+    <!-- Viewer panel -->
+    <div class="cp-viewer reveal" id="cpViewer">
+      <div class="cp-viewer-header">
+        <h3 id="cpViewerTitle">Raw Data: DevEvent Stream</h3>
+        <span id="cpViewerBadge" style="font-size:12px;padding:4px 12px;border-radius:6px;background:rgba(56,189,248,.12);color:var(--term)">Layer 1 / 5</span>
+      </div>
+      <div class="cp-viewer-body" id="cpViewerBody"></div>
+    </div>
+
+    <!-- Vision callout -->
+    <div class="reveal" style="margin-top:32px;text-align:center;padding:24px;background:linear-gradient(145deg,var(--s2),var(--s1));border:1px solid var(--s3);border-radius:16px">
+      <p style="font-size:18px;font-weight:700;color:#fff;margin-bottom:8px">Make Hinton in Your Compute</p>
+      <p style="font-size:14px;color:#888;max-width:640px;margin:0 auto">Peter Steinberger 可能有一套超级牛逼的多 agent 协作机制。如果能把这些机制直接存储成记忆保留下来，人人一键导入 —— 直接从小虾变成滔天大虾。</p>
+    </div>
+  </div>
+</section>
+
+<!-- Showcase: Video + Interactive Materials -->
+<section class="sec" id="showcase">
+  <div class="container">
+    <h2 class="sec-title reveal">Live Showcase</h2>
+    <p class="sec-sub reveal">Demo 视频、交互式工作流动画、Git 提交编年史</p>
+
+    <!-- Demo Video (full width) -->
+    <div class="showcase-card showcase-card-full reveal" style="border-top:3px solid var(--accent)">
+      <div class="showcase-header">
+        <div class="sh-icon" style="background:var(--accent-dim)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-g)" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </div>
+        <div>
+          <h3>Demo Video</h3>
+          <p>ShrimpFlow 系统完整演示 - 从数据采集到模式发现的全流程</p>
+        </div>
+      </div>
+      <div class="showcase-body">
+        <video class="showcase-video" controls preload="metadata" poster="assets/screenshot_1.png">
+          <source src="https://huggingface.co/datasets/xiongdi/shrimpflow-assets/resolve/main/demo_video.mp4" type="video/mp4">
+        </video>
+      </div>
+    </div>
+
+    <!-- Two interactive cards side by side -->
+    <div class="showcase-grid">
+      <!-- Workflow Animation -->
+      <div class="showcase-card reveal" style="border-top:3px solid var(--oc)">
+        <div class="showcase-header">
+          <div class="sh-icon" style="background:var(--oc-dim)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--oc)" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </div>
+          <div>
+            <h3>Workflow Animation</h3>
+            <p>ShrimpFlow 行为规范自主驱动 65 个真实 commit 的回放动画</p>
+          </div>
+        </div>
+        <div class="showcase-body">
+          <div style="position:relative;border-radius:12px;overflow:hidden;background:#0a0e14;aspect-ratio:16/10;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid var(--s3)">
+            <div style="font-size:48px;margin-bottom:16px;filter:grayscale(.3)">🎬</div>
+            <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:6px">ShrimpFlow Workflow Proof</div>
+            <div style="font-size:13px;color:#666;margin-bottom:20px;text-align:center;max-width:360px">学习到的行为规范自主驱动项目开发 — 65 commits, 32 iterations, 29 hours</div>
+            <a href="assets/devtwin_workflow.html" target="_blank" style="padding:10px 28px;border-radius:10px;background:var(--oc-dim);border:1px solid rgba(245,158,11,.3);color:var(--oc);font-size:14px;font-weight:600;text-decoration:none;transition:all .3s;display:inline-flex;align-items:center;gap:8px"
+              onmouseover="this.style.background='rgba(245,158,11,.2)';this.style.transform='translateY(-2px)'" onmouseout="this.style.background='var(--oc-dim)';this.style.transform='none'">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Open Full Animation
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Commit Chronicle -->
+      <div class="showcase-card reveal reveal-d1" style="border-top:3px solid var(--git)">
+        <div class="showcase-header">
+          <div class="sh-icon" style="background:rgba(52,211,153,.12)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--git)" stroke-width="2"><circle cx="12" cy="12" r="4"/><line x1="1.05" y1="12" x2="7" y2="12"/><line x1="17.01" y1="12" x2="22.96" y2="12"/></svg>
+          </div>
+          <div>
+            <h3>Commit Chronicle</h3>
+            <p>AI 驱动的 Git 提交编年史 - 项目开发历程可视化</p>
+          </div>
+        </div>
+        <div class="showcase-body">
+          <iframe class="showcase-iframe" src="assets/commit_chronicle.html" loading="lazy"></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- Tech Stack -->
 <section class="sec" id="tech">
   <div class="container">
@@ -536,20 +777,30 @@ a:hover{color:#fff}
 <!-- Team / Footer -->
 <footer class="footer" id="team">
   <div class="container">
-    <div class="footer-logos">
-      <img src="assets/shrimpflow_logo.jpg" alt="ShrimpFlow" style="height:48px;border-radius:8px">
-      <img src="assets/academy_logo.png" alt="Academy" style="height:36px;filter:brightness(0) invert(1)">
+    <!-- 三级标识: 项目 → 团队 → 学院 -->
+    <div class="footer-identity">
+      <div class="fi-project">
+        <img src="assets/shrimpflow_logo_new.png" alt="ShrimpFlow" style="height:64px">
+      </div>
+      <div class="fi-team">
+        <img src="assets/audaxlab_logo.png" alt="AudaxLab" style="height:40px">
+        <span style="font-size:16px;font-weight:600;color:#ddd">AudaxLab Team</span>
+      </div>
+      <div class="fi-academy">
+        <img src="assets/academy_logo.png" alt="Academy" style="height:28px;filter:brightness(0) invert(1);opacity:.5">
+        <span style="font-size:13px;color:#666">北京中关村学院 x 中关村人工智能研究院</span>
+      </div>
     </div>
-    <p style="font-size:18px;font-weight:600;color:#fff;margin-bottom:8px">OmniStack Team</p>
-    <p style="margin-bottom:24px">北京中关村学院 x 中关村人工智能研究院</p>
     <div class="footer-links">
-      <a href="https://github.com/ChangWinde/ShrimpFlow/tree/main" target="_blank">GitHub</a>
+      <a href="https://github.com/asimfish/ShrimpFlow/tree/main" target="_blank">GitHub</a>
       <a href="#architecture">Architecture</a>
       <a href="#demo">Demo</a>
+      <a href="#showcase">Showcase</a>
+      <a href="#clawprofile">ClawProfile</a>
       <a href="#features">Features</a>
       <a href="#algorithms">Algorithms</a>
     </div>
-    <p style="margin-top:16px;font-size:12px;color:#444">ShrimpFlow · Developer Behavior Digital Twin · Powered by OpenClaw · OpenClaw Hackathon 2025</p>
+    <p style="margin-top:16px;font-size:12px;color:#444">ShrimpFlow · Powered by OpenClaw · OpenClaw Hackathon 2025</p>
   </div>
 </footer>
 
@@ -622,6 +873,14 @@ const countObs = new IntersectionObserver((entries) => {
   });
 }, { threshold: 0.5 });
 countEls.forEach(el => countObs.observe(el));
+
+// === Helper: hex to rgba ===
+const hexToRgba = (hex, alpha) => {
+  const r = parseInt(hex.slice(1,3), 16);
+  const g = parseInt(hex.slice(3,5), 16);
+  const b = parseInt(hex.slice(5,7), 16);
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+};
 
 // === Pipeline Detail Toggle ===
 const pipeData = [
@@ -703,7 +962,7 @@ const addEvent = (evt) => {
   const row = document.createElement('div');
   row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--s1);border-radius:8px;margin-bottom:6px;animation:fadeIn .3s ease;border-left:3px solid ' + evt.color;
   const badge = document.createElement('span');
-  badge.style.cssText = 'font-size:11px;padding:2px 8px;border-radius:4px;font-family:JetBrains Mono,monospace;background:' + evt.color + '15;color:' + evt.color;
+  badge.style.cssText = 'font-size:11px;padding:2px 8px;border-radius:4px;font-family:JetBrains Mono,monospace;background:' + hexToRgba(evt.color, 0.15) + ';color:' + evt.color;
   badge.textContent = evt.source;
   const txt = document.createElement('span');
   txt.style.cssText = 'flex:1;font-size:13px;color:#ccc';
@@ -772,7 +1031,7 @@ const renderPatterns = () => {
     stepsRow.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap';
     p.steps.forEach((s, i) => {
       const chip = document.createElement('span');
-      chip.style.cssText = 'font-size:12px;padding:3px 10px;border-radius:6px;background:' + p.color + '15;color:' + p.color;
+      chip.style.cssText = 'font-size:12px;padding:3px 10px;border-radius:6px;background:' + hexToRgba(p.color, 0.15) + ';color:' + p.color;
       chip.textContent = s;
       stepsRow.appendChild(chip);
       if (i < p.steps.length - 1) {
@@ -837,7 +1096,7 @@ const renderWorkflow = () => {
   flow.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px';
   wf.steps.forEach((s, i) => {
     const step = document.createElement('div');
-    step.style.cssText = 'display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;background:' + s.color + '12;border:1px solid ' + s.color + '30';
+    step.style.cssText = 'display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;background:' + hexToRgba(s.color, 0.12) + ';border:1px solid ' + hexToRgba(s.color, 0.3);
     const dot = document.createElement('div');
     dot.style.cssText = 'width:6px;height:6px;border-radius:50%;background:' + s.color;
     const lbl = document.createElement('span');
@@ -928,6 +1187,386 @@ window.addEventListener('scroll', () => {
   });
   navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + current));
 });
+
+// === ClawProfile Tab System ===
+let cpActiveTab = 0;
+const cpTabData = [
+  { title: 'Raw Data: DevEvent Stream', badge: 'Layer 1 / 5', badgeColor: '#38bdf8' },
+  { title: 'Visualization: Digest & Career', badge: 'Layer 2 / 5', badgeColor: '#f59e0b' },
+  { title: 'Behavior Patterns: Digital Twin', badge: 'Layer 3 / 5', badgeColor: '#a78bfa' },
+  { title: 'Distributed Workflows: Team Flow', badge: 'Layer 4 / 5', badgeColor: '#10b981' },
+  { title: 'Export & Share: ClawProfile', badge: 'Layer 5 / 5', badgeColor: '#7c5cfc' },
+];
+
+const switchCpTab = (idx) => {
+  cpActiveTab = idx;
+  // update flow step active state
+  document.querySelectorAll('#cpFlow .cp-flow-step').forEach((el, i) => el.classList.toggle('active', i === idx));
+  // update header
+  const titleEl = document.getElementById('cpViewerTitle');
+  const badgeEl = document.getElementById('cpViewerBadge');
+  if (titleEl) titleEl.textContent = cpTabData[idx].title;
+  if (badgeEl) {
+    badgeEl.textContent = cpTabData[idx].badge;
+    badgeEl.style.background = hexToRgba(cpTabData[idx].badgeColor, 0.12);
+    badgeEl.style.color = cpTabData[idx].badgeColor;
+  }
+  // render content
+  const cpRenderers = [renderCpRecord, renderCpVisualize, renderCpPatterns, renderCpWorkflows, renderCpShare];
+  cpRenderers[idx]();
+};
+
+// helper: make a styled card row
+const mkRow = (color, badge, text, sub) => {
+  const r = document.createElement('div');
+  r.style.cssText = 'display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--s1);border-radius:10px;margin-bottom:8px;border-left:3px solid ' + color + ';transition:all .2s;cursor:default';
+  r.onmouseenter = () => { r.style.borderColor = color; r.style.background = hexToRgba(color, 0.05); };
+  r.onmouseleave = () => { r.style.background = 'var(--s1)'; };
+  const b = document.createElement('span');
+  b.style.cssText = 'font-size:11px;padding:3px 10px;border-radius:5px;font-family:JetBrains Mono,monospace;background:' + hexToRgba(color, 0.15) + ';color:' + color + ';flex-shrink:0;font-weight:500';
+  b.textContent = badge;
+  const mid = document.createElement('div');
+  mid.style.cssText = 'flex:1;min-width:0';
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:13px;color:#ddd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+  t.textContent = text;
+  mid.appendChild(t);
+  if (sub) {
+    const s = document.createElement('div');
+    s.style.cssText = 'font-size:11px;color:#555;margin-top:2px';
+    s.textContent = sub;
+    mid.appendChild(s);
+  }
+  r.appendChild(b);
+  r.appendChild(mid);
+  return r;
+};
+
+// Tab 0: Record
+const renderCpRecord = () => {
+  const body = document.getElementById('cpViewerBody');
+  if (!body) return;
+  while (body.firstChild) body.removeChild(body.firstChild);
+  // desc
+  const desc = document.createElement('p');
+  desc.style.cssText = 'font-size:14px;color:#888;margin-bottom:16px;line-height:1.7';
+  desc.textContent = 'Shadow 层采集终端命令、Git 操作、OpenClaw 对话、Claude Code 编辑等所有开发行为，统一为 DevEvent 结构存储。';
+  body.appendChild(desc);
+  // events
+  const events = [
+    { source: 'terminal', color: '#38bdf8', action: 'pnpm run build --mode production', sub: 'exit_code: 0 · duration: 4.2s · tags: build, vite' },
+    { source: 'git', color: '#34d399', action: 'feat: add pattern confidence evolution curve', sub: 'branch: feat/patterns · +127 -23 · project: shrimpflow' },
+    { source: 'openclaw', color: '#f59e0b', action: 'session: "优化 D3 力导向图渲染性能"', sub: 'category: performance · 12 messages · duration: 8min' },
+    { source: 'claude_code', color: '#a78bfa', action: 'refactor: extract pattern_mining.ts utility functions', sub: 'files: 3 changed · semantic: code-refactor' },
+    { source: 'env', color: '#f87171', action: 'system snapshot: macOS 14.2 · Node v20.11 · CPU 34%', sub: 'memory: 2.1GB · disk: 45% · uptime: 6h' },
+  ];
+  events.forEach(e => body.appendChild(mkRow(e.color, e.source, e.action, e.sub)));
+  // schema hint
+  const hint = document.createElement('div');
+  hint.style.cssText = 'margin-top:16px;padding:14px 18px;background:var(--s1);border-radius:10px;border:1px dashed var(--s3);font-family:JetBrains Mono,monospace;font-size:12px;color:#666;line-height:1.8';
+  hint.textContent = 'DevEvent { id, timestamp, source, action, directory, project, branch, exit_code, duration_ms, semantic, tags[], openclaw_session_id? }';
+  body.appendChild(hint);
+};
+
+// placeholder for next chunk
+// Tab 1: Visualize
+const renderCpVisualize = () => {
+  const body = document.getElementById('cpViewerBody');
+  if (!body) return;
+  while (body.firstChild) body.removeChild(body.firstChild);
+  const desc = document.createElement('p');
+  desc.style.cssText = 'font-size:14px;color:#888;margin-bottom:16px;line-height:1.7';
+  desc.textContent = 'Mirror 层将原始事件数据转化为可视化报告: 日报、周报、开发生涯画像、关注领域和思考轨迹。';
+  body.appendChild(desc);
+  const grid = document.createElement('div');
+  grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px';
+  const items = [
+    { icon: '📊', label: 'Daily Digest', value: '89 days', desc: '每日事件统计、AI 摘要、源分布、Git 统计', color: '#f59e0b' },
+    { icon: '📈', label: 'Weekly Report', value: '12 weeks', desc: '技能成长趋势、模式演化、项目进度追踪', color: '#38bdf8' },
+    { icon: '🧑‍💻', label: 'Career Profile', value: 'Level 9', desc: '技能雷达图、活跃度曲线、开发者类型画像', color: '#a78bfa' },
+    { icon: '🎯', label: 'Focus Areas', value: '5 topics', desc: 'CI/CD, 性能优化, 代码审查, 测试策略, 架构设计', color: '#34d399' },
+    { icon: '💭', label: 'Thinking Trace', value: '47 sessions', desc: 'OpenClaw 对话中的问题思考路径和决策记录', color: '#f59e0b' },
+    { icon: '🔥', label: 'Activity Heatmap', value: '365 days', desc: '日历热力图展示全年开发活跃度分布', color: '#f87171' },
+  ];
+  items.forEach(v => {
+    const card = document.createElement('div');
+    card.style.cssText = 'background:var(--s1);border-radius:12px;padding:18px;border-top:2px solid ' + v.color + ';transition:all .2s;cursor:default';
+    card.onmouseenter = () => { card.style.transform = 'translateY(-3px)'; card.style.boxShadow = '0 8px 24px rgba(0,0,0,.3)'; };
+    card.onmouseleave = () => { card.style.transform = 'none'; card.style.boxShadow = 'none'; };
+    const top = document.createElement('div');
+    top.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:8px';
+    const lbl = document.createElement('div');
+    lbl.style.cssText = 'display:flex;align-items:center;gap:8px';
+    const ic = document.createElement('span');
+    ic.style.cssText = 'font-size:18px';
+    ic.textContent = v.icon;
+    const nm = document.createElement('span');
+    nm.style.cssText = 'font-size:14px;font-weight:600;color:#fff';
+    nm.textContent = v.label;
+    lbl.appendChild(ic);
+    lbl.appendChild(nm);
+    const val = document.createElement('span');
+    val.style.cssText = 'font-size:16px;font-weight:800;color:' + v.color;
+    val.textContent = v.value;
+    top.appendChild(lbl);
+    top.appendChild(val);
+    card.appendChild(top);
+    const d = document.createElement('div');
+    d.style.cssText = 'font-size:12px;color:#666;line-height:1.5';
+    d.textContent = v.desc;
+    card.appendChild(d);
+    grid.appendChild(card);
+  });
+  body.appendChild(grid);
+};
+
+// Tab 2: Patterns
+const renderCpPatterns = () => {
+  const body = document.getElementById('cpViewerBody');
+  if (!body) return;
+  while (body.firstChild) body.removeChild(body.firstChild);
+  const desc = document.createElement('p');
+  desc.style.cssText = 'font-size:14px;color:#888;margin-bottom:16px;line-height:1.7';
+  desc.textContent = 'Brain 层通过频繁序列挖掘、时间模式检测、关联规则分析，将碎片化行为归纳为可执行的 lifelong 行为模式。';
+  body.appendChild(desc);
+  const ptns = [
+    { name: 'Multi-Agent Orchestration', cat: 'collaboration', conf: 95, status: 'exportable', color: '#7c5cfc',
+      rule: 'complex task → spawn 3+ agents → parallel exec → merge', scenarios: ['feature', 'review', 'debug'] },
+    { name: 'TDD-First Development', cat: 'coding', conf: 91, status: 'exportable', color: '#34d399',
+      rule: 'before impl → write test (fail) → implement → refactor', scenarios: ['new feature', 'bug fix'] },
+    { name: 'Morning Review Ritual', cat: 'review', conf: 88, status: 'confirmed', color: '#f59e0b',
+      rule: '09:00 → git pull → review PRs → run tests → notes', scenarios: ['standup', 'review'] },
+    { name: 'AI-Assisted Debug Loop', cat: 'devops', conf: 85, status: 'confirmed', color: '#a78bfa',
+      rule: 'error → stack trace → openclaw → fix → test', scenarios: ['runtime', 'build fail'] },
+  ];
+  ptns.forEach(p => {
+    const card = document.createElement('div');
+    card.style.cssText = 'background:var(--s1);border-radius:12px;padding:18px;margin-bottom:10px;border-left:4px solid ' + p.color + ';transition:all .2s;cursor:default';
+    card.onmouseenter = () => { card.style.background = hexToRgba(p.color, 0.04); };
+    card.onmouseleave = () => { card.style.background = 'var(--s1)'; };
+    // row 1: name + confidence
+    const r1 = document.createElement('div');
+    r1.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:10px';
+    const left = document.createElement('div');
+    left.style.cssText = 'display:flex;align-items:center;gap:10px';
+    const nm = document.createElement('span');
+    nm.style.cssText = 'font-size:15px;font-weight:700;color:#fff';
+    nm.textContent = p.name;
+    const catBadge = document.createElement('span');
+    catBadge.style.cssText = 'font-size:10px;padding:2px 8px;border-radius:4px;background:' + hexToRgba(p.color, 0.12) + ';color:' + p.color;
+    catBadge.textContent = p.cat;
+    const stBadge = document.createElement('span');
+    stBadge.style.cssText = 'font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(16,185,129,.12);color:#10b981';
+    stBadge.textContent = p.status;
+    left.appendChild(nm);
+    left.appendChild(catBadge);
+    left.appendChild(stBadge);
+    const confEl = document.createElement('span');
+    confEl.style.cssText = 'font-size:20px;font-weight:800;color:' + p.color;
+    confEl.textContent = p.conf + '%';
+    r1.appendChild(left);
+    r1.appendChild(confEl);
+    card.appendChild(r1);
+    // confidence bar
+    const bar = document.createElement('div');
+    bar.style.cssText = 'height:4px;background:var(--s3);border-radius:2px;margin-bottom:12px;overflow:hidden';
+    const fill = document.createElement('div');
+    fill.style.cssText = 'height:100%;border-radius:2px;background:linear-gradient(90deg,' + p.color + ',' + hexToRgba(p.color, 0.5) + ');width:' + p.conf + '%;transition:width 1.5s ease';
+    bar.appendChild(fill);
+    card.appendChild(bar);
+    // rule
+    const ruleEl = document.createElement('div');
+    ruleEl.style.cssText = 'font-size:13px;color:#bbb;margin-bottom:10px;padding:10px 14px;background:var(--s2);border-radius:8px;font-family:JetBrains Mono,monospace;line-height:1.6;border:1px solid var(--s3)';
+    ruleEl.textContent = p.rule;
+    card.appendChild(ruleEl);
+    // scenarios
+    const scRow = document.createElement('div');
+    scRow.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap';
+    const scLabel = document.createElement('span');
+    scLabel.style.cssText = 'font-size:11px;color:#555;line-height:24px';
+    scLabel.textContent = 'Scenarios:';
+    scRow.appendChild(scLabel);
+    p.scenarios.forEach(sc => {
+      const chip = document.createElement('span');
+      chip.style.cssText = 'font-size:11px;padding:3px 10px;border-radius:5px;background:' + hexToRgba(p.color, 0.1) + ';color:' + p.color;
+      chip.textContent = sc;
+      scRow.appendChild(chip);
+    });
+    card.appendChild(scRow);
+    body.appendChild(card);
+  });
+};
+
+// Tab 3: Workflows
+const renderCpWorkflows = () => {
+  const body = document.getElementById('cpViewerBody');
+  if (!body) return;
+  while (body.firstChild) body.removeChild(body.firstChild);
+  const desc = document.createElement('p');
+  desc.style.cssText = 'font-size:14px;color:#888;margin-bottom:16px;line-height:1.7';
+  desc.textContent = 'Autopilot 层将多个行为模式组合为可执行的团队工作流，一键下发给 Team Flow 驱动个性化项目开发。';
+  body.appendChild(desc);
+  const wfs = [
+    { name: 'Morning Standup Automation', status: 'distributed', conf: 94, color: '#10b981',
+      steps: ['git pull --rebase', 'review open PRs', 'run test suite', 'update standup notes', 'push & notify'],
+      stepColors: ['#34d399','#f59e0b','#38bdf8','#a78bfa','#34d399'],
+      from: ['Morning Review Ritual', 'TDD-First Development'] },
+    { name: 'Multi-Agent Feature Sprint', status: 'active', conf: 89, color: '#7c5cfc',
+      steps: ['spawn planner agent', 'parallel: code + test + docs', 'merge & review', 'CI/CD deploy'],
+      stepColors: ['#7c5cfc','#a78bfa','#f59e0b','#10b981'],
+      from: ['Multi-Agent Orchestration'] },
+  ];
+  wfs.forEach(wf => {
+    const card = document.createElement('div');
+    card.style.cssText = 'background:var(--s1);border-radius:12px;padding:20px;margin-bottom:12px;border-left:4px solid ' + wf.color + ';transition:all .2s';
+    card.onmouseenter = () => { card.style.background = hexToRgba(wf.color, 0.04); };
+    card.onmouseleave = () => { card.style.background = 'var(--s1)'; };
+    // header
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:14px';
+    const left = document.createElement('div');
+    left.style.cssText = 'display:flex;align-items:center;gap:10px';
+    const nm = document.createElement('span');
+    nm.style.cssText = 'font-size:15px;font-weight:700;color:#fff';
+    nm.textContent = wf.name;
+    const st = document.createElement('span');
+    st.style.cssText = 'font-size:10px;padding:2px 8px;border-radius:4px;background:' + hexToRgba(wf.color, 0.15) + ';color:' + wf.color;
+    st.textContent = wf.status;
+    left.appendChild(nm);
+    left.appendChild(st);
+    const conf = document.createElement('span');
+    conf.style.cssText = 'font-size:20px;font-weight:800;color:' + wf.color;
+    conf.textContent = wf.conf + '%';
+    hdr.appendChild(left);
+    hdr.appendChild(conf);
+    card.appendChild(hdr);
+    // steps flow
+    const flow = document.createElement('div');
+    flow.style.cssText = 'display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:14px';
+    wf.steps.forEach((s, i) => {
+      const chip = document.createElement('span');
+      const c = wf.stepColors[i];
+      chip.style.cssText = 'display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:500;background:' + hexToRgba(c, 0.12) + ';border:1px solid ' + hexToRgba(c, 0.25) + ';color:' + c;
+      const dot = document.createElement('span');
+      dot.style.cssText = 'width:6px;height:6px;border-radius:50%;background:' + c;
+      chip.appendChild(dot);
+      chip.appendChild(document.createTextNode(s));
+      flow.appendChild(chip);
+      if (i < wf.steps.length - 1) {
+        const arrow = document.createElement('span');
+        arrow.style.cssText = 'color:#444;font-size:14px';
+        arrow.textContent = '\u2192';
+        flow.appendChild(arrow);
+      }
+    });
+    card.appendChild(flow);
+    // source patterns
+    const srcRow = document.createElement('div');
+    srcRow.style.cssText = 'display:flex;gap:8px;align-items:center';
+    const srcLbl = document.createElement('span');
+    srcLbl.style.cssText = 'font-size:11px;color:#555';
+    srcLbl.textContent = 'Source Patterns:';
+    srcRow.appendChild(srcLbl);
+    wf.from.forEach(pn => {
+      const chip = document.createElement('span');
+      chip.style.cssText = 'font-size:11px;padding:3px 10px;border-radius:5px;background:var(--accent-dim);color:var(--accent-g)';
+      chip.textContent = pn;
+      srcRow.appendChild(chip);
+    });
+    card.appendChild(srcRow);
+    body.appendChild(card);
+  });
+};
+
+// Tab 4: Share
+const renderCpShare = () => {
+  const body = document.getElementById('cpViewerBody');
+  if (!body) return;
+  while (body.firstChild) body.removeChild(body.firstChild);
+  const desc = document.createElement('p');
+  desc.style.cssText = 'font-size:14px;color:#888;margin-bottom:16px;line-height:1.7';
+  desc.textContent = '将完整的行为模式数字孪生打包为 .clawprofile 文件，在社区分享或导入其他开发者的行为模式来接管你的开发 workflow。';
+  body.appendChild(desc);
+  // export card
+  const exportCard = document.createElement('div');
+  exportCard.style.cssText = 'background:var(--s1);border-radius:12px;padding:20px;border:1px solid var(--s3);margin-bottom:16px';
+  const eTitle = document.createElement('div');
+  eTitle.style.cssText = 'font-size:14px;font-weight:600;color:#fff;margin-bottom:12px;display:flex;align-items:center;gap:8px';
+  eTitle.textContent = 'peter_steinberger.clawprofile';
+  const eBadge = document.createElement('span');
+  eBadge.style.cssText = 'font-size:10px;padding:2px 8px;border-radius:4px;background:var(--accent-dim);color:var(--accent-g)';
+  eBadge.textContent = 'v1.0.0';
+  eTitle.appendChild(eBadge);
+  exportCard.appendChild(eTitle);
+  // file info grid
+  const infoGrid = document.createElement('div');
+  infoGrid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px';
+  const infos = [
+    { label: 'Format', value: 'clawprofile/v1', color: '#7c5cfc' },
+    { label: 'Size', value: '2.4 MB', color: '#38bdf8' },
+    { label: 'Patterns', value: '23 exportable', color: '#a78bfa' },
+    { label: 'Workflows', value: '5 distributed', color: '#10b981' },
+    { label: 'Compatibility', value: 'ShrimpFlow >= 1.0', color: '#f59e0b' },
+    { label: 'Checksum', value: 'sha256:a1b2c3...', color: '#666' },
+  ];
+  infos.forEach(info => {
+    const item = document.createElement('div');
+    item.style.cssText = 'padding:10px 14px;background:var(--s2);border-radius:8px;border:1px solid var(--s3)';
+    const lbl = document.createElement('div');
+    lbl.style.cssText = 'font-size:10px;color:#555;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px';
+    lbl.textContent = info.label;
+    const val = document.createElement('div');
+    val.style.cssText = 'font-size:13px;font-weight:600;color:' + info.color;
+    val.textContent = info.value;
+    item.appendChild(lbl);
+    item.appendChild(val);
+    infoGrid.appendChild(item);
+  });
+  exportCard.appendChild(infoGrid);
+  // actions
+  const actions = document.createElement('div');
+  actions.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap';
+  const btns = [
+    { label: 'Export .clawprofile', color: '#7c5cfc' },
+    { label: 'Share to Community', color: '#f59e0b' },
+    { label: 'Import from URL', color: '#10b981' },
+  ];
+  btns.forEach(b => {
+    const btn = document.createElement('span');
+    btn.style.cssText = 'padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;background:' + hexToRgba(b.color, 0.12) + ';border:1px solid ' + hexToRgba(b.color, 0.3) + ';color:' + b.color;
+    btn.textContent = b.label;
+    btn.onmouseenter = () => { btn.style.background = hexToRgba(b.color, 0.2); btn.style.transform = 'translateY(-2px)'; };
+    btn.onmouseleave = () => { btn.style.background = hexToRgba(b.color, 0.12); btn.style.transform = 'none'; };
+    actions.appendChild(btn);
+  });
+  exportCard.appendChild(actions);
+  body.appendChild(exportCard);
+  // import hint
+  const hint = document.createElement('div');
+  hint.style.cssText = 'padding:16px 20px;background:var(--s1);border-radius:12px;border:1px dashed var(--accent);text-align:center';
+  const h1 = document.createElement('div');
+  h1.style.cssText = 'font-size:14px;font-weight:600;color:var(--accent-g);margin-bottom:6px';
+  h1.textContent = 'Import a ClawProfile to level up instantly';
+  const h2 = document.createElement('div');
+  h2.style.cssText = 'font-size:12px;color:#666;line-height:1.6';
+  h2.textContent = '导入后自动适配你的项目结构和技术栈，行为模式即刻生效，驱动你的 Team Flow';
+  hint.appendChild(h1);
+  hint.appendChild(h2);
+  body.appendChild(hint);
+};
+
+// Init: render first tab and auto-switch
+const initCpViewer = () => {
+  switchCpTab(0);
+};
+// Render when scrolled into view
+const cpObs2 = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) { initCpViewer(); cpObs2.unobserve(e.target); }
+  });
+}, { threshold: 0.1 });
+const cpViewer = document.getElementById('cpViewer');
+if (cpViewer) cpObs2.observe(cpViewer);
 
 // === fadeIn keyframe ===
 const style = document.createElement('style');

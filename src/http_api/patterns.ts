@@ -1,6 +1,6 @@
 import type { BehaviorPattern, TeamWorkflow } from '@/types'
 
-import { get } from './client'
+import { get, post, put, del } from './client'
 
 export const getPatternsApi = (params?: { category?: string; status?: string }) => {
   const query = new URLSearchParams()
@@ -15,3 +15,17 @@ export const getPatternApi = (id: number) => get<BehaviorPattern>(`/patterns/${i
 export const getWorkflowsApi = () => get<TeamWorkflow[]>('/workflows')
 
 export const getWorkflowApi = (id: number) => get<TeamWorkflow>(`/workflows/${id}`)
+
+export const createPatternApi = (data: Partial<BehaviorPattern>) =>
+  post<BehaviorPattern>('/patterns', data)
+
+export const updatePatternApi = (id: number, data: Partial<BehaviorPattern>) =>
+  put<BehaviorPattern>(`/patterns/${id}`, data)
+
+export const deletePatternApi = (id: number) => del<void>(`/patterns/${id}`)
+
+export const exportPatternsApi = (ids: number[]) =>
+  get<BehaviorPattern[]>(`/patterns/export?ids=${ids.join(',')}`)
+
+export const importPatternsApi = (data: { patterns: Partial<BehaviorPattern>[] }) =>
+  post<{ count: number }>('/patterns/import', data)

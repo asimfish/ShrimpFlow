@@ -21,7 +21,7 @@ if ! command -v pnpm &> /dev/null; then
 fi
 
 # 启动后端
-echo "[1/2] 启动后端 (port 7890)..."
+echo "[1/2] 启动后端 (port 7891)..."
 cd "$SERVER_DIR"
 uv sync --quiet 2>/dev/null
 uv run python main.py &
@@ -31,7 +31,7 @@ echo "  Backend PID: $BACKEND_PID"
 # 等待后端就绪
 echo "  等待后端启动..."
 for i in $(seq 1 10); do
-  if curl -s http://localhost:7890/api/stats > /dev/null 2>&1; then
+  if curl -s http://localhost:7891/api/stats > /dev/null 2>&1; then
     echo "  后端已就绪"
     break
   fi
@@ -48,8 +48,8 @@ echo "  Frontend PID: $FRONTEND_PID"
 echo ""
 echo "=== ShrimpFlow 已启动 ==="
 echo "  前端: http://localhost:5173"
-echo "  后端: http://localhost:7890"
-echo "  API 文档: http://localhost:7890/docs"
+echo "  后端: http://localhost:7891"
+echo "  API 文档: http://localhost:7891/docs"
 echo ""
 echo "按 Ctrl+C 停止所有服务"
 

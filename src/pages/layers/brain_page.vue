@@ -3,7 +3,6 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import type { BehaviorPattern } from '@/types'
-import type { MinedPattern } from '@/utils/pattern_mining'
 import { getPatternsApi } from '@/http_api/patterns'
 
 import { useEventsStore } from '@/stores/events'
@@ -37,12 +36,6 @@ const categoryLabel: Record<string, string> = {
   review: '代码审查',
   devops: '运维部署',
   collaboration: '协作模式',
-}
-
-const statusColorMap: Record<string, string> = {
-  learning: 'bg-yellow-500/20 text-yellow-400',
-  confirmed: 'bg-blue-500/20 text-blue-400',
-  exportable: 'bg-emerald-500/20 text-emerald-400',
 }
 
 const statusLabel: Record<string, string> = {

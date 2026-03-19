@@ -60,3 +60,44 @@ def collect_git(req: CollectEventRequest, db: Session = Depends(get_db)):
 def collect_openclaw(req: CollectEventRequest, db: Session = Depends(get_db)):
     req.source = 'openclaw'
     return collect_event(req, db)
+
+
+from services.real_data_collector import (
+    collect_shell_history, collect_claude_code,
+    collect_clawd_docs, collect_git_history, collect_all,
+)
+
+
+@router.post("/collect/shell-history")
+def api_collect_shell(db: Session = Depends(get_db)):
+    from services.real_data_collector import collect_shell_history
+    result = collect_shell_history(db)
+    return result.to_dict()
+
+
+@router.post("/collect/claude-code")
+def api_collect_claude(db: Session = Depends(get_db)):
+    from services.real_data_collector import collect_claude_code
+    result = collect_claude_code(db)
+    return result.to_dict()
+
+
+@router.post("/collect/clawd")
+def api_collect_clawd(db: Session = Depends(get_db)):
+    from services.real_data_collector import collect_clawd_docs
+    result = collect_clawd_docs(db)
+    return result.to_dict()
+
+
+@router.post("/collect/git-history")
+def api_collect_git(db: Session = Depends(get_db)):
+    from services.real_data_collector import collect_git_history
+    result = collect_git_history(db)
+    return result.to_dict()
+
+
+@router.post("/collect/all")
+def api_collect_all(db: Session = Depends(get_db)):
+    from services.real_data_collector import collect_all
+    results = collect_all(db)
+    return {'results': results}

@@ -2,24 +2,22 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
-import type { BehaviorPattern, TeamWorkflow } from '@/types'
-import { getPatternsApi, getWorkflowsApi } from '@/http_api/patterns'
+import { usePatternsStore } from '@/stores/patterns'
+import { exportPatternsApi } from '@/http_api/patterns'
 
 const router = useRouter()
-const patterns = ref<BehaviorPattern[]>([])
-const workflows = ref<TeamWorkflow[]>([])
+const store = usePatternsStore()
 const expandedPatterns = ref<Set<number>>(new Set())
 const selectedForExport = ref<Set<number>>(new Set())
 const targetProject = ref('')
 const exportSuccess = ref(false)
+const exportMsg = ref('')
 
 // id=99 是特殊的"代码开发与Git提交规范"模式，点击展示 workflow 动画
 const showWorkflowDemo = ref(false)
 
 onMounted(async () => {
-  const [pRes, wRes] = await Promise.all([getPatternsApi(), getWorkflowsApi()])
-  if (pRes.data) patterns.value = pRes.data
-  if (wRes.data) workflows.value = wRes.data
+  await Promise.all([store.fetchPatterns(), store.fetchWorkflows()])
 })
 
 const toggleExpand = (id: number) => {
@@ -32,9 +30,19 @@ const toggleSelect = (id: number) => {
   else selectedForExport.value.add(id)
 }
 
-const handleExport = () => {
-  exportSuccess.value = true
-  setTimeout(() => { exportSuccess.value = false }, 3000)
+const handleExport = async () => {
+  const ids = [...selectedForExport.value]
+  const res = await exportPatternsApi(ids)
+  if (res.data) {
+    exportSuccess.value = true
+    exportMsg.value = `${ids.length} 个模式已成功导出`
+    setTimeout(() => { exportSuccess.value = false }, 3000)
+  }
+}
+
+const handleDelete = async (id: number) => {
+  await store.deletePattern(id)
+  selectedForExport.value.delete(id)
 }
 
 const categoryColorMap: Record<string, string> = {
@@ -65,7 +73,7 @@ const statusLabel: Record<string, string> = {
 }
 
 const getPatternNames = (ids: number[]) =>
-  ids.map(id => patterns.value.find(p => p.id === id)?.name).filter(Boolean)
+  ids.map(id => store.patterns.find(p => p.id === id)?.name).filter(Boolean)
 
 const confidenceColor = (c: number) => {
   if (c >= 85) return 'bg-emerald-500'
@@ -110,9 +118,9 @@ const confidenceColor = (c: number) => {
 
     <!-- 已学习的行为模式 -->
     <div>
-      <div class="text-sm font-medium mb-3 text-gray-300">已学习的行为模式 ({{ patterns.length }})</div>
+      <div class="text-sm font-medium mb-3 text-gray-300">已学习的行为模式 ({{ store.patterns.length }})</div>
       <div class="grid grid-cols-2 gap-4">
-        <div v-for="pattern in patterns" :key="pattern.id" class="bg-surface-1 rounded-xl border border-surface-3 p-4 space-y-3 cursor-pointer hover:border-accent/30 transition-colors" :class="pattern.id === 99 ? 'border-emerald-500/40 ring-1 ring-emerald-500/20' : ''" @click="pattern.id === 99 ? (showWorkflowDemo = true) : router.push(`/patterns/${pattern.id}`)">
+        <div v-for="pattern in store.patterns" :key="pattern.id" class="bg-surface-1 rounded-xl border border-surface-3 p-4 space-y-3 cursor-pointer hover:border-accent/30 transition-colors" :class="pattern.id === 99 ? 'border-emerald-500/40 ring-1 ring-emerald-500/20' : ''" @click="pattern.id === 99 ? (showWorkflowDemo = true) : router.push(`/patterns/${pattern.id}`)">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <span class="text-[11px] px-2 py-0.5 rounded border" :class="categoryColorMap[pattern.category]">{{ categoryLabel[pattern.category] }}</span>
@@ -172,6 +180,7 @@ const confidenceColor = (c: number) => {
           </div>
 
           <div class="text-[10px] text-gray-500">数据来源: {{ pattern.learned_from }}</div>
+          <button class="text-[10px] text-red-400 hover:text-red-300 transition-colors" @click.stop="handleDelete(pattern.id)">删除</button>
         </div>
       </div>
     </div>
@@ -202,7 +211,7 @@ const confidenceColor = (c: number) => {
         </button>
       </div>
       <div v-if="exportSuccess" class="mt-3 text-xs text-emerald-400 bg-emerald-500/10 rounded-lg p-2">
-        {{ selectedForExport.size }} 个模式已成功导入到项目 "{{ targetProject }}"
+        {{ exportMsg }}
       </div>
     </div>
 
@@ -210,7 +219,7 @@ const confidenceColor = (c: number) => {
     <div>
       <div class="text-sm font-medium mb-3 text-gray-300">团队 Workflow 下发</div>
       <div class="space-y-3">
-        <div v-for="wf in workflows" :key="wf.id" class="bg-surface-1 rounded-xl border border-surface-3 p-4 cursor-pointer hover:border-accent/30 transition-colors" @click="router.push(`/workflows/${wf.id}`)">
+        <div v-for="wf in store.workflows" :key="wf.id" class="bg-surface-1 rounded-xl border border-surface-3 p-4 cursor-pointer hover:border-accent/30 transition-colors" @click="router.push(`/workflows/${wf.id}`)">
           <div class="flex items-center justify-between mb-2">
             <div class="flex items-center gap-2">
               <span class="text-sm font-medium text-gray-200">{{ wf.name }}</span>

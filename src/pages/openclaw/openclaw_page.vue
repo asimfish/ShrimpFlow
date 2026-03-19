@@ -47,11 +47,6 @@ const docTypeColors: Record<string, string> = {
 
 const formatTime = (ts: number) => dayjs(ts * 1000).format('MM-DD HH:mm')
 
-const selectedDocument = computed(() => {
-  if (store.activeTab !== 'documents') return null
-  return store.documents[0]
-})
-
 const selectedDocId = computed({
   get: () => store.documents[0]?.id ?? 0,
   set: () => {},

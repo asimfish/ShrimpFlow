@@ -23,7 +23,6 @@ onMounted(async () => {
   if (pRes.data) patterns.value = pRes.data
 })
 
-const now = Math.floor(Date.now() / 1000)
 const DAY = 86400
 
 // 视图模式

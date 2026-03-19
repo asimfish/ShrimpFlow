@@ -221,4 +221,47 @@ def run_mining(db: Session):
         return []
 
     mined = mine_all_patterns(events)
-    return [p.to_dict() for p in mined]
+
+    # 将挖掘结果写入数据库
+    import time
+    saved = []
+    for p in mined:
+        # 检查是否已存在同名模式
+        existing = db.query(BehaviorPattern).filter(BehaviorPattern.name == p.name).first()
+        if existing:
+            # 更新置信度
+            new_conf = int(bayesian_update(existing.confidence / 100, 0.1) * 100)
+            existing.confidence = new_conf
+            existing.evidence_count += p.occurrences
+            # 追加演化记录
+            evolution = json.loads(existing.evolution) if existing.evolution else []
+            evolution.append({
+                'date': datetime.now().strftime('%m-%d'),
+                'confidence': new_conf,
+                'event_description': f'挖掘更新: {p.occurrences} 次观察',
+            })
+            existing.evolution = json.dumps(evolution)
+            saved.append(p.to_dict())
+        else:
+            # 新建模式
+            category_map = {'sequence': 'coding', 'time': 'devops', 'correlation': 'collaboration'}
+            pattern = BehaviorPattern(
+                name=p.name, category=category_map.get(p.type, 'coding'),
+                description=p.description, confidence=p.confidence,
+                evidence_count=p.occurrences, learned_from='auto_mining',
+                rule=f'自动挖掘: {p.type}', created_at=int(time.time()),
+                status='learning',
+                evolution=json.dumps([{
+                    'date': datetime.now().strftime('%m-%d'),
+                    'confidence': p.confidence,
+                    'event_description': f'首次发现: {p.occurrences} 次观察',
+                }]),
+                rules=json.dumps([]),
+                executions=json.dumps([]),
+                applicable_scenarios=json.dumps(p.examples),
+            )
+            db.add(pattern)
+            saved.append(p.to_dict())
+
+    db.commit()
+    return saved

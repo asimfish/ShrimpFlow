@@ -8,6 +8,7 @@ import { useSkillsStore } from '@/stores/skills'
 import { useOpenClawStore } from '@/stores/openclaw'
 import { getStatsApi } from '@/http_api/stats'
 import { getPatternsApi } from '@/http_api/patterns'
+import { collectAllApi } from '@/http_api/collect'
 
 const router = useRouter()
 const eventsStore = useEventsStore()
@@ -16,7 +17,8 @@ const openclawStore = useOpenClawStore()
 
 const stats = ref<StatsOverview | null>(null)
 const patterns = ref<BehaviorPattern[]>([])
-
+const collecting = ref(false)
+const collectResult = ref('')
 // countUp 数字动画
 const animatedValues = ref({ total_events: 0, total_openclaw_sessions: 0, total_projects: 0, total_skills: 0, streak_days: 0 })
 
@@ -92,6 +94,29 @@ const formatTime = (ts: number) => {
   const d = new Date(ts * 1000)
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
+
+const handleCollectAll = async () => {
+  collecting.value = true
+  collectResult.value = ''
+  const res = await collectAllApi()
+  collecting.value = false
+  if (res.data) {
+    const results = (res.data as any).results
+    if (results) {
+      const total = results.reduce((s: number, r: any) => s + r.inserted, 0)
+      collectResult.value = `采集完成: 新增 ${total} 条数据`
+    } else {
+      collectResult.value = '采集完成'
+    }
+    // 刷新统计
+    const sRes = await getStatsApi()
+    if (sRes.data) {
+      stats.value = sRes.data
+      animateNumber('total_events', sRes.data.total_events, 800)
+    }
+    setTimeout(() => { collectResult.value = '' }, 5000)
+  }
+}
 </script>
 
 <template>
@@ -106,6 +131,17 @@ const formatTime = (ts: number) => {
         <div class="w-1.5 h-1.5 rounded-full bg-emerald-400" />
         <span class="text-[10px] text-emerald-400">本地模式 · 已脱敏</span>
       </div>
+      <button
+        class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+        :class="collecting ? 'bg-surface-3 text-gray-500 cursor-wait' : 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 cursor-pointer'"
+        :disabled="collecting"
+        @click="handleCollectAll"
+      >
+        {{ collecting ? '采集中...' : '一键采集' }}
+      </button>
+    </div>
+    <div v-if="collectResult" class="text-xs text-cyan-400 bg-cyan-500/10 rounded-lg px-3 py-1.5 -mt-4">
+      {{ collectResult }}
     </div>
 
     <!-- 四层架构步骤条 -->

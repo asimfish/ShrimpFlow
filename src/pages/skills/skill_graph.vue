@@ -101,8 +101,6 @@ const drawGraph = () => {
   // 技能节点
   const now = Math.floor(Date.now() / 1000)
   for (const skill of props.skills) {
-    const recentDays = (now - skill.last_used) / 86400
-    const opacity = recentDays < 7 ? 1 : recentDays < 14 ? 0.7 : 0.4
     const radius = 6 + Math.sqrt(skill.total_uses) * 0.5
 
     nodes.push({
@@ -135,7 +133,6 @@ const drawGraph = () => {
   const simulation = d3.forceSimulation(nodes as any)
     .force('link', d3.forceLink(links as any).id((d: any) => d.id).distance((d: any) => {
       const src = d.source as GraphNode
-      const tgt = d.target as GraphNode
       if (src.type === 'center') return 160
       return 80
     }))

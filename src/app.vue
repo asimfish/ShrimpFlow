@@ -1,6 +1,25 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
+
 import AppSidebar from '@/components/layout/app_sidebar.vue'
 import GlobalSearch from '@/components/global_search.vue'
+import { useEventsStore } from '@/stores/events'
+import { useSkillsStore } from '@/stores/skills'
+import { useOpenClawStore } from '@/stores/openclaw'
+import { useDigestStore } from '@/stores/digest'
+
+const eventsStore = useEventsStore()
+const skillsStore = useSkillsStore()
+const openclawStore = useOpenClawStore()
+const digestStore = useDigestStore()
+
+onMounted(() => {
+  eventsStore.fetchEvents()
+  skillsStore.fetchSkills()
+  openclawStore.fetchSessions()
+  openclawStore.fetchDocuments()
+  digestStore.fetchSummaries()
+})
 </script>
 
 <template>

@@ -26,7 +26,7 @@ def get_events(
     project: str = Query(None),
     search: str = Query(None),
     time_range: str = Query(None),
-    limit: int = Query(2000),
+    limit: int = Query(5000),
     db: Session = Depends(get_db),
 ):
     q = db.query(DevEvent).order_by(DevEvent.timestamp.desc())

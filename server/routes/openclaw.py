@@ -46,7 +46,9 @@ def get_session(session_id: int, db: Session = Depends(get_db)):
 
 @router.get("/openclaw/documents")
 def get_documents(db: Session = Depends(get_db)):
-    rows = db.query(OpenClawDocument).order_by(OpenClawDocument.created_at.desc()).all()
+    rows = db.query(OpenClawDocument).filter(
+        OpenClawDocument.type != 'claude_session_index',
+    ).order_by(OpenClawDocument.created_at.desc()).all()
     return [_doc_to_dict(r) for r in rows]
 
 

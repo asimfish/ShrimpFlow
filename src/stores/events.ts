@@ -2,21 +2,28 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
 import type { DevEvent } from '@/types'
-import { mockEvents } from '@/mock/data'
+import { getEventsApi } from '@/http_api/events'
 
 export const useEventsStore = defineStore('events', () => {
-  const events = ref<DevEvent[]>(mockEvents)
+  const events = ref<DevEvent[]>([])
   const sourceFilter = ref<string>('')
   const projectFilter = ref<string>('')
   const searchQuery = ref('')
   const timeRange = ref<'today' | 'week' | 'month' | 'all'>('all')
+  const loading = ref(false)
+
+  const fetchEvents = async () => {
+    loading.value = true
+    const { data } = await getEventsApi()
+    if (data) events.value = data
+    loading.value = false
+  }
 
   const filteredEvents = computed(() =>
     events.value.filter(e => {
       if (sourceFilter.value && e.source !== sourceFilter.value) return false
       if (projectFilter.value && e.project !== projectFilter.value) return false
       if (searchQuery.value && !e.action.toLowerCase().includes(searchQuery.value.toLowerCase())) return false
-      // 时间范围过滤
       if (timeRange.value !== 'all') {
         const now = Math.floor(Date.now() / 1000)
         const DAY = 86400
@@ -42,5 +49,5 @@ export const useEventsStore = defineStore('events', () => {
     return map
   })
 
-  return { events, filteredEvents, sourceFilter, projectFilter, searchQuery, timeRange, projects, eventsByDate }
+  return { events, filteredEvents, sourceFilter, projectFilter, searchQuery, timeRange, projects, eventsByDate, loading, fetchEvents }
 })

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from models.event import DevEvent
 from models.skill import Skill
-from models.openclaw import OpenClawDocument
+from models.openclaw import OpenClawDocument, OpenClawSession
 from models.digest import DailySummary
 
 
@@ -157,7 +157,25 @@ def collect_shell_history(db):
     return result
 
 
-# 2. Claude Code 日志采集
+# 提取 content 文本（支持 str 和 list 格式）
+def _extract_text(raw_content):
+    if isinstance(raw_content, str):
+        return raw_content
+    if isinstance(raw_content, list):
+        parts = []
+        for block in raw_content:
+            if isinstance(block, dict):
+                if block.get('type') == 'text':
+                    parts.append(block.get('text', ''))
+                elif 'text' in block:
+                    parts.append(block['text'])
+            elif isinstance(block, str):
+                parts.append(block)
+        return ' '.join(parts)
+    return ''
+
+
+# 2. Claude Code 日志采集 — 生成 OpenClawSession + DevEvent
 def collect_claude_code(db):
     result = CollectResult('claude_code')
     projects_dir = os.path.join(HOME, '.claude', 'projects')
@@ -165,21 +183,32 @@ def collect_claude_code(db):
         result.errors.append('~/.claude/projects/ not found')
         return result
 
-    cutoff = _get_max_timestamp(db, 'claude_code')
-    # 已处理的 session 标记
-    processed = set()
-    existing = db.query(OpenClawDocument.title).filter(OpenClawDocument.type == 'claude_session_index').all()
-    for row in existing:
-        processed.add(row[0])
+    # 已导入的 session 文件名
+    existing_files = set()
+    for row in db.query(OpenClawDocument.title).filter(OpenClawDocument.type == 'claude_session_index').all():
+        existing_files.add(row[0])
 
     try:
-        batch = []
         for project_dir in Path(projects_dir).iterdir():
             if not project_dir.is_dir():
                 continue
-            project_name = project_dir.name.split('-')[-1] if '-' in project_dir.name else project_dir.name
+            project_name = project_dir.name.replace('-Users-liyufeng-', '').replace('-', '/')
+            # 简化项目名
+            parts = project_name.split('/')
+            project_name = parts[-1] if parts else project_name
 
             for jsonl_file in project_dir.glob('*.jsonl'):
+                file_key = f'{project_dir.name}/{jsonl_file.name}'
+                if file_key in existing_files:
+                    result.skipped += 1
+                    continue
+
+                # 解析整个 session 文件
+                messages = []
+                first_ts = None
+                last_ts = None
+                session_id = jsonl_file.stem
+
                 with open(jsonl_file, 'r', errors='replace') as f:
                     for line in f:
                         line = line.strip()
@@ -190,71 +219,102 @@ def collect_claude_code(db):
                         except json.JSONDecodeError:
                             continue
 
-                        if entry.get('type') != 'assistant':
+                        entry_type = entry.get('type', '')
+                        if entry_type not in ('user', 'assistant'):
                             continue
+
                         msg = entry.get('message', {})
-                        raw_content = msg.get('content', '')
-                        # content 可能是 str 或 list (Claude API 格式)
-                        if isinstance(raw_content, list):
-                            text_parts = []
-                            for block in raw_content:
-                                if isinstance(block, dict):
-                                    if block.get('type') == 'text':
-                                        text_parts.append(block.get('text', ''))
-                                    elif 'text' in block:
-                                        text_parts.append(block['text'])
-                                elif isinstance(block, str):
-                                    text_parts.append(block)
-                            content = ' '.join(text_parts)
-                        elif isinstance(raw_content, str):
-                            content = raw_content
-                        else:
-                            continue
+                        content = _extract_text(msg.get('content', ''))
                         if not content:
                             continue
 
                         ts_str = entry.get('timestamp', '')
-                        if not ts_str:
-                            continue
-                        try:
-                            dt = datetime.fromisoformat(ts_str.replace('Z', '+00:00'))
-                            ts = int(dt.timestamp())
-                        except (ValueError, TypeError):
-                            continue
+                        ts = 0
+                        if ts_str:
+                            try:
+                                dt = datetime.fromisoformat(ts_str.replace('Z', '+00:00'))
+                                ts = int(dt.timestamp())
+                            except (ValueError, TypeError):
+                                pass
 
-                        if ts <= cutoff:
-                            result.skipped += 1
-                            continue
+                        if ts and not first_ts:
+                            first_ts = ts
+                        if ts:
+                            last_ts = ts
 
-                        session_id = entry.get('sessionId', '')
-                        # 每个 session 只记录一次
-                        session_key = f'{session_id}_{ts}'
-                        if session_key in processed:
-                            result.skipped += 1
-                            continue
-                        processed.add(session_key)
+                        role = 'user' if entry_type == 'user' else 'assistant'
+                        messages.append({
+                            'role': role,
+                            'content': content[:500],
+                            'timestamp': ts,
+                        })
 
-                        # 截取前 200 字作为 action
-                        action_text = content[:200].replace('\n', ' ')
-                        cwd = entry.get('cwd', '')
+                if not messages or len(messages) < 2:
+                    result.skipped += 1
+                    continue
 
-                        batch.append(DevEvent(
-                            timestamp=ts, source='claude_code',
-                            action=f'claude: {action_text}',
-                            directory=cwd, project=project_name, branch='',
-                            exit_code=0, duration_ms=0,
-                            semantic=f'Claude Code 对话 ({entry.get("model", "unknown")})',
-                            tags=json.dumps(['claude', 'ai']),
-                        ))
-                        result.inserted += 1
+                # 生成 session title（取第一条 user 消息的前50字）
+                first_user = next((m for m in messages if m['role'] == 'user'), None)
+                title = first_user['content'][:50] if first_user else f'Claude Code Session {session_id[:8]}'
+                title = title.replace('\n', ' ')
 
-                        if len(batch) >= 100:
-                            db.add_all(batch)
-                            db.flush()
-                            batch = []
+                created_at = first_ts if first_ts else int(os.path.getmtime(jsonl_file))
 
-        if batch:
-            db.add_all(batch)
+                # 推断 category
+                content_lower = ' '.join(m['content'].lower() for m in messages[:5])
+                if any(w in content_lower for w in ['bug', 'fix', 'error', 'debug', '报错']):
+                    category = 'debug'
+                elif any(w in content_lower for w in ['review', '审查', '检查']):
+                    category = 'review'
+                elif any(w in content_lower for w in ['设计', 'design', '架构', 'architecture']):
+                    category = 'architecture'
+                elif any(w in content_lower for w in ['论文', 'paper', '分析']):
+                    category = 'paper'
+                else:
+                    category = 'learning'
+
+                # 转换为 OpenClawMessage 格式
+                openclaw_messages = []
+                for m in messages[:50]:  # 限制50条消息
+                    openclaw_messages.append({
+                        'role': m['role'],
+                        'content': m['content'],
+                        'timestamp': m['timestamp'],
+                    })
+
+                summary = f'Claude Code 对话 ({len(messages)} 条消息, 项目: {project_name})'
+
+                # 写入 OpenClawSession
+                session = OpenClawSession(
+                    title=title, category=category,
+                    messages=json.dumps(openclaw_messages, ensure_ascii=False),
+                    project=project_name,
+                    tags=json.dumps(['claude_code', project_name]),
+                    created_at=created_at, summary=summary,
+                )
+                db.add(session)
+                db.flush()
+
+                # 标记已处理
+                db.add(OpenClawDocument(
+                    title=file_key, type='claude_session_index',
+                    content=f'Session {session.id}: {title}',
+                    tags=json.dumps(['claude_code', 'index']),
+                    created_at=created_at, source_session_id=session.id,
+                ))
+
+                # 写入 DevEvent
+                db.add(DevEvent(
+                    timestamp=created_at, source='claude_code',
+                    action=f'claude session: {title}',
+                    directory='', project=project_name, branch='',
+                    exit_code=0, duration_ms=0,
+                    semantic=summary,
+                    tags=json.dumps(['claude', 'ai', 'session']),
+                ))
+
+                result.inserted += 1
+
         db.commit()
     except Exception as e:
         result.errors.append(str(e)[:200])

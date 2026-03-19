@@ -1,0 +1,11 @@
+from pydantic import BaseModel
+
+
+class StatsOverview(BaseModel):
+    total_events: int
+    total_days: int
+    total_projects: int
+    total_skills: int
+    total_openclaw_sessions: int
+    most_active_project: str
+    streak_days: int

@@ -134,7 +134,7 @@ def _seed_events(db):
                 exit_code=data['exit_code'],
                 duration_ms=data['duration_ms'],
                 semantic=data['semantic'],
-                tags=json.dumps(data['tags']),
+                tags=json.dumps(data['tags'] + ['seed']),
                 openclaw_session_id=data.get('openclaw_session_id'),
             ))
             eid += 1

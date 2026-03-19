@@ -29,15 +29,17 @@ class CollectResult:
                 'skipped': self.skipped, 'errors': self.errors[:5]}
 
 
-# 获取增量起点
+# 获取增量起点（排除种子数据）
 def _get_max_timestamp(db, source):
-    row = db.query(DevEvent.timestamp).filter(DevEvent.source == source).order_by(DevEvent.timestamp.desc()).first()
+    row = db.query(DevEvent.timestamp).filter(
+        DevEvent.source == source,
+        ~DevEvent.tags.contains('"seed"'),
+    ).order_by(DevEvent.timestamp.desc()).first()
     return row[0] if row else 0
 
 
 # 更新技能
 def _update_skill(db, action, timestamp):
-    # 从 action 中提取技能关键词
     skill_map = {
         'python': ('Python', 'language'),
         'pip': ('pip', 'package-manager'),
@@ -75,8 +77,13 @@ def _update_skill(db, action, timestamp):
                 if skill.total_uses > 50:
                     skill.level = min(5, skill.level + 1)
             else:
-                db.add(Skill(name=name, category=category, level=1,
-                             total_uses=1, last_used=timestamp, first_seen=timestamp))
+                # 检查是否已存在（避免 flush 后重复）
+                try:
+                    db.add(Skill(name=name, category=category, level=1,
+                                 total_uses=1, last_used=timestamp, first_seen=timestamp))
+                    db.flush()
+                except Exception:
+                    db.rollback()
             break
 
 
@@ -88,16 +95,22 @@ def collect_shell_history(db):
         result.errors.append('~/.zsh_history not found')
         return result
 
-    cutoff = _get_max_timestamp(db, 'terminal')
+    # 用已有命令去重（非标准格式没有可靠时间戳）
+    existing_actions = set()
+    for row in db.query(DevEvent.action).filter(
+        DevEvent.source == 'terminal',
+        DevEvent.tags.contains('"history"'),
+    ).all():
+        existing_actions.add(row[0])
 
     try:
         with open(history_path, 'rb') as f:
             raw = f.read()
-        # zsh history 可能有非 utf-8 字节
         text = raw.decode('utf-8', errors='replace')
         lines = text.split('\n')
 
         batch = []
+        file_mtime = int(os.path.getmtime(history_path))
         for line in lines:
             # 标准 zsh 扩展格式: : timestamp:0;command
             m = re.match(r'^: (\d+):\d+;(.+)', line)
@@ -105,22 +118,23 @@ def collect_shell_history(db):
                 ts = int(m.group(1))
                 cmd = m.group(2).strip()
             else:
-                # 非标准格式: 纯命令行（跳过注释和空行）
+                # 非标准格式: 纯命令行
                 cmd = line.strip().rstrip('\\')
                 if not cmd or cmd.startswith('#') or cmd.startswith('\\'):
                     continue
-                # 没有时间戳，用文件 mtime 作为近似值
-                ts = int(os.path.getmtime(history_path))
+                ts = file_mtime
 
-            if ts <= cutoff:
+            cmd_truncated = cmd[:500]
+            if cmd_truncated in existing_actions:
                 result.skipped += 1
                 continue
             if not cmd or cmd in ('ls', 'cd', 'pwd', 'clear', 'exit', '\\'):
                 result.skipped += 1
                 continue
 
+            existing_actions.add(cmd_truncated)
             batch.append(DevEvent(
-                timestamp=ts, source='terminal', action=cmd[:500],
+                timestamp=ts, source='terminal', action=cmd_truncated,
                 directory=HOME, project='local', branch='',
                 exit_code=0, duration_ms=0,
                 semantic='', tags=json.dumps(['shell', 'history']),

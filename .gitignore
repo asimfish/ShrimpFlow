@@ -24,3 +24,14 @@ dist-ssr
 *.sw?
 src/main 2.ts
 src/style 2.css
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+server/.venv/
+server/.env
+server/shrimpflow.db
+
+# Claude
+.claude/settings.local.json

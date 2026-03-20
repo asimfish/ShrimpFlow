@@ -100,8 +100,20 @@ def generate_daily_summary(db, date_str):
         except Exception:
             ai_summary = f'今天共产生 {len(events)} 个事件，AI 协作 {ai_session_count} 次。主要集中在 {top_projects[0][0] if top_projects else "未知"} 项目。'
     else:
-        # 无 API key 时使用模板
-        ai_summary = f'今天共产生 {len(events)} 个事件，AI 协作 {ai_session_count} 次。主要集中在 {top_projects[0][0] if top_projects else "未知"} 项目。'
+        # 无 API key 时使用增强模板
+        source_desc = []
+        source_labels = {'terminal': '终端', 'git': 'Git', 'openclaw': 'OpenClaw', 'claude_code': 'Claude Code', 'codex': 'Codex', 'env': '环境'}
+        source_map = defaultdict(int)
+        for e in events:
+            source_map[e.source] += 1
+        for src, cnt in sorted(source_map.items(), key=lambda x: x[1], reverse=True)[:3]:
+            source_desc.append(f'{source_labels.get(src, src)} {cnt} 次')
+        source_str = '、'.join(source_desc) if source_desc else '无明确来源'
+        proj_str = '、'.join(n for n, _ in top_projects[:3]) if top_projects else '未知'
+        cmd_str = ''
+        if top_commands:
+            cmd_str = f'常用命令: {", ".join(c for c, _ in top_commands[:3])}。'
+        ai_summary = f'今日 {len(events)} 个事件 ({source_str})，AI 协作 {ai_session_count} 次。活跃项目: {proj_str}。{cmd_str}'
 
     # 更新或创建 DailySummary
     existing = db.query(DailySummary).filter(DailySummary.date == date_str).first()

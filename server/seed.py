@@ -1379,11 +1379,90 @@ def ensure_runtime_records() -> None:
         for payload in runtime_packs:
             _upsert_shared_pack(db, payload)
 
+        # 每个社区用户的工作流
+        community_workflows = {
+            9: [  # 白丰硕
+                {
+                    'slug': 'rl-experiment-loop',
+                    'frontmatter': {
+                        'name': 'RL 实验闭环',
+                        'steps': [
+                            {'pattern': '实验前先做最小闭环', 'when': '开始新算法实验'},
+                            {'pattern': '日志先于调参', 'when': '闭环跑通后'},
+                            {'inline': '用 wandb/tensorboard 对比 baseline 指标'},
+                            {'pattern': '大项目拆成可审查-pr', 'gate': '指标达到 baseline 80% 以上'},
+                        ],
+                    },
+                    'body': '强化学习实验从最小闭环开始，保证日志完备后再系统调参，最终拆 PR 合入主分支。',
+                },
+            ],
+            10: [  # 周大围
+                {
+                    'slug': 'motion-plan-pipeline',
+                    'frontmatter': {
+                        'name': '运动规划开发流程',
+                        'steps': [
+                            {'pattern': '仿真与实机同接口', 'when': '新建规划器模块'},
+                            {'pattern': '先碰撞检查再执行', 'when': '轨迹规划完成'},
+                            {'inline': '在仿真环境中回归测试 10 组标准场景'},
+                            {'pattern': '规划失败保留现场', 'gate': '实机测试失败率低于 5%'},
+                        ],
+                    },
+                    'body': '规划器开发从接口统一开始，经碰撞检查和仿真验证后上实机，失败时自动保留现场。',
+                },
+            ],
+            11: [  # 王培朔
+                {
+                    'slug': 'vla-eval-workflow',
+                    'frontmatter': {
+                        'name': 'VLA 长程评估流程',
+                        'steps': [
+                            {'pattern': '任务先分阶段再执行', 'when': '设计新长程任务'},
+                            {'pattern': '记忆写入要带证据', 'when': '阶段执行产生新经验'},
+                            {'pattern': 'vla-评估先看长程成功率', 'gate': '全部阶段执行完毕'},
+                        ],
+                    },
+                    'body': '长程 VLA 任务先拆阶段，执行中严格管理记忆质量，最终以长程成功率为核心评估指标。',
+                },
+            ],
+            12: [  # 郭欣睿
+                {
+                    'slug': 'soft-robot-experiment',
+                    'frontmatter': {
+                        'name': '柔性机器人实验规范',
+                        'steps': [
+                            {'pattern': '材料与控制参数同步记录', 'when': '开始实验'},
+                            {'pattern': '仿真模型定期回归真实数据', 'when': '积累新批次实测数据'},
+                            {'pattern': '接触异常优先看传感器漂移', 'gate': '出现接触异常'},
+                        ],
+                    },
+                    'body': '柔性机器人实验全程同步记录材料和控制参数，定期用实测数据回归仿真模型，异常优先排查传感器。',
+                },
+            ],
+            13: [  # 高京
+                {
+                    'slug': 'ai4science-release',
+                    'frontmatter': {
+                        'name': 'AI4Science 发布流程',
+                        'steps': [
+                            {'pattern': '实验资产统一编号', 'when': '实验完成准备发布'},
+                            {'pattern': '发布前先做复现彩排', 'when': '资产整理完毕'},
+                            {'pattern': '开源更新附迁移说明', 'gate': '复现彩排通过'},
+                            {'inline': '更新 README 和 CHANGELOG，打 tag 并发布'},
+                        ],
+                    },
+                    'body': '科研成果发布前统一编号资产，做完整复现彩排，附迁移说明后正式发布。',
+                },
+            ],
+        }
+
         runtime_shared_profiles = []
         for pack in runtime_packs:
+            author_id = pack['author_id']
+            workflows = community_workflows.get(author_id, [])
             runtime_shared_profiles.append({
                 'id': pack['id'],
-                'author_id': pack['author_id'],
+                'author_id': author_id,
                 'name': f"shared-{pack['id']}",
                 'display': pack['name'],
                 'description': pack['description'],
@@ -1392,14 +1471,14 @@ def ensure_runtime_records() -> None:
                     'name': f"shared-{pack['id']}",
                     'display': pack['name'],
                     'description': pack['description'],
-                    'author': next((p['username'] for p in runtime_profiles if p['id'] == pack['author_id']), 'unknown'),
+                    'author': next((p['username'] for p in runtime_profiles if p['id'] == author_id), 'unknown'),
                     'tags': json.loads(pack['tags']) if isinstance(pack['tags'], str) else [],
                     'license': 'public',
                     'trust': 'community',
                     'injection': {'mode': 'proactive', 'budget': 2000},
                 }, ensure_ascii=False),
                 'patterns': pack['patterns'],
-                'workflows': json.dumps([], ensure_ascii=False),
+                'workflows': json.dumps(workflows, ensure_ascii=False),
                 'downloads': pack['downloads'],
                 'stars': pack['stars'],
                 'tags': pack['tags'],

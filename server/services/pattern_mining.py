@@ -57,6 +57,8 @@ def _simplify_action(source, action):
         return 'git-op'
     if source == 'claude_code':
         return 'claude-edit'
+    if source == 'codex':
+        return 'codex-edit'
     # terminal
     if 'python' in action:
         return 'python-run'

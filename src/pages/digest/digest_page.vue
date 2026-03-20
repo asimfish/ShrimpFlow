@@ -65,6 +65,7 @@ const heatColorBySource: Record<string, string[]> = {
   terminal: ['bg-terminal/15', 'bg-terminal/30', 'bg-terminal/50', 'bg-terminal/70'],
   git: ['bg-git/15', 'bg-git/30', 'bg-git/50', 'bg-git/70'],
   claude_code: ['bg-claude/15', 'bg-claude/30', 'bg-claude/50', 'bg-claude/70'],
+  codex: ['bg-cyan-300/15', 'bg-cyan-300/30', 'bg-cyan-300/50', 'bg-cyan-300/70'],
   env: ['bg-env/15', 'bg-env/30', 'bg-env/50', 'bg-env/70'],
 }
 
@@ -111,14 +112,14 @@ const selectedSourceCounts = computed(() => {
   return Object.entries(counts).sort((a, b) => b[1] - a[1])
 })
 
-const sourceColorMap: Record<string, string> = { openclaw: 'bg-openclaw', terminal: 'bg-terminal', git: 'bg-git', claude_code: 'bg-claude', env: 'bg-env' }
-const sourceNameMap: Record<string, string> = { openclaw: 'OpenClaw', terminal: '终端', git: 'Git', claude_code: 'Claude Code', env: '环境' }
+const sourceColorMap: Record<string, string> = { openclaw: 'bg-openclaw', terminal: 'bg-terminal', git: 'bg-git', claude_code: 'bg-claude', codex: 'bg-cyan-300', env: 'bg-env' }
+const sourceNameMap: Record<string, string> = { openclaw: 'OpenClaw', terminal: '终端', git: 'Git', claude_code: 'Claude Code', codex: 'Codex', env: '环境' }
 const weekDays = ['日', '一', '二', '三', '四', '五', '六']
 
 const selectedDayOpenClawSessions = computed(() => {
   if (!selectedDate.value) return []
   const linkedAiEvents = selectedDayEvents.value.filter(
-    e => (e.source === 'openclaw' || e.source === 'claude_code') && e.openclaw_session_id,
+    e => (e.source === 'openclaw' || e.source === 'claude_code' || e.source === 'codex') && e.openclaw_session_id,
   )
   const ids = new Set(linkedAiEvents.map(e => e.openclaw_session_id))
   for (const session of openclawStore.sessions) {
@@ -160,8 +161,8 @@ const lastWeekEvents = computed(() => {
 })
 
 const weeklyStats = computed(() => {
-  const thisAI = weekEvents.value.filter(e => e.source === 'openclaw' || e.source === 'claude_code').length
-  const lastAI = lastWeekEvents.value.filter(e => e.source === 'openclaw' || e.source === 'claude_code').length
+  const thisAI = weekEvents.value.filter(e => e.source === 'openclaw' || e.source === 'claude_code' || e.source === 'codex').length
+  const lastAI = lastWeekEvents.value.filter(e => e.source === 'openclaw' || e.source === 'claude_code' || e.source === 'codex').length
   const thisGit = weekEvents.value.filter(e => e.source === 'git').length
   const lastGit = lastWeekEvents.value.filter(e => e.source === 'git').length
   const delta = (a: number, b: number) => b === 0 ? (a > 0 ? 100 : 0) : Math.round((a - b) / b * 100)
@@ -186,7 +187,7 @@ const weekDailyTrend = computed(() => {
 
 // 周来源分布
 const weekSourceDist = computed(() => {
-  const counts: Record<string, number> = { openclaw: 0, terminal: 0, git: 0, claude_code: 0, env: 0 }
+  const counts: Record<string, number> = { openclaw: 0, terminal: 0, git: 0, claude_code: 0, codex: 0, env: 0 }
   weekEvents.value.forEach(e => { counts[e.source]++ })
   return counts
 })
@@ -199,7 +200,7 @@ const monthEvents = computed(() => {
 })
 
 const monthlyStats = computed(() => {
-  const ai = monthEvents.value.filter(e => e.source === 'openclaw' || e.source === 'claude_code').length
+  const ai = monthEvents.value.filter(e => e.source === 'openclaw' || e.source === 'claude_code' || e.source === 'codex').length
   const git = monthEvents.value.filter(e => e.source === 'git').length
   const projects = new Set(monthEvents.value.map(e => e.project))
   const activeDays = new Set(monthEvents.value.map(e => {
@@ -225,7 +226,7 @@ const monthWeeklyTrend = computed(() => {
 // 月来源趋势（按周）
 const monthSourceTrend = computed(() => {
   const start = currentMonth.value.startOf('month')
-  const sources = ['openclaw', 'terminal', 'git', 'claude_code', 'env'] as const
+  const sources = ['openclaw', 'terminal', 'git', 'claude_code', 'codex', 'env'] as const
   return sources.map(s => {
     const weeks = Array.from({ length: 5 }, (_, w) => {
       const wStart = start.add(w * 7, 'day').unix()

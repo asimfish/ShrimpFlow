@@ -4,5 +4,6 @@ from models.pattern import BehaviorPattern
 from models.openclaw import OpenClawSession, OpenClawDocument
 from models.digest import DailySummary
 from models.workflow import TeamWorkflow
-from models.community import SharedProfile, SharedPatternPack
+from models.community import SharedProfile, SharedPatternPack, SharedClawProfile
 from models.profile import ClawProfile
+from models.invocation import OpenClawInvocationLog

@@ -26,6 +26,7 @@ const animatedValues = ref({
   total_events: 0,
   total_openclaw_sessions: 0,
   total_claude_sessions: 0,
+  total_codex_sessions: 0,
   total_git_commits: 0,
   total_projects: 0,
   total_skills: 0,
@@ -50,6 +51,7 @@ const loadStats = async () => {
     animateNumber('total_events', sRes.data.total_events ?? 0, 1200)
     animateNumber('total_openclaw_sessions', sRes.data.total_openclaw_sessions ?? 0, 1000)
     animateNumber('total_claude_sessions', sRes.data.total_claude_sessions ?? 0, 1000)
+    animateNumber('total_codex_sessions', sRes.data.total_codex_sessions ?? 0, 1000)
     animateNumber('total_git_commits', sRes.data.total_git_commits ?? 0, 900)
     animateNumber('total_projects', sRes.data.total_projects ?? 0, 800)
     animateNumber('total_skills', sRes.data.total_skills ?? 0, 900)
@@ -87,7 +89,7 @@ watch(() => eventsStore.lastRealtimeEventAt, timestamp => {
 })
 
 const sourceDistribution = computed(() => {
-  const counts = { openclaw: 0, terminal: 0, git: 0, claude_code: 0, env: 0 }
+  const counts = { openclaw: 0, terminal: 0, git: 0, claude_code: 0, codex: 0, env: 0 }
   for (const e of eventsStore.events) {
     counts[e.source]++
   }
@@ -111,14 +113,15 @@ const recentAiSessions = computed(() =>
   [...openclawStore.sessions].sort((a, b) => b.created_at - a.created_at).slice(0, 3)
 )
 
-const isClaudeCodeSession = (session: { tags: string[] }) =>
-  session.tags.includes('claude_code')
+const sessionAgent = (session: { tags: string[] }) =>
+  session.tags.includes('codex') ? 'codex' : session.tags.includes('claude_code') ? 'claude_code' : 'openclaw'
 
 const sourceColor: Record<string, string> = {
   openclaw: 'text-openclaw',
   terminal: 'text-terminal',
   git: 'text-git',
   claude_code: 'text-claude',
+  codex: 'text-cyan-300',
   env: 'text-env',
 }
 
@@ -127,6 +130,7 @@ const sourceNameMap: Record<string, string> = {
   terminal: '终端',
   git: 'Git',
   claude_code: 'Claude Code',
+  codex: 'Codex',
   env: '环境',
 }
 
@@ -270,11 +274,12 @@ const handleCollectAll = async () => {
       <div class="bg-surface-1 rounded-xl p-4 border border-surface-3 cursor-pointer glow-card openclaw-pulse" @click="router.push('/openclaw')">
         <div class="text-xs text-openclaw">AI 交互</div>
         <div class="text-2xl font-bold mt-1 text-openclaw count-up">
-          {{ (animatedValues.total_openclaw_sessions + animatedValues.total_claude_sessions).toLocaleString() }}
+          {{ (animatedValues.total_openclaw_sessions + animatedValues.total_claude_sessions + animatedValues.total_codex_sessions).toLocaleString() }}
         </div>
         <div class="flex items-center gap-3 mt-1">
           <span class="text-[10px] text-gray-500">OC {{ stats?.total_openclaw_sessions ?? 0 }}</span>
           <span class="text-[10px] text-blue-400">CC {{ stats?.total_claude_sessions ?? 0 }}</span>
+          <span class="text-[10px] text-cyan-300">CX {{ stats?.total_codex_sessions ?? 0 }}</span>
         </div>
       </div>
       <!-- Git 提交 -->
@@ -301,7 +306,7 @@ const handleCollectAll = async () => {
             <div class="flex-1 h-2 bg-surface-3 rounded-full overflow-hidden">
               <div
                 class="h-full rounded-full transition-all"
-                :class="source === 'openclaw' ? 'bg-openclaw' : source === 'terminal' ? 'bg-terminal' : source === 'git' ? 'bg-git' : source === 'claude_code' ? 'bg-claude' : 'bg-env'"
+                :class="source === 'openclaw' ? 'bg-openclaw' : source === 'terminal' ? 'bg-terminal' : source === 'git' ? 'bg-git' : source === 'claude_code' ? 'bg-claude' : source === 'codex' ? 'bg-cyan-300' : 'bg-env'"
                 :style="{ width: `${(count / (stats?.total_events ?? 1)) * 100}%` }"
               />
             </div>
@@ -352,7 +357,7 @@ const handleCollectAll = async () => {
         <div class="space-y-2">
           <div v-for="event in recentEvents" :key="event.id" class="flex items-start gap-2">
             <div class="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
-              :class="event.source === 'openclaw' ? 'bg-openclaw' : event.source === 'terminal' ? 'bg-terminal' : event.source === 'git' ? 'bg-git' : event.source === 'claude_code' ? 'bg-claude' : 'bg-env'"
+              :class="event.source === 'openclaw' ? 'bg-openclaw' : event.source === 'terminal' ? 'bg-terminal' : event.source === 'git' ? 'bg-git' : event.source === 'claude_code' ? 'bg-claude' : event.source === 'codex' ? 'bg-cyan-300' : 'bg-env'"
             />
             <div class="min-w-0 flex-1">
               <div class="text-xs font-mono truncate text-gray-300">{{ event.action }}</div>
@@ -378,13 +383,13 @@ const handleCollectAll = async () => {
             <div class="flex items-center gap-2 mb-1">
               <div
                 class="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
-                :class="isClaudeCodeSession(session) ? 'bg-blue-500/20' : 'bg-openclaw/20'"
+                :class="sessionAgent(session) === 'claude_code' ? 'bg-blue-500/20' : sessionAgent(session) === 'codex' ? 'bg-cyan-300/20' : 'bg-openclaw/20'"
               >
                 <span
                   class="text-[8px] font-bold"
-                  :class="isClaudeCodeSession(session) ? 'text-blue-400' : 'text-openclaw'"
+                  :class="sessionAgent(session) === 'claude_code' ? 'text-blue-400' : sessionAgent(session) === 'codex' ? 'text-cyan-300' : 'text-openclaw'"
                 >
-                  {{ isClaudeCodeSession(session) ? 'CC' : 'OC' }}
+                  {{ sessionAgent(session) === 'claude_code' ? 'CC' : sessionAgent(session) === 'codex' ? 'CX' : 'OC' }}
                 </span>
               </div>
               <span class="text-xs text-gray-200 truncate">{{ session.title }}</span>

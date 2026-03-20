@@ -3,6 +3,8 @@ import { computed, ref, watch } from 'vue'
 
 import { useOpenClawStore } from '@/stores/openclaw'
 import { dayjs } from '@/libs/dayjs'
+import type { OpenClawInvocationLog } from '@/types'
+import { getSessionInvocationsApi } from '@/http_api/openclaw'
 
 const store = useOpenClawStore()
 
@@ -60,13 +62,24 @@ const docTypeColors: Record<string, string> = {
 }
 
 const formatTime = (ts: number) => dayjs(ts * 1000).format('MM-DD HH:mm')
-const isClaudeSession = (tags: string[]) => tags.includes('claude_code')
+const sessionAgent = (tags: string[]) => tags.includes('codex') ? 'codex' : tags.includes('claude_code') ? 'claude_code' : 'openclaw'
 const analysisError = ref<string | null>(null)
+const invocationLogs = ref<OpenClawInvocationLog[]>([])
 
 const analyzeCurrentSession = async () => {
   analysisError.value = null
   const result = await store.analyzeSelectedSession()
   if (result && result.error) analysisError.value = result.error
+  await loadInvocationLogs()
+}
+
+const loadInvocationLogs = async () => {
+  if (!store.selectedSessionId) {
+    invocationLogs.value = []
+    return
+  }
+  const result = await getSessionInvocationsApi(store.selectedSessionId)
+  invocationLogs.value = result.data ?? []
 }
 
 const selectedDocId = ref<number | null>(null)
@@ -113,6 +126,10 @@ watch(
   syncSelections,
   { immediate: true },
 )
+
+watch(() => store.selectedSessionId, () => {
+  void loadInvocationLogs()
+}, { immediate: true })
 </script>
 
 <template>
@@ -229,9 +246,9 @@ watch(
               {{ tag }}
             </span>
           </div>
-            <div v-if="store.selectedSession.analysis_summary" class="mt-3 bg-surface-2 rounded-lg p-3">
-              <div class="text-[10px] text-gray-500 mb-1">Active ClawProfile 分析</div>
-              <div class="text-xs text-gray-300 leading-relaxed">{{ store.selectedSession.analysis_summary }}</div>
+          <div v-if="store.selectedSession.analysis_summary" class="mt-3 bg-surface-2 rounded-lg p-3">
+            <div class="text-[10px] text-gray-500 mb-1">Active ClawProfile 分析</div>
+            <div class="text-xs text-gray-300 leading-relaxed">{{ store.selectedSession.analysis_summary }}</div>
             <div v-if="store.selectedSession.injected_pattern_slugs?.length" class="flex flex-wrap gap-1.5 mt-2">
               <span
                 v-for="slug in store.selectedSession.injected_pattern_slugs"
@@ -243,6 +260,18 @@ watch(
             </div>
           </div>
           <div v-if="analysisError" class="mt-2 text-[11px] text-red-400">{{ analysisError }}</div>
+          <div v-if="invocationLogs.length" class="mt-3 bg-surface-2 rounded-lg p-3">
+            <div class="text-[10px] text-gray-500 mb-2">Invocation Log</div>
+            <div class="space-y-2 max-h-32 overflow-y-auto">
+              <div v-for="log in invocationLogs" :key="log.id" class="border border-surface-3 rounded-lg p-2">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="text-[10px] text-gray-400">{{ log.provider || 'local' }} / {{ log.model || log.selector_type }}</div>
+                  <div class="text-[10px] text-gray-500">{{ log.created_at ? formatTime(log.created_at) : '' }}</div>
+                </div>
+                <div class="text-[10px] text-gray-300 mt-1">{{ log.response_summary }}</div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- 对话消息 -->
@@ -262,14 +291,14 @@ watch(
                 <div
                   v-if="msg.role === 'assistant'"
                   class="w-4 h-4 rounded-full flex items-center justify-center"
-                  :class="isClaudeSession(store.selectedSession.tags) ? 'bg-claude/30' : 'bg-openclaw/30'"
+                  :class="sessionAgent(store.selectedSession.tags) === 'claude_code' ? 'bg-claude/30' : sessionAgent(store.selectedSession.tags) === 'codex' ? 'bg-cyan-300/20' : 'bg-openclaw/30'"
                 >
-                  <span class="text-[8px] font-bold" :class="isClaudeSession(store.selectedSession.tags) ? 'text-claude' : 'text-openclaw'">
-                    {{ isClaudeSession(store.selectedSession.tags) ? 'CC' : 'OC' }}
+                  <span class="text-[8px] font-bold" :class="sessionAgent(store.selectedSession.tags) === 'claude_code' ? 'text-claude' : sessionAgent(store.selectedSession.tags) === 'codex' ? 'text-cyan-300' : 'text-openclaw'">
+                    {{ sessionAgent(store.selectedSession.tags) === 'claude_code' ? 'CC' : sessionAgent(store.selectedSession.tags) === 'codex' ? 'CX' : 'OC' }}
                   </span>
                 </div>
-                <span class="text-[10px]" :class="msg.role === 'user' ? 'text-accent' : (isClaudeSession(store.selectedSession.tags) ? 'text-claude' : 'text-openclaw')">
-                  {{ msg.role === 'user' ? '你' : (isClaudeSession(store.selectedSession.tags) ? 'Claude Code' : 'OpenClaw') }}
+                <span class="text-[10px]" :class="msg.role === 'user' ? 'text-accent' : (sessionAgent(store.selectedSession.tags) === 'claude_code' ? 'text-claude' : sessionAgent(store.selectedSession.tags) === 'codex' ? 'text-cyan-300' : 'text-openclaw')">
+                  {{ msg.role === 'user' ? '你' : (sessionAgent(store.selectedSession.tags) === 'claude_code' ? 'Claude Code' : sessionAgent(store.selectedSession.tags) === 'codex' ? 'Codex' : 'OpenClaw') }}
                 </span>
                 <span class="text-[10px] text-gray-600">{{ formatTime(msg.timestamp) }}</span>
               </div>

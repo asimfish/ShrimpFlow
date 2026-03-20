@@ -1,4 +1,4 @@
-import type { OpenClawSession, OpenClawDocument } from '@/types'
+import type { OpenClawDocument, OpenClawInvocationLog, OpenClawSession } from '@/types'
 
 import { get, post } from './client'
 
@@ -20,3 +20,6 @@ export const analyzeSessionApi = (id: number) =>
     status: string
     injected_pattern_slugs: string[]
   }>(`/openclaw/sessions/${id}/analyze`, {})
+
+export const getSessionInvocationsApi = (id: number) =>
+  get<OpenClawInvocationLog[]>(`/openclaw/sessions/${id}/invocations`)

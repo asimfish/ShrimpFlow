@@ -10,6 +10,7 @@ const sourceNames: Record<string, string> = {
   terminal: '终端',
   git: 'Git',
   claude_code: 'Claude Code',
+  codex: 'Codex',
   env: '环境',
 }
 
@@ -18,6 +19,7 @@ const sourceColors: Record<string, string> = {
   terminal: '#a78bfa',
   git: '#f97316',
   claude_code: '#818cf8',
+  codex: '#67e8f9',
   env: '#6b7280',
 }
 
@@ -26,6 +28,7 @@ const sourceBgClass: Record<string, string> = {
   terminal: 'bg-[#a78bfa]',
   git: 'bg-[#f97316]',
   claude_code: 'bg-[#818cf8]',
+  codex: 'bg-[#67e8f9]',
   env: 'bg-[#6b7280]',
 }
 
@@ -34,14 +37,15 @@ const sourceTextClass: Record<string, string> = {
   terminal: 'text-[#a78bfa]',
   git: 'text-[#f97316]',
   claude_code: 'text-[#818cf8]',
+  codex: 'text-[#67e8f9]',
   env: 'text-[#6b7280]',
 }
 
-const sources = ['openclaw', 'terminal', 'git', 'claude_code', 'env'] as const
+const sources = ['openclaw', 'terminal', 'git', 'claude_code', 'codex', 'env'] as const
 
 // 每个来源的事件统计
 const sourceCounts = computed(() => {
-  const counts: Record<string, number> = { openclaw: 0, terminal: 0, git: 0, claude_code: 0, env: 0 }
+  const counts: Record<string, number> = { openclaw: 0, terminal: 0, git: 0, claude_code: 0, codex: 0, env: 0 }
   for (const e of eventsStore.events) {
     counts[e.source]++
   }
@@ -258,4 +262,3 @@ const formatDateTime = (ts: number) => {
     </div>
   </div>
 </template>
-

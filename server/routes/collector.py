@@ -78,7 +78,7 @@ def collect_openclaw(req: CollectEventRequest, db: Session = Depends(get_db)):
 
 
 from services.real_data_collector import (
-    collect_shell_history, collect_claude_code,
+    collect_shell_history, collect_claude_code, collect_codex_sessions,
     collect_clawd_docs, collect_git_history, collect_all,
 )
 
@@ -94,6 +94,13 @@ def api_collect_shell(db: Session = Depends(get_db)):
 def api_collect_claude(db: Session = Depends(get_db)):
     from services.real_data_collector import collect_claude_code
     result = collect_claude_code(db)
+    return result.to_dict()
+
+
+@router.post("/collect/codex")
+def api_collect_codex(db: Session = Depends(get_db)):
+    from services.real_data_collector import collect_codex_sessions
+    result = collect_codex_sessions(db)
     return result.to_dict()
 
 

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from db import get_db
 from models.openclaw import OpenClawSession, OpenClawDocument
-from services.openclaw_runtime import analyze_session_with_active_profile
+from services.openclaw_runtime import analyze_session_with_active_profile, list_session_invocations
 
 router = APIRouter(tags=["openclaw"])
 
@@ -72,3 +72,8 @@ def analyze_session(session_id: int, db: Session = Depends(get_db)):
         return analyze_session_with_active_profile(db, session_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.get("/openclaw/sessions/{session_id}/invocations")
+def get_session_invocations(session_id: int, db: Session = Depends(get_db)):
+    return list_session_invocations(db, session_id)

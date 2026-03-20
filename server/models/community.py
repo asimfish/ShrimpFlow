@@ -28,3 +28,20 @@ class SharedPatternPack(Base):
     stars = Column(Integer, default=0)
     tags = Column(String)  # JSON string[]
     created_at = Column(Integer)
+
+
+class SharedClawProfile(Base):
+    __tablename__ = "shared_claw_profiles"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    author_id = Column(Integer, nullable=False)
+    name = Column(String, nullable=False)
+    display = Column(String)
+    description = Column(String)
+    profile = Column(String)  # JSON profile meta
+    patterns = Column(String)  # JSON ClawProfile patterns
+    workflows = Column(String)  # JSON ClawProfile workflows
+    downloads = Column(Integer, default=0)
+    stars = Column(Integer, default=0)
+    tags = Column(String)  # JSON string[]
+    created_at = Column(Integer)

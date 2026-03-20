@@ -60,7 +60,7 @@ const devType = computed(() => {
   const counts = { research: 0, engineering: 0, ops: 0 }
   for (const e of eventsStore.events) {
     if (e.source === 'openclaw' || e.tags.some(t => ['paper', 'experiment', 'learning'].includes(t))) counts.research++
-    else if (e.source === 'git' || e.source === 'claude_code' || e.tags.some(t => ['feature', 'bugfix', 'refactor'].includes(t))) counts.engineering++
+    else if (e.source === 'git' || e.source === 'claude_code' || e.source === 'codex' || e.tags.some(t => ['feature', 'bugfix', 'refactor'].includes(t))) counts.engineering++
     else counts.ops++
   }
   const total = counts.research + counts.engineering + counts.ops
@@ -75,7 +75,7 @@ const devType = computed(() => {
 
 // AI 依赖度
 const aiDependency = computed(() => {
-  const ocEvents = eventsStore.events.filter(e => e.source === 'openclaw' || e.source === 'claude_code').length
+  const ocEvents = eventsStore.events.filter(e => e.source === 'openclaw' || e.source === 'claude_code' || e.source === 'codex').length
   return Math.round(ocEvents / eventsStore.events.length * 100)
 })
 
@@ -116,8 +116,8 @@ const radarSkills = computed(() => {
 const weekComparison = computed(() => {
   const thisWeek = eventsStore.events.filter(e => e.timestamp > now - 7 * DAY)
   const lastWeek = eventsStore.events.filter(e => e.timestamp > now - 14 * DAY && e.timestamp <= now - 7 * DAY)
-  const thisAI = thisWeek.filter(e => e.source === 'openclaw' || e.source === 'claude_code').length
-  const lastAI = lastWeek.filter(e => e.source === 'openclaw' || e.source === 'claude_code').length
+  const thisAI = thisWeek.filter(e => e.source === 'openclaw' || e.source === 'claude_code' || e.source === 'codex').length
+  const lastAI = lastWeek.filter(e => e.source === 'openclaw' || e.source === 'claude_code' || e.source === 'codex').length
   const calcDelta = (a: number, b: number) => b === 0 ? 100 : Math.round((a - b) / b * 100)
   return {
     thisEvents: thisWeek.length,

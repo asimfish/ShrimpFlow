@@ -163,6 +163,7 @@ const simplifyAction = (e: DevEvent): string => {
     return 'git-op'
   }
   if (e.source === 'claude_code') return 'claude-edit'
+  if (e.source === 'codex') return 'codex-edit'
   // terminal
   if (e.action.includes('python')) return 'python-run'
   if (e.action.includes('pytest') || e.action.includes('test')) return 'test-run'

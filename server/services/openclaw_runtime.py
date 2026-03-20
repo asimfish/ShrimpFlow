@@ -1,16 +1,26 @@
 import json
 import os
 import re
+import time
 from typing import Any
 
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 
+from models.invocation import OpenClawInvocationLog
 from models.openclaw import OpenClawSession
 from models.pattern import BehaviorPattern
 from models.profile import ClawProfile
 
 load_dotenv()
+
+
+def _get_anthropic_client():
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        return None
+    import anthropic
+    return anthropic.Anthropic(api_key=api_key)
 
 
 def _active_profile(db: Session) -> ClawProfile | None:
@@ -120,7 +130,91 @@ def _heuristic_analysis(profile: ClawProfile, session: OpenClawSession, patterns
         "summary": summary,
         "status": "heuristic",
         "injected_pattern_slugs": injected_slugs,
+        "provider": "local",
+        "model": "heuristic-selector",
+        "prompt_excerpt": session_text[:500],
     }
+
+
+def _claude_analysis(profile: ClawProfile, session: OpenClawSession, patterns: list[BehaviorPattern]) -> dict | None:
+    client = _get_anthropic_client()
+    if client is None or not patterns:
+        return None
+
+    model = os.getenv("ANTHROPIC_SELECTOR_MODEL", "claude-3-5-haiku-latest")
+    session_text = _session_text(session)
+    pattern_payload = [
+        {
+            "slug": pattern.slug,
+            "name": pattern.name,
+            "description": pattern.description,
+            "rule": pattern.rule,
+            "trigger": pattern.trigger,
+            "body": (pattern.body or "")[:500],
+            "confidence": pattern.confidence,
+        }
+        for pattern in patterns[:25]
+    ]
+    prompt = (
+        "You are selecting the most relevant ClawProfile patterns for an AI coding session. "
+        "Return strict JSON with keys selected_pattern_slugs (array of strings) and summary (string).\n\n"
+        f"Profile: {profile.display}\n"
+        f"Session title: {session.title}\n"
+        f"Session content:\n{session_text[:4000]}\n\n"
+        f"Candidate patterns:\n{json.dumps(pattern_payload, ensure_ascii=False)}"
+    )
+
+    try:
+        response = client.messages.create(
+            model=model,
+            max_tokens=400,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = "".join(
+            block.text for block in response.content
+            if getattr(block, "type", None) == "text"
+        ).strip()
+        data = json.loads(text)
+        slugs = [slug for slug in data.get("selected_pattern_slugs", []) if isinstance(slug, str)]
+        return {
+            "profile_id": profile.id,
+            "profile_name": profile.display,
+            "matched_patterns": [
+                {
+                    "id": pattern.id,
+                    "slug": pattern.slug,
+                    "name": pattern.name,
+                    "confidence": pattern.confidence,
+                    "matched_terms": [],
+                    "body_preview": (pattern.body or pattern.description or "")[:160],
+                }
+                for pattern in patterns
+                if pattern.slug in slugs
+            ],
+            "summary": data.get("summary", f"Claude selector chose {len(slugs)} patterns."),
+            "status": "claude_selector",
+            "injected_pattern_slugs": slugs,
+            "provider": "anthropic",
+            "model": model,
+            "prompt_excerpt": prompt[:500],
+        }
+    except Exception:
+        return None
+
+
+def _persist_invocation_log(db: Session, session_id: int, result: dict) -> None:
+    db.add(OpenClawInvocationLog(
+        session_id=session_id,
+        profile_id=result.get("profile_id"),
+        provider=result.get("provider"),
+        model=result.get("model"),
+        selector_type=result.get("status"),
+        selected_pattern_slugs=json.dumps(result.get("injected_pattern_slugs", []), ensure_ascii=False),
+        prompt_excerpt=result.get("prompt_excerpt"),
+        response_summary=result.get("summary"),
+        status="ok",
+        created_at=int(time.time()),
+    ))
 
 
 def analyze_session_with_active_profile(db: Session, session_id: int) -> dict:
@@ -136,11 +230,12 @@ def analyze_session_with_active_profile(db: Session, session_id: int) -> dict:
         BehaviorPattern.profile_id == profile.id,
     ).order_by(BehaviorPattern.confidence.desc()).all()
 
-    result = _heuristic_analysis(profile, session, patterns)
+    result = _claude_analysis(profile, session, patterns) or _heuristic_analysis(profile, session, patterns)
     session.profile_id = profile.id
     session.injected_pattern_slugs = json.dumps(result["injected_pattern_slugs"], ensure_ascii=False)
     session.analysis_summary = result["summary"]
     session.analysis_status = result["status"]
+    _persist_invocation_log(db, session.id, result)
     db.commit()
     db.refresh(session)
     return result
@@ -159,3 +254,25 @@ def analyze_recent_sessions_with_active_profile(db: Session, limit: int = 20) ->
         analyze_session_with_active_profile(db, session.id)
         updated += 1
     return updated
+
+
+def list_session_invocations(db: Session, session_id: int) -> list[dict]:
+    rows = db.query(OpenClawInvocationLog).filter(
+        OpenClawInvocationLog.session_id == session_id,
+    ).order_by(OpenClawInvocationLog.created_at.desc()).all()
+    return [
+        {
+            "id": row.id,
+            "session_id": row.session_id,
+            "profile_id": row.profile_id,
+            "provider": row.provider,
+            "model": row.model,
+            "selector_type": row.selector_type,
+            "selected_pattern_slugs": json.loads(row.selected_pattern_slugs) if row.selected_pattern_slugs else [],
+            "prompt_excerpt": row.prompt_excerpt,
+            "response_summary": row.response_summary,
+            "status": row.status,
+            "created_at": row.created_at,
+        }
+        for row in rows
+    ]

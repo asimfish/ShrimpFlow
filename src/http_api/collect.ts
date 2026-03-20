@@ -6,6 +6,9 @@ export const collectShellHistoryApi = () => post<{ count: number }>('/collect/sh
 // 采集 Claude Code 历史
 export const collectClaudeCodeApi = () => post<{ count: number }>('/collect/claude-code', {})
 
+// 采集 Codex 历史
+export const collectCodexApi = () => post<{ count: number }>('/collect/codex', {})
+
 // 采集 Clawd 历史
 export const collectClawdApi = () => post<{ count: number }>('/collect/clawd', {})
 

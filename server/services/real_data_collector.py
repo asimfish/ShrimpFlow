@@ -357,6 +357,151 @@ def collect_claude_code(db):
     return result
 
 
+def collect_codex_sessions(db):
+    result = CollectResult('codex')
+    sessions_root = os.path.join(HOME, '.codex', 'sessions')
+    if not os.path.isdir(sessions_root):
+        result.errors.append('~/.codex/sessions/ not found')
+        return result
+
+    existing_files = {
+        row[0]
+        for row in db.query(OpenClawDocument.title).filter(OpenClawDocument.type == 'codex_session_index').all()
+    }
+
+    try:
+        for jsonl_file in Path(sessions_root).rglob('*.jsonl'):
+            file_key = str(jsonl_file).replace(f'{sessions_root}/', '')
+            if file_key in existing_files:
+                result.skipped += 1
+                continue
+
+            messages = []
+            first_ts = None
+            cwd = ''
+
+            with open(jsonl_file, 'r', errors='replace') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        entry = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+
+                    if entry.get('type') == 'session_meta':
+                        payload = entry.get('payload', {})
+                        cwd = payload.get('cwd', '') or cwd
+                        ts_str = entry.get('timestamp', '')
+                        if ts_str:
+                            try:
+                                first_ts = int(datetime.fromisoformat(ts_str.replace('Z', '+00:00')).timestamp())
+                            except (ValueError, TypeError):
+                                pass
+                        continue
+
+                    if entry.get('type') != 'response_item':
+                        continue
+
+                    payload = entry.get('payload', {})
+                    item_type = payload.get('type')
+                    role = payload.get('role')
+                    if item_type != 'message' or role not in ('assistant', 'user'):
+                        continue
+
+                    text_parts = []
+                    for block in payload.get('content', []):
+                        if isinstance(block, dict):
+                            text = block.get('text') or block.get('content') or ''
+                            if text:
+                                text_parts.append(text)
+                    content = '\n'.join(text_parts).strip()
+                    if not content:
+                        continue
+
+                    ts_str = entry.get('timestamp', '')
+                    ts = 0
+                    if ts_str:
+                        try:
+                            ts = int(datetime.fromisoformat(ts_str.replace('Z', '+00:00')).timestamp())
+                        except (ValueError, TypeError):
+                            pass
+                    if ts and not first_ts:
+                        first_ts = ts
+
+                    messages.append({
+                        'role': role,
+                        'content': content[:800],
+                        'timestamp': ts,
+                    })
+
+            if len(messages) < 2:
+                result.skipped += 1
+                continue
+
+            title = next((m['content'][:60].replace('\n', ' ') for m in messages if m['role'] == 'user'), f'Codex Session {jsonl_file.stem[:8]}')
+            created_at = first_ts or int(os.path.getmtime(jsonl_file))
+            project_name = os.path.basename(cwd) if cwd else 'codex'
+
+            content_lower = ' '.join(m['content'].lower() for m in messages[:5])
+            if any(w in content_lower for w in ['bug', 'fix', 'error', 'debug', '报错']):
+                category = 'debug'
+            elif any(w in content_lower for w in ['review', '审查', '检查']):
+                category = 'review'
+            elif any(w in content_lower for w in ['设计', 'design', '架构', 'architecture']):
+                category = 'architecture'
+            elif any(w in content_lower for w in ['论文', 'paper', '分析']):
+                category = 'paper'
+            else:
+                category = 'learning'
+
+            session = OpenClawSession(
+                title=title,
+                category=category,
+                messages=json.dumps(messages[:60], ensure_ascii=False),
+                project=project_name,
+                tags=json.dumps(['codex', project_name], ensure_ascii=False),
+                created_at=created_at,
+                summary=f'Codex 对话 ({len(messages)} 条消息, 项目: {project_name})',
+            )
+            db.add(session)
+            db.flush()
+
+            db.add(OpenClawDocument(
+                title=file_key,
+                type='codex_session_index',
+                content=f'Session {session.id}: {title}',
+                tags=json.dumps(['codex', 'index'], ensure_ascii=False),
+                created_at=created_at,
+                source_session_id=session.id,
+            ))
+
+            db.add(DevEvent(
+                timestamp=created_at,
+                source='codex',
+                action=f'codex session: {title}',
+                directory=cwd,
+                project=project_name,
+                branch='',
+                exit_code=0,
+                duration_ms=0,
+                semantic=f'Codex 对话 ({len(messages)} 条消息, 项目: {project_name})',
+                tags=json.dumps(['codex', 'ai', 'session', category, project_name], ensure_ascii=False),
+                openclaw_session_id=session.id,
+            ))
+            result.inserted += 1
+
+        db.commit()
+        if result.inserted > 0:
+            analyze_recent_sessions_with_active_profile(db, limit=min(result.inserted + 5, 50))
+    except Exception as e:
+        result.errors.append(str(e)[:200])
+        db.rollback()
+
+    return result
+
+
 # 3. OpenClaw/clawd 简报采集
 def collect_clawd_docs(db):
     result = CollectResult('clawd')
@@ -526,6 +671,7 @@ def collect_all(db):
     results = []
     results.append(collect_shell_history(db))
     results.append(collect_claude_code(db))
+    results.append(collect_codex_sessions(db))
     results.append(collect_clawd_docs(db))
     results.append(collect_git_history(db))
     return [r.to_dict() for r in results]

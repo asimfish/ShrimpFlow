@@ -26,6 +26,7 @@ const sourceColorMap: Record<string, string> = {
   terminal: 'text-terminal',
   git: 'text-git',
   claude_code: 'text-claude',
+  codex: 'text-cyan-300',
   env: 'text-env',
 }
 
@@ -34,6 +35,7 @@ const sourceLabelMap: Record<string, string> = {
   terminal: '终端',
   git: 'Git',
   claude_code: 'Claude',
+  codex: 'Codex',
   env: '环境',
 }
 

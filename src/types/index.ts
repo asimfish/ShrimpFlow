@@ -1,7 +1,7 @@
 // ShrimpFlow 类型定义
 
 // 统一事件格式
-export type EventSource = 'terminal' | 'git' | 'openclaw' | 'claude_code' | 'env'
+export type EventSource = 'terminal' | 'git' | 'openclaw' | 'claude_code' | 'codex' | 'env'
 
 export type DevEvent = {
   id: number
@@ -50,6 +50,7 @@ export type StatsOverview = {
   total_skills: number
   total_openclaw_sessions: number
   total_claude_sessions: number
+  total_codex_sessions?: number
   total_git_commits: number
   most_active_project: string
   streak_days: number
@@ -242,4 +243,33 @@ export type SharedPatternPack = {
   stars: number
   tags: string[]
   created_at: number
+}
+
+export type SharedClawProfile = {
+  id: number
+  author: SharedProfile
+  name: string
+  display: string
+  description: string
+  profile: ClawProfile
+  patterns: BehaviorPattern[]
+  workflows: TeamWorkflow[]
+  downloads: number
+  stars: number
+  tags: string[]
+  created_at: number
+}
+
+export type OpenClawInvocationLog = {
+  id: number
+  session_id: number
+  profile_id: number | null
+  provider: string | null
+  model: string | null
+  selector_type: string | null
+  selected_pattern_slugs: string[]
+  prompt_excerpt: string | null
+  response_summary: string | null
+  status: string | null
+  created_at: number | null
 }

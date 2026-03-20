@@ -1,4 +1,5 @@
-import type { SharedProfile, SharedPatternPack } from '@/types'
+import type { ClawProfile, SharedClawProfile, SharedProfile, SharedPatternPack } from '@/types'
+import type { ClawProfileExchangeWorkflow } from './patterns'
 
 import { get, post } from './client'
 
@@ -18,3 +19,15 @@ export const createPackApi = (data: {
   patterns: object[]
   tags: string[]
 }) => post<SharedPatternPack>('/community/packs', data)
+
+export const getSharedClawProfilesApi = () => get<SharedClawProfile[]>('/community/claw-profiles')
+
+export const createSharedClawProfileApi = (data: {
+  name: string
+  display: string
+  description: string
+  profile: Partial<ClawProfile>
+  patterns: object[]
+  workflows: ClawProfileExchangeWorkflow[]
+  tags: string[]
+}) => post<SharedClawProfile>('/community/claw-profiles', data)

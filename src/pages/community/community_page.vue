@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 
-import type { SharedPatternPack, BehaviorPattern } from '@/types'
-import { getPacksApi, createPackApi } from '@/http_api/community'
+import type { SharedClawProfile, BehaviorPattern, ClawProfile } from '@/types'
+import type { ClawProfileExchangeWorkflow } from '@/http_api/patterns'
+import { createSharedClawProfileApi, getSharedClawProfilesApi } from '@/http_api/community'
 import { importPatternsApi } from '@/http_api/patterns'
 import { usePatternsStore } from '@/stores/patterns'
+import { getActiveProfileApi } from '@/http_api/profiles'
 
 const searchQuery = ref('')
 const categoryFilter = ref('all')
@@ -24,9 +26,10 @@ const selectedPatternIds = ref<Set<number>>(new Set())
 const publishing = ref(false)
 const publishSuccess = ref(false)
 
-const packs = ref<SharedPatternPack[]>([])
+const packs = ref<SharedClawProfile[]>([])
 const patternsStore = usePatternsStore()
 const myPatterns = computed<BehaviorPattern[]>(() => patternsStore.patterns)
+const activeProfile = ref<ClawProfile | null>(null)
 
 const loadCommunityData = async () => {
   loading.value = true
@@ -34,15 +37,19 @@ const loadCommunityData = async () => {
   patternsError.value = null
   actionError.value = null
 
-  const [packRes, patternRes] = await Promise.all([
-    getPacksApi(),
+  const [packRes, patternRes, workflowRes, activeProfileRes] = await Promise.all([
+    getSharedClawProfilesApi(),
     patternsStore.fetchPatterns(),
+    patternsStore.fetchWorkflows(),
+    getActiveProfileApi(),
   ])
 
   if (packRes.data) packs.value = packRes.data
-  else packsError.value = packRes.error ?? '社区模式包加载失败'
+  else packsError.value = packRes.error ?? '社区 ClawProfile 加载失败'
 
   if (!patternRes.data) patternsError.value = patternRes.error ?? '本地模式加载失败'
+  if (!workflowRes.data && !patternsError.value) patternsError.value = workflowRes.error ?? '本地工作流加载失败'
+  if (activeProfileRes.data) activeProfile.value = activeProfileRes.data
 
   loading.value = false
 }
@@ -77,15 +84,19 @@ const categoryBtnColor: Record<string, string> = {
   collaboration: 'bg-purple-500 text-white',
 }
 
+const getPrimaryCategory = (tags: string[]) =>
+  categories.find(category => tags.some(tag => tag.toLowerCase().includes(category.key)))?.key ?? 'coding'
+
 const filteredPacks = computed(() => {
-  let result: SharedPatternPack[] = packs.value
+  let result: SharedClawProfile[] = packs.value
   if (categoryFilter.value !== 'all') {
-    result = result.filter(p => p.category === categoryFilter.value)
+    result = result.filter(p => p.tags.some(tag => tag.toLowerCase().includes(categoryFilter.value)))
   }
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     result = result.filter(p =>
       p.name.toLowerCase().includes(q)
+      || p.display.toLowerCase().includes(q)
       || p.description.toLowerCase().includes(q)
       || p.tags.some(t => t.toLowerCase().includes(q))
       || p.author.username.toLowerCase().includes(q)
@@ -122,14 +133,43 @@ const togglePatternSelect = (id: number) => {
   selectedPatternIds.value = next
 }
 
-const handleImport = async (pack: SharedPatternPack) => {
+const normalizeSharedWorkflow = (workflow: any): ClawProfileExchangeWorkflow => ({
+  slug: typeof workflow?.slug === 'string'
+    ? workflow.slug
+    : String(workflow?.name ?? 'workflow').toLowerCase().replace(/\s+/g, '-'),
+  frontmatter: workflow?.frontmatter && typeof workflow.frontmatter === 'object'
+    ? workflow.frontmatter
+    : { name: String(workflow?.name ?? 'Imported Workflow'), steps: Array.isArray(workflow?.steps) ? workflow.steps : [] },
+  body: typeof workflow?.body === 'string'
+    ? workflow.body
+    : String(workflow?.description ?? ''),
+})
+
+const handleImport = async (pack: SharedClawProfile) => {
   actionError.value = null
   importingPackId.value = pack.id
-  const res = await importPatternsApi({ patterns: pack.patterns })
+  const res = await importPatternsApi({
+    profile: {
+      name: pack.profile.name,
+      display: pack.profile.display,
+      description: pack.profile.description ?? undefined,
+      author: pack.profile.author ?? undefined,
+      tags: pack.profile.tags,
+      license: pack.profile.license ?? undefined,
+      trust: pack.profile.trust ?? undefined,
+      injection: pack.profile.injection ?? undefined,
+    },
+    patterns: pack.patterns,
+    workflows: pack.workflows.map(normalizeSharedWorkflow),
+  })
 
   if (res.data) {
-    const refreshRes = await patternsStore.fetchPatterns()
-    if (!refreshRes.data) patternsError.value = refreshRes.error ?? '本地模式刷新失败'
+    const [refreshPatterns, refreshWorkflows] = await Promise.all([
+      patternsStore.fetchPatterns(),
+      patternsStore.fetchWorkflows(),
+    ])
+    if (!refreshPatterns.data) patternsError.value = refreshPatterns.error ?? '本地模式刷新失败'
+    if (!refreshWorkflows.data && !patternsError.value) patternsError.value = refreshWorkflows.error ?? '本地工作流刷新失败'
     importSuccess.value = pack.id
     setTimeout(() => { importSuccess.value = null }, 2500)
   } else {
@@ -151,12 +191,46 @@ const handlePublish = async () => {
   publishSuccess.value = false
   publishing.value = true
   const selectedPatterns = myPatterns.value.filter(p => selectedPatternIds.value.has(p.id))
-  const tags = publishTags.value.split(',').map(t => t.trim()).filter(Boolean)
-  const res = await createPackApi({
+  const selectedSlugs = new Set(selectedPatterns.map(pattern => pattern.slug).filter(Boolean))
+  const selectedWorkflows = patternsStore.workflows.filter(workflow =>
+    workflow.steps.some(step => step.pattern && selectedSlugs.has(step.pattern))
+    || workflow.patterns.some(id => selectedPatternIds.value.has(id))
+  )
+  const exportedWorkflows = selectedWorkflows.map(workflow => ({
+    slug: workflow.name.toLowerCase().replace(/\s+/g, '-'),
+    frontmatter: {
+      name: workflow.name,
+      steps: workflow.steps,
+    },
+    body: workflow.description,
+  }))
+  const tags = Array.from(new Set([publishCategory.value, ...publishTags.value.split(',').map(t => t.trim()).filter(Boolean)]))
+  const profileMeta = activeProfile.value ?? {
     name: publishName.value.trim(),
+    display: publishName.value.trim(),
     description: publishDesc.value.trim(),
-    category: publishCategory.value,
+    author: 'liyufeng',
+    tags,
+    license: 'public',
+    trust: 'local',
+    injection: { mode: 'proactive', budget: 2000 },
+  }
+  const res = await createSharedClawProfileApi({
+    name: profileMeta.name,
+    display: publishName.value.trim(),
+    description: publishDesc.value.trim(),
+    profile: {
+      ...profileMeta,
+      display: publishName.value.trim(),
+      description: publishDesc.value.trim() || undefined,
+      author: profileMeta.author ?? undefined,
+      tags,
+      license: profileMeta.license ?? undefined,
+      trust: profileMeta.trust ?? undefined,
+      injection: profileMeta.injection ?? undefined,
+    },
     patterns: selectedPatterns,
+    workflows: exportedWorkflows,
     tags,
   })
   publishing.value = false
@@ -180,7 +254,7 @@ const handlePublish = async () => {
     <!-- 页面标题 -->
     <div>
       <h1 class="text-2xl font-semibold">社区分享</h1>
-      <p class="text-sm text-gray-400 mt-1">发现和导入社区中优秀开发者的行为模式包</p>
+      <p class="text-sm text-gray-400 mt-1">发现和导入社区中优秀开发者的 Shared ClawProfile</p>
     </div>
 
     <!-- 搜索栏 -->
@@ -191,7 +265,7 @@ const handlePublish = async () => {
       <input
         v-model="searchQuery"
         type="text"
-        placeholder="搜索模式包、作者、标签..."
+        placeholder="搜索 ClawProfile、作者、标签..."
         class="w-full bg-surface-1 border border-surface-3 rounded-xl pl-10 pr-4 py-2.5 text-sm text-gray-300 outline-none focus:border-accent transition-colors"
       />
     </div>
@@ -213,7 +287,7 @@ const handlePublish = async () => {
 
     <!-- 统计信息 -->
     <div class="text-sm text-gray-400">
-      共 {{ filteredPacks.length }} 个模式包
+      共 {{ filteredPacks.length }} 个 Shared ClawProfile
     </div>
 
     <div v-if="actionError" class="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-sm text-red-300">
@@ -230,18 +304,18 @@ const handlePublish = async () => {
 
     <!-- 模式包卡片网格 -->
     <div v-if="loading" class="bg-surface-1 rounded-xl border border-surface-3 py-20 text-center text-gray-500">
-      <div class="text-lg mb-2">正在加载社区模式包...</div>
+      <div class="text-lg mb-2">正在加载社区 ClawProfile...</div>
       <div class="text-sm text-gray-600">请稍候</div>
     </div>
 
     <div v-else-if="packsError && packs.length === 0" class="bg-surface-1 rounded-xl border border-red-500/20 py-20 text-center text-gray-400">
-      <div class="text-lg mb-2 text-gray-200">社区模式包加载失败</div>
+      <div class="text-lg mb-2 text-gray-200">社区 ClawProfile 加载失败</div>
       <div class="text-sm text-red-300 mb-4">{{ packsError }}</div>
       <button class="text-sm text-accent hover:text-accent-glow cursor-pointer" @click="loadCommunityData">重试</button>
     </div>
 
     <div v-else-if="filteredPacks.length === 0" class="bg-surface-1 rounded-xl border border-surface-3 py-20 text-center text-gray-500">
-      <div class="text-lg mb-2">暂无匹配的模式包</div>
+      <div class="text-lg mb-2">暂无匹配的 ClawProfile</div>
       <div class="text-sm text-gray-600">试试调整搜索词或分类</div>
     </div>
 
@@ -263,11 +337,11 @@ const handlePublish = async () => {
           </div>
         </div>
 
-        <!-- 包名称和分类 -->
+        <!-- Profile 名称和分类 -->
         <div class="flex items-start justify-between gap-2">
-          <div class="text-sm font-medium text-gray-200 leading-snug">{{ pack.name }}</div>
-          <span class="text-[10px] px-2 py-0.5 rounded border shrink-0" :class="categoryColorMap[pack.category]">
-            {{ categories.find(c => c.key === pack.category)?.label }}
+          <div class="text-sm font-medium text-gray-200 leading-snug">{{ pack.display }}</div>
+          <span class="text-[10px] px-2 py-0.5 rounded border shrink-0" :class="categoryColorMap[getPrimaryCategory(pack.tags)]">
+            {{ categories.find(c => c.key === getPrimaryCategory(pack.tags))?.label }}
           </span>
         </div>
 
@@ -288,7 +362,7 @@ const handlePublish = async () => {
             </svg>
             {{ formatCount(pack.stars) }}
           </div>
-          <div class="text-[10px] text-gray-600">{{ pack.patterns.length }} 个模式</div>
+          <div class="text-[10px] text-gray-600">{{ pack.patterns.length }} 个模式 · {{ pack.workflows.length }} 个工作流</div>
         </div>
 
         <!-- 标签 -->
@@ -311,7 +385,7 @@ const handlePublish = async () => {
             :disabled="importingPackId === pack.id"
             @click.stop="handleImport(pack)"
           >
-            {{ importingPackId === pack.id ? '导入中...' : '导入到我的模式库' }}
+            {{ importingPackId === pack.id ? '导入到我的本地 ClawProfile 中...' : '导入到我的本地 ClawProfile' }}
           </button>
           <div
             v-else
@@ -338,6 +412,13 @@ const handlePublish = async () => {
             <div class="text-[10px] text-gray-500">{{ pattern.description }}</div>
             <div class="text-[10px] text-gray-600 font-mono">{{ pattern.rule }}</div>
           </div>
+          <div v-if="pack.workflows.length" class="pt-1">
+            <div class="text-[10px] text-gray-500 mb-1">包含的工作流</div>
+            <div v-for="workflow in pack.workflows" :key="workflow.id" class="bg-surface-2 rounded-lg p-2.5 mb-1.5">
+              <div class="text-xs text-gray-300">{{ workflow.name }}</div>
+              <div class="text-[10px] text-gray-500 mt-1">{{ workflow.steps.length }} 个步骤</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -345,15 +426,15 @@ const handlePublish = async () => {
     <!-- 发布我的模式 -->
     <div class="bg-surface-1 rounded-xl border border-accent/30 p-5 space-y-4">
       <div class="text-sm font-medium text-accent">发布我的 ClawProfile</div>
-      <div class="text-xs text-gray-400">将你归纳好的行为模式打包发布到社区</div>
+      <div class="text-xs text-gray-400">将 active profile 元信息、选中模式和关联工作流整体发布到社区</div>
 
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <div class="text-[10px] text-gray-500 mb-1">模式包名称</div>
+          <div class="text-[10px] text-gray-500 mb-1">ClawProfile 展示名称</div>
           <input
             v-model="publishName"
             type="text"
-            placeholder="输入模式包名称..."
+            placeholder="输入 Shared ClawProfile 名称..."
             class="w-full bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 text-xs text-gray-300 outline-none focus:border-accent transition-colors"
           />
         </div>
@@ -371,10 +452,10 @@ const handlePublish = async () => {
       </div>
 
       <div>
-        <div class="text-[10px] text-gray-500 mb-1">描述</div>
+          <div class="text-[10px] text-gray-500 mb-1">描述</div>
         <textarea
           v-model="publishDesc"
-          placeholder="描述你的模式包..."
+          placeholder="描述这个 ClawProfile 的适用对象、风格和价值..."
           rows="2"
           class="w-full bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 text-xs text-gray-300 outline-none focus:border-accent transition-colors resize-none"
         />
@@ -393,7 +474,7 @@ const handlePublish = async () => {
       <!-- 选择要发布的模式 -->
       <div>
         <div class="text-[10px] text-gray-500 mb-2">
-          选择要发布的模式（已确认 / 可导出）
+          选择要发布的模式（将自动携带关联工作流）
           <span v-if="publishablePatterns.length === 0" class="text-yellow-500 ml-2">— 请先在模式页面确认模式</span>
         </div>
         <div v-if="publishablePatterns.length > 0" class="space-y-1.5 max-h-40 overflow-y-auto pr-1">

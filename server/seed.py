@@ -12,7 +12,7 @@ from models.pattern import BehaviorPattern
 from models.openclaw import OpenClawSession, OpenClawDocument
 from models.digest import DailySummary
 from models.workflow import TeamWorkflow
-from models.community import SharedProfile, SharedPatternPack
+from models.community import SharedProfile, SharedPatternPack, SharedClawProfile
 from models.profile import ClawProfile
 from services.openclaw_runtime import analyze_recent_sessions_with_active_profile
 
@@ -1174,6 +1174,15 @@ def _upsert_shared_pack(db, payload: dict) -> None:
         setattr(row, key, value)
 
 
+def _upsert_shared_claw_profile(db, payload: dict) -> None:
+    row = db.query(SharedClawProfile).filter(SharedClawProfile.id == payload['id']).first()
+    if row is None:
+        db.add(SharedClawProfile(**payload))
+        return
+    for key, value in payload.items():
+        setattr(row, key, value)
+
+
 def _ensure_behavior_pattern_backfill(db) -> None:
     active_profile = db.query(ClawProfile).filter(ClawProfile.is_active == 1).first()
     for row in db.query(BehaviorPattern).all():
@@ -1369,6 +1378,36 @@ def ensure_runtime_records() -> None:
         ]
         for payload in runtime_packs:
             _upsert_shared_pack(db, payload)
+
+        runtime_shared_profiles = []
+        for pack in runtime_packs:
+            runtime_shared_profiles.append({
+                'id': pack['id'],
+                'author_id': pack['author_id'],
+                'name': f"shared-{pack['id']}",
+                'display': pack['name'],
+                'description': pack['description'],
+                'profile': json.dumps({
+                    'schema': 'clawprofile/v1',
+                    'name': f"shared-{pack['id']}",
+                    'display': pack['name'],
+                    'description': pack['description'],
+                    'author': next((p['username'] for p in runtime_profiles if p['id'] == pack['author_id']), 'unknown'),
+                    'tags': json.loads(pack['tags']) if isinstance(pack['tags'], str) else [],
+                    'license': 'public',
+                    'trust': 'community',
+                    'injection': {'mode': 'proactive', 'budget': 2000},
+                }, ensure_ascii=False),
+                'patterns': pack['patterns'],
+                'workflows': json.dumps([], ensure_ascii=False),
+                'downloads': pack['downloads'],
+                'stars': pack['stars'],
+                'tags': pack['tags'],
+                'created_at': pack['created_at'],
+            })
+
+        for payload in runtime_shared_profiles:
+            _upsert_shared_claw_profile(db, payload)
 
         db.commit()
         analyze_recent_sessions_with_active_profile(db, limit=50)

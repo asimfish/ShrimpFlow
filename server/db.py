@@ -59,6 +59,41 @@ def ensure_runtime_schema() -> None:
             )
             """
         )
+        conn.exec_driver_sql(
+            """
+            CREATE TABLE IF NOT EXISTS shared_claw_profiles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                author_id INTEGER NOT NULL,
+                name VARCHAR NOT NULL,
+                display VARCHAR,
+                description VARCHAR,
+                profile VARCHAR,
+                patterns VARCHAR,
+                workflows VARCHAR,
+                downloads INTEGER DEFAULT 0,
+                stars INTEGER DEFAULT 0,
+                tags VARCHAR,
+                created_at INTEGER
+            )
+            """
+        )
+        conn.exec_driver_sql(
+            """
+            CREATE TABLE IF NOT EXISTS openclaw_invocation_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id INTEGER NOT NULL,
+                profile_id INTEGER,
+                provider VARCHAR,
+                model VARCHAR,
+                selector_type VARCHAR,
+                selected_pattern_slugs VARCHAR,
+                prompt_excerpt VARCHAR,
+                response_summary VARCHAR,
+                status VARCHAR,
+                created_at INTEGER
+            )
+            """
+        )
         _sqlite_ensure_columns(
             conn,
             "behavior_patterns",

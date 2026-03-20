@@ -14,7 +14,8 @@ const pickSource = () => {
   if (r < 0.35) return 'openclaw' as const
   if (r < 0.6) return 'terminal' as const
   if (r < 0.8) return 'git' as const
-  if (r < 0.95) return 'claude_code' as const
+  if (r < 0.9) return 'claude_code' as const
+  if (r < 0.97) return 'codex' as const
   return 'env' as const
 }
 
@@ -65,7 +66,15 @@ const claudeCodeActions = [
   { action: 'claude: Grep "reward_function" src/', semantic: 'Claude Code 搜索奖励函数', tags: ['claude', 'search'] },
 ]
 
-const generateEventData = (source: DevEvent['source']) => {
+const codexActions = [
+  { action: 'codex session: refine devtwin realtime collector', semantic: 'Codex 辅助完善实时采集链路', tags: ['codex', 'edit'] },
+  { action: 'codex session: inspect clawprofile export/import path', semantic: 'Codex 审查 ClawProfile 导入导出', tags: ['codex', 'analysis'] },
+  { action: 'codex session: patch openclaw runtime selector', semantic: 'Codex 调整 OpenClaw runtime', tags: ['codex', 'runtime'] },
+]
+
+type GeneratedEventData = Omit<DevEvent, 'id' | 'timestamp' | 'source'>
+
+const generateEventData = (source: DevEvent['source']): GeneratedEventData => {
   const project = projects[Math.floor(Math.random() * projects.length)]
   const branch = branches[Math.floor(Math.random() * branches.length)]
   const base = { directory: `/home/liyufeng/research/${project}`, project, branch }
@@ -86,6 +95,10 @@ const generateEventData = (source: DevEvent['source']) => {
     }
     case 'claude_code': {
       const d = claudeCodeActions[Math.floor(Math.random() * claudeCodeActions.length)]
+      return { ...base, action: d.action, semantic: d.semantic, tags: d.tags, exit_code: 0, duration_ms: 500 + Math.floor(Math.random() * 5000) }
+    }
+    case 'codex': {
+      const d = codexActions[Math.floor(Math.random() * codexActions.length)]
       return { ...base, action: d.action, semantic: d.semantic, tags: d.tags, exit_code: 0, duration_ms: 500 + Math.floor(Math.random() * 5000) }
     }
     case 'env':

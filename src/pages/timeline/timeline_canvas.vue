@@ -20,6 +20,7 @@ const sourceColor: Record<string, string> = {
   terminal: '#38bdf8',
   git: '#34d399',
   claude_code: '#a78bfa',
+  codex: '#67e8f9',
   env: '#f87171',
 }
 
@@ -28,6 +29,7 @@ const sourceLabel: Record<string, string> = {
   terminal: '终端',
   git: 'Git',
   claude_code: 'Claude',
+  codex: 'Codex',
   env: '环境',
 }
 
@@ -44,6 +46,7 @@ const sourceShape: Record<string, (x: number, y: number, r: number) => string> =
   terminal: (x, y, r) => `${x},${y - r} ${x + r},${y} ${x},${y + r} ${x - r},${y}`, // 菱形
   git: (x, y, r) => `${x - r},${y - r} ${x + r},${y - r} ${x + r},${y + r} ${x - r},${y + r}`, // 方形
   claude_code: (x, y, r) => `${x},${y - r * 1.2} ${x + r},${y + r * 0.6} ${x - r},${y + r * 0.6}`, // 三角
+  codex: (x, y, r) => `${x - r},${y} ${x},${y - r} ${x + r},${y} ${x},${y + r}`, // 菱形
   env: (x, y, r) => `${x},${y - r} ${x + r},${y} ${x},${y + r} ${x - r},${y}`, // 菱形
 }
 
@@ -74,7 +77,7 @@ const drawTimeline = () => {
     .domain([new Date(timeExtent[0] * 1000), new Date(timeExtent[1] * 1000)])
     .range([margin.left, width - margin.right])
 
-  const sources = ['openclaw', 'terminal', 'git', 'claude_code', 'env']
+  const sources = ['openclaw', 'terminal', 'git', 'claude_code', 'codex', 'env']
   const yScale = d3.scaleBand<string>()
     .domain(sources)
     .range([margin.top, height - margin.bottom])
@@ -198,7 +201,7 @@ const drawTimeline = () => {
   })
 
   // 分层入场动画 - 按来源分组波浪展开
-  const sourceOrder = ['terminal', 'git', 'env', 'claude_code', 'openclaw']
+  const sourceOrder = ['terminal', 'git', 'env', 'claude_code', 'codex', 'openclaw']
   shapes.transition()
     .duration(600)
     .delay((d: DevEvent) => {
@@ -214,7 +217,7 @@ const drawTimeline = () => {
 
   // 同一 AI 会话的事件用虚线连接
   const openclawEvents = data.filter(d =>
-    (d.source === 'openclaw' || d.source === 'claude_code') && d.openclaw_session_id
+    (d.source === 'openclaw' || d.source === 'claude_code' || d.source === 'codex') && d.openclaw_session_id
   )
   const sessionGroups = new Map<number, DevEvent[]>()
   openclawEvents.forEach(d => {

@@ -72,7 +72,7 @@ def generate_daily_summary(db, date_str):
         if e.source == 'terminal':
             cmd = e.action.split(' ')[0]
             cmd_counts[cmd] += 1
-        if e.source in ('openclaw', 'claude_code'):
+        if e.source in ('openclaw', 'claude_code', 'codex'):
             ai_activity_count += 1
             if e.openclaw_session_id:
                 ai_session_ids.add(e.openclaw_session_id)

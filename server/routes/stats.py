@@ -23,6 +23,9 @@ def get_stats(db: Session = Depends(get_db)):
     total_claude_sessions = db.query(func.count(OpenClawSession.id)).filter(
         OpenClawSession.tags.contains('"claude_code"')
     ).scalar() or 0
+    total_codex_sessions = db.query(func.count(OpenClawSession.id)).filter(
+        OpenClawSession.tags.contains('"codex"')
+    ).scalar() or 0
     total_git_commits = db.query(func.count(DevEvent.id)).filter(
         DevEvent.source == 'git',
         ~DevEvent.tags.contains('"seed"'),
@@ -62,6 +65,7 @@ def get_stats(db: Session = Depends(get_db)):
         'total_projects': total_projects, 'total_skills': total_skills,
         'total_openclaw_sessions': total_openclaw_sessions,
         'total_claude_sessions': total_claude_sessions,
+        'total_codex_sessions': total_codex_sessions,
         'total_git_commits': total_git_commits,
         'most_active_project': most_active_project, 'streak_days': streak,
     }

@@ -28,6 +28,7 @@ const sourceLabel: Record<string, string> = {
   terminal: '终端',
   git: 'Git',
   claude_code: 'Claude Code',
+  codex: 'Codex',
   env: '环境',
 }
 
@@ -36,6 +37,7 @@ const sourceDot: Record<string, string> = {
   terminal: 'bg-terminal',
   git: 'bg-git',
   claude_code: 'bg-claude',
+  codex: 'bg-cyan-300',
   env: 'bg-env',
 }
 
@@ -44,6 +46,7 @@ const sourceText: Record<string, string> = {
   terminal: 'text-terminal',
   git: 'text-git',
   claude_code: 'text-claude',
+  codex: 'text-cyan-300',
   env: 'text-env',
 }
 

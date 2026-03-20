@@ -1,0 +1,15 @@
+schema: clawprofile/v1
+
+name: ml-research-workflow
+display: ML 研究全流程
+description: >
+  从论文阅读、实验设计、训练调试到论文写作的完整行为模式集，
+  基于 2 年 ML 研究经验提炼
+author: liyufeng
+tags: [ml, pytorch, research, rl, paper-writing]
+license: public
+trust: local
+
+injection:
+  mode: proactive
+  budget: 2000

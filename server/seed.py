@@ -1,4 +1,5 @@
 import json
+import re
 import time
 import random
 from collections import defaultdict
@@ -12,6 +13,8 @@ from models.openclaw import OpenClawSession, OpenClawDocument
 from models.digest import DailySummary
 from models.workflow import TeamWorkflow
 from models.community import SharedProfile, SharedPatternPack
+from models.profile import ClawProfile
+from services.openclaw_runtime import analyze_recent_sessions_with_active_profile
 
 # 时间常量
 NOW = int(time.time())
@@ -369,6 +372,16 @@ def _seed_patterns(db):
             learned_from='分析 30 天内 pytest 调用和代码提交顺序',
             rule='新实验代码必须先有对应的 test_*.py 文件',
             created_at=NOW - 25 * DAY, status='exportable',
+            slug='test-before-experiment',
+            trigger=json.dumps({'when': '创建新的实验代码文件', 'globs': ['**/train*.py', '**/agent*.py', '**/policy*.py'], 'event': 'file_create', 'context': ['RL 训练', '策略网络', '新算法实现']}),
+            body='## 实验前先写测试\n\n在实现新的 RL 算法或策略网络前，先编写评估测试用例。\n\n### 规则\n1. 新实验代码必须先有对应的 `test_*.py` 文件\n2. 测试覆盖率不低于 80%\n3. 测试应包含：输入输出形状验证、梯度流检查、reward 计算正确性\n\n### 示例\n```bash\n# 先创建测试\npytest tests/test_ppo_agent.py  # RED\n# 再实现\npython ppo_agent.py\npytest tests/test_ppo_agent.py  # GREEN\n```',
+            source='auto',
+            confidence_level='very_high',
+            learned_from_data=json.dumps([
+                {'context': 'pytest 调用与代码提交顺序分析', 'insight': '30 天内 47 次观察到 test 文件先于实现文件创建', 'confidence': 92},
+                {'context': 'nav_planner 模块开发', 'insight': 'TDD 模式在导航规划器开发中显著提升了代码质量', 'confidence': 85},
+                {'context': 'grasp-policy 项目', 'insight': '跨项目验证 TDD 模式一致性', 'confidence': 88},
+            ]),
             evolution=json.dumps([
                 {'date': '03-01', 'confidence': 15, 'event_description': '首次观察到 test 文件先于实现文件创建'},
                 {'date': '03-03', 'confidence': 22, 'event_description': '第二次观察到相同模式'},
@@ -400,6 +413,15 @@ def _seed_patterns(db):
             learned_from='分析 30 天内 Git 提交记录',
             rule='提交信息必须以 feat:|fix:|refactor:|docs:|test:|chore: 开头',
             created_at=NOW - 28 * DAY, status='exportable',
+            slug='conventional-commits',
+            trigger=json.dumps({'when': 'git commit 执行时', 'event': 'git_commit', 'context': ['提交信息格式检查']}),
+            body='## Conventional Commits 规范\n\n所有 Git 提交使用标准前缀，保持提交历史清晰可追溯。\n\n### 格式\n```\n<type>(<scope>): <description>\n```\n\n### 类型\n- `feat`: 新功能\n- `fix`: 修复 bug\n- `refactor`: 重构\n- `docs`: 文档\n- `test`: 测试\n- `chore`: 杂项\n\n### 示例\n```\nfeat(nav): add PPO reward shaping\nfix(tf2): resolve transform timeout\n```',
+            source='auto',
+            confidence_level='high',
+            learned_from_data=json.dumps([
+                {'context': 'Git 提交记录分析', 'insight': '156 次提交中 89% 遵循 conventional commits 格式', 'confidence': 88},
+                {'context': '跨项目验证', 'insight': '所有 5 个项目均采用相同提交规范', 'confidence': 85},
+            ]),
             evolution=json.dumps([
                 {'date': '02-20', 'confidence': 20, 'event_description': '发现大部分提交遵循 conventional commits'},
                 {'date': '02-23', 'confidence': 30, 'event_description': '统计 30 次提交，25 次符合规范'},
@@ -429,6 +451,15 @@ def _seed_patterns(db):
             learned_from='分析 OpenClaw 实验总结会话和知识库写入时间',
             rule='实验完成后 30 分钟内必须生成总结文档',
             created_at=NOW - 20 * DAY, status='confirmed',
+            slug='instant-experiment-log',
+            trigger=json.dumps({'when': '训练脚本执行完成', 'event': 'training_complete', 'globs': ['**/train*.py'], 'context': ['RL 训练', '消融实验', '超参搜索']}),
+            body='## 实验结果即时记录\n\n每次实验完成后立即生成总结并写入知识库。\n\n### 规则\n1. 实验完成后 30 分钟内生成总结\n2. 使用标准模板：实验目标、参数、结果、结论\n3. 自动提取关键指标（lr, epochs, reward, loss）\n\n### 模板\n```markdown\n## 实验: {name}\n- 目标: ...\n- 参数: lr={lr}, epochs={epochs}\n- 结果: reward={reward}, loss={loss}\n- 结论: ...\n```',
+            source='auto',
+            confidence_level='high',
+            learned_from_data=json.dumps([
+                {'context': 'OpenClaw 会话时间分析', 'insight': '实验后 30 分钟内调用总结功能的比例逐步提升至 78%', 'confidence': 78},
+                {'context': '知识库写入时间', 'insight': '知识库文档创建时间与实验结束时间高度相关', 'confidence': 72},
+            ]),
             evolution=json.dumps([
                 {'date': '03-01', 'confidence': 10, 'event_description': '首次观察到实验后立即调用 OpenClaw 总结'},
                 {'date': '03-04', 'confidence': 20, 'event_description': '第二次观察到相同行为'},
@@ -832,22 +863,58 @@ def _seed_workflows(db):
     workflows = [
         TeamWorkflow(id=1, name='具身智能实验规范',
             description='包含实验前测试、结果即时记录和代码审查流程，适用于 RL 实验开发',
-            patterns=json.dumps([1, 3, 4]), target_team='具身智能实验室', status='active', created_at=NOW - 5 * DAY),
+            patterns=json.dumps([1, 3, 4]), target_team='具身智能实验室', status='active', created_at=NOW - 5 * DAY,
+            steps=json.dumps([
+                {'pattern': 'test-before-experiment', 'when': '开始新实验实现', 'gate': '测试文件已创建且可运行'},
+                {'inline': '实现实验代码，确保测试通过', 'when': '测试框架就绪'},
+                {'pattern': 'instant-experiment-log', 'when': '训练脚本执行完成', 'gate': '实验总结已写入知识库'},
+                {'pattern': 'ai-code-review', 'when': '准备合并分支', 'gate': 'review 无 critical 问题'},
+            ])),
         TeamWorkflow(id=2, name='ROS2 开发流程',
             description='训练前环境检查和 Git 规范，确保机器人软件开发质量',
-            patterns=json.dumps([2, 5, 7]), target_team='机器人开发组', status='distributed', created_at=NOW - 3 * DAY),
+            patterns=json.dumps([2, 5, 7]), target_team='机器人开发组', status='distributed', created_at=NOW - 3 * DAY,
+            steps=json.dumps([
+                {'pattern': 'conventional-commits', 'when': 'git commit'},
+                {'inline': 'colcon build 编译验证', 'when': '代码修改完成'},
+                {'inline': 'colcon test 运行测试', 'when': '编译通过'},
+            ])),
         TeamWorkflow(id=3, name='新人入职研究指南',
             description='整合所有核心研究模式，帮助新同学快速融入实验室研究节奏',
-            patterns=json.dumps([1, 2, 3, 4, 6]), target_team='全体成员', status='draft', created_at=NOW - DAY),
+            patterns=json.dumps([1, 2, 3, 4, 6]), target_team='全体成员', status='draft', created_at=NOW - DAY,
+            steps=json.dumps([
+                {'inline': '阅读实验室代码规范文档', 'when': '入职第一天'},
+                {'pattern': 'conventional-commits', 'when': '首次提交代码'},
+                {'pattern': 'test-before-experiment', 'when': '首次编写实验代码'},
+                {'pattern': 'instant-experiment-log', 'when': '首次完成实验'},
+            ])),
         TeamWorkflow(id=4, name='论文写作工作流',
             description='从实验到论文的完整流程：实验记录 → 数据整理 → 论文撰写 → 代码审查',
-            patterns=json.dumps([3, 6, 9]), target_team='研究生', status='active', created_at=NOW - 4 * DAY),
+            patterns=json.dumps([3, 6, 9]), target_team='研究生', status='active', created_at=NOW - 4 * DAY,
+            steps=json.dumps([
+                {'pattern': 'instant-experiment-log', 'when': '实验完成'},
+                {'inline': '整理实验数据，生成对比表格和图表', 'when': '所有实验完成'},
+                {'inline': '撰写论文初稿', 'when': '数据整理完成'},
+                {'parallel': [
+                    {'inline': '同行内部审阅', 'when': '初稿完成'},
+                    {'inline': 'AI 辅助语法检查', 'when': '初稿完成'},
+                ]},
+            ])),
         TeamWorkflow(id=5, name='AI 项目启动模板',
             description='新 AI 项目的标准启动流程：环境隔离 → 分支规范 → TDD → 代码审查',
-            patterns=json.dumps([1, 2, 7, 8, 10]), target_team='AI 开发组', status='draft', created_at=NOW - 2 * DAY),
+            patterns=json.dumps([1, 2, 7, 8, 10]), target_team='AI 开发组', status='draft', created_at=NOW - 2 * DAY,
+            steps=json.dumps([
+                {'inline': '创建独立 conda 环境', 'when': '项目启动'},
+                {'pattern': 'conventional-commits', 'when': '初始化 Git 仓库'},
+                {'pattern': 'test-before-experiment', 'when': '开始编码'},
+            ])),
         TeamWorkflow(id=6, name='日常开发规范',
             description='日常编码的基本规范：Git 规范 + lint 检查 + 环境管理',
-            patterns=json.dumps([2, 7, 8, 10]), target_team='全体成员', status='distributed', created_at=NOW - 6 * DAY),
+            patterns=json.dumps([2, 7, 8, 10]), target_team='全体成员', status='distributed', created_at=NOW - 6 * DAY,
+            steps=json.dumps([
+                {'pattern': 'conventional-commits', 'when': 'git commit'},
+                {'inline': 'lint 检查通过', 'when': '代码修改完成', 'gate': 'pylint score >= 8.0'},
+                {'inline': '单元测试通过', 'when': 'lint 通过', 'gate': 'pytest 全部通过'},
+            ])),
     ]
     db.add_all(workflows)
 
@@ -862,6 +929,11 @@ def _seed_profiles(db):
         SharedProfile(id=6, username='Yann LeCun', avatar='YL', title='AI 先驱', bio='Meta AI 首席科学家，图灵奖得主', followers=210000, patterns_count=20),
         SharedProfile(id=7, username='Sergey Levine', avatar='SL', title='RL 专家', bio='UC Berkeley 教授，机器人 RL 先驱', followers=42100, patterns_count=16),
         SharedProfile(id=8, username='Fei-Fei Li', avatar='FL', title='计算机视觉专家', bio='Stanford HAI 联合主任，ImageNet 创始人', followers=67800, patterns_count=14),
+        SharedProfile(id=9, username='白丰硕', avatar='白', title='强化学习与具身智能专家', bio='专注强化学习、具身智能与大型 GitHub 项目工程化实践', followers=18600, patterns_count=19),
+        SharedProfile(id=10, username='周大围', avatar='周', title='机器人与 Motion Plan 专家', bio='聚焦机器人系统、运动规划与复杂场景任务编排', followers=13200, patterns_count=16),
+        SharedProfile(id=11, username='王培朔', avatar='王', title='长程记忆与 VLA 专家', bio='专注长程规划、记忆系统和 Vision-Language-Action 方向', followers=15800, patterns_count=17),
+        SharedProfile(id=12, username='郭欣睿', avatar='郭', title='柔性机器人专家', bio='聚焦柔性机器人、本体建模与接触丰富操作', followers=9600, patterns_count=13),
+        SharedProfile(id=13, username='高京', avatar='高', title='AI4Science 与工程运营专家', bio='专注 AI4Science、顶级代码工程化和开源运营体系', followers=22400, patterns_count=21),
     ]
     db.add_all(profiles)
 
@@ -951,6 +1023,51 @@ def _seed_packs(db):
                 _sp(802, '多指标评估', 'review', '不只看 accuracy，还要看 precision/recall/F1', 93, '评估报告必须包含混淆矩阵'),
                 _sp(803, '可视化验证', 'review', '模型预测结果必须可视化检查', 90, '每次评估生成预测可视化样本'),
             ])),
+        SharedPatternPack(id=9, author_id=9, name='白丰硕的 RL 与具身智能工程库',
+            description='强化学习、具身智能和大型 GitHub 项目协作的实践模式集合',
+            category='coding', downloads=7420, stars=2190,
+            tags=json.dumps(['RL', 'Embodied', 'GitHub', 'Engineering']), created_at=NOW - 9 * DAY,
+            patterns=json.dumps([
+                _sp(901, '实验前先做最小闭环', 'coding', '先用最小环境和最小任务打通训练-评估-日志闭环，再上复杂 benchmark', 95, '新算法先在 toy task 跑通完整闭环'),
+                _sp(902, '大项目拆成可审查 PR', 'collaboration', '大型项目开发必须拆成小 PR，保证每轮可 review、可回滚、可复现', 93, '单个 PR 聚焦单一目标且附验证结果'),
+                _sp(903, '日志先于调参', 'review', '调参前先补齐训练日志、评估表和异常事件记录', 91, '没有可比日志时禁止继续盲调超参'),
+            ])),
+        SharedPatternPack(id=10, author_id=10, name='周大围的机器人 Motion Plan 工作流',
+            description='机器人系统与运动规划的开发规范，从建模、求解到实机验证',
+            category='coding', downloads=5140, stars=1640,
+            tags=json.dumps(['Robot', 'MotionPlan', 'ROS', 'Planning']), created_at=NOW - 8 * DAY,
+            patterns=json.dumps([
+                _sp(1001, '先碰撞检查再执行', 'coding', '任何规划轨迹在下发控制前必须完成碰撞检查和约束验证', 96, '执行前固定跑一次 collision check'),
+                _sp(1002, '规划失败保留现场', 'review', '运动规划失败时必须保存场景、起终点和约束参数以便复盘', 90, '失败案例自动落盘 scene snapshot'),
+                _sp(1003, '仿真与实机同接口', 'devops', '规划器在仿真和实机之间共享统一接口，避免双套实现漂移', 88, 'planner API 在 sim/real 保持一致'),
+            ])),
+        SharedPatternPack(id=11, author_id=11, name='王培朔的长程记忆与 VLA 模式库',
+            description='围绕长程任务、记忆检索和 VLA 系统设计的行为模式集合',
+            category='collaboration', downloads=6680, stars=2010,
+            tags=json.dumps(['LongHorizon', 'Memory', 'VLA', 'Planning']), created_at=NOW - 7 * DAY,
+            patterns=json.dumps([
+                _sp(1101, '任务先分阶段再执行', 'collaboration', '长程任务先拆成阶段目标、状态记忆和回滚点，再交给 agent 执行', 94, '任务执行前必须生成 stage plan'),
+                _sp(1102, '记忆写入要带证据', 'coding', '长期记忆写入必须携带来源证据和置信度，避免脏记忆污染决策', 92, '写入 memory 前附 source + confidence'),
+                _sp(1103, 'VLA 评估先看长程成功率', 'review', '评估 VLA 不只看单步准确率，要优先看长程任务完成率', 89, '实验报告必须包含 long-horizon success rate'),
+            ])),
+        SharedPatternPack(id=12, author_id=12, name='郭欣睿的柔性机器人实验规范',
+            description='柔性机器人研发流程中的实验、建模和数据记录最佳实践',
+            category='review', downloads=3920, stars=1260,
+            tags=json.dumps(['SoftRobot', 'Manipulation', 'Experiment', 'Modeling']), created_at=NOW - 6 * DAY,
+            patterns=json.dumps([
+                _sp(1201, '材料与控制参数同步记录', 'review', '每次柔性机器人实验都要同步记录材料状态、控制参数和环境条件', 94, '实验日志必须包含材料与环境参数'),
+                _sp(1202, '接触异常优先看传感器漂移', 'review', '出现接触异常时优先排查传感器漂移和标定误差', 90, '接触异常先执行 sensor recalibration checklist'),
+                _sp(1203, '仿真模型定期回归真实数据', 'coding', '柔性体模型需要定期用实测数据回归，避免仿真长期漂移', 87, '每周用真实轨迹更新模型参数'),
+            ])),
+        SharedPatternPack(id=13, author_id=13, name='高京的 AI4Science 与开源运营体系',
+            description='AI4Science 项目的工程交付、自动化运营和开源维护方法论',
+            category='devops', downloads=8840, stars=2760,
+            tags=json.dumps(['AI4Science', 'DevOps', 'OpenSource', 'Operations']), created_at=NOW - 5 * DAY,
+            patterns=json.dumps([
+                _sp(1301, '实验资产统一编号', 'devops', '数据、模型、报告和脚本统一编号，确保科研资产可追溯', 95, '每次实验产物必须带 run id'),
+                _sp(1302, '发布前先做复现彩排', 'collaboration', '对外发布前必须用新环境做一次完整复现彩排', 93, 'release 前跑 clean-room reproduction'),
+                _sp(1303, '开源更新附迁移说明', 'devops', '每次重要更新必须附安装/迁移说明，降低用户升级成本', 90, 'breaking change 必须附 migration note'),
+            ])),
     ]
     db.add_all(packs)
 
@@ -1029,6 +1146,234 @@ def seed_database():
     except Exception as e:
         db.rollback()
         print(f"Seed error: {e}")
+        raise
+    finally:
+        db.close()
+
+
+def _slugify(value: str) -> str:
+    slug = re.sub(r'[^a-zA-Z0-9\u4e00-\u9fff]+', '-', value).strip('-').lower()
+    return slug[:64]
+
+
+def _upsert_shared_profile(db, payload: dict) -> None:
+    row = db.query(SharedProfile).filter(SharedProfile.id == payload['id']).first()
+    if row is None:
+        db.add(SharedProfile(**payload))
+        return
+    for key, value in payload.items():
+        setattr(row, key, value)
+
+
+def _upsert_shared_pack(db, payload: dict) -> None:
+    row = db.query(SharedPatternPack).filter(SharedPatternPack.id == payload['id']).first()
+    if row is None:
+        db.add(SharedPatternPack(**payload))
+        return
+    for key, value in payload.items():
+        setattr(row, key, value)
+
+
+def _ensure_behavior_pattern_backfill(db) -> None:
+    active_profile = db.query(ClawProfile).filter(ClawProfile.is_active == 1).first()
+    for row in db.query(BehaviorPattern).all():
+        if active_profile and not getattr(row, 'profile_id', None):
+            row.profile_id = active_profile.id
+        if not getattr(row, 'slug', None):
+            row.slug = _slugify(row.name)
+        if not getattr(row, 'source', None):
+            learned = (row.learned_from or '').lower()
+            if 'import' in learned or '社区' in learned:
+                row.source = 'imported'
+            elif 'manual' in learned:
+                row.source = 'manual'
+            else:
+                row.source = 'auto'
+        if not getattr(row, 'confidence_level', None):
+            if row.confidence >= 90:
+                row.confidence_level = 'very_high'
+            elif row.confidence >= 70:
+                row.confidence_level = 'high'
+            elif row.confidence >= 40:
+                row.confidence_level = 'medium'
+            else:
+                row.confidence_level = 'low'
+        if not getattr(row, 'body', None):
+            row.body = f"## {row.name}\n\n{row.description or row.rule or ''}".strip()
+        if not getattr(row, 'learned_from_data', None):
+            row.learned_from_data = json.dumps([{
+                'context': row.learned_from or 'historical_data',
+                'insight': row.description or row.rule or row.name,
+                'confidence': row.confidence,
+            }], ensure_ascii=False)
+        if getattr(row, 'trigger', None) is None:
+            row.trigger = row.rule or ''
+
+
+def _ensure_workflow_backfill(db) -> None:
+    active_profile = db.query(ClawProfile).filter(ClawProfile.is_active == 1).first()
+    for row in db.query(TeamWorkflow).all():
+        if active_profile and not getattr(row, 'profile_id', None):
+            row.profile_id = active_profile.id
+        if getattr(row, 'steps', None):
+            continue
+        pattern_ids = json.loads(row.patterns) if row.patterns else []
+        steps = []
+        for pattern_id in pattern_ids:
+            pattern = db.query(BehaviorPattern).filter(BehaviorPattern.id == pattern_id).first()
+            if pattern:
+                steps.append({'pattern': pattern.slug or _slugify(pattern.name)})
+        row.steps = json.dumps(steps, ensure_ascii=False)
+
+
+def _ensure_claude_event_links(db) -> None:
+    active_profile = db.query(ClawProfile).filter(ClawProfile.is_active == 1).first()
+    for event in db.query(DevEvent).filter(
+        DevEvent.source == 'claude_code',
+        DevEvent.openclaw_session_id.is_(None),
+    ).all():
+        matched = db.query(OpenClawSession).filter(
+            OpenClawSession.project == event.project,
+            OpenClawSession.created_at >= event.timestamp - 120,
+            OpenClawSession.created_at <= event.timestamp + 120,
+        ).order_by(OpenClawSession.created_at.asc()).first()
+        if matched:
+            event.openclaw_session_id = matched.id
+    if active_profile:
+        for session in db.query(OpenClawSession).filter(OpenClawSession.profile_id.is_(None)).all():
+            session.profile_id = active_profile.id
+        for doc in db.query(OpenClawDocument).filter(OpenClawDocument.profile_id.is_(None)).all():
+            doc.profile_id = active_profile.id
+
+
+def ensure_runtime_records() -> None:
+    """Backfill live SQLite data and keep showcase community records current."""
+    db = SessionLocal()
+    try:
+        active_profile = db.query(ClawProfile).filter(ClawProfile.is_active == 1).first()
+        now = int(time.time())
+        if active_profile is None:
+            active_profile = ClawProfile(
+                id=1,
+                schema='clawprofile/v1',
+                name='liyufeng-local-profile',
+                display='李宇峰本地 ClawProfile',
+                description='当前 DevTwin 的本地活跃行为模式档案',
+                author='liyufeng',
+                tags=json.dumps(['local', 'openclaw', 'claude-code', 'behavior'], ensure_ascii=False),
+                license='public',
+                trust='local',
+                injection=json.dumps({'mode': 'proactive', 'budget': 2000}, ensure_ascii=False),
+                is_active=1,
+                created_at=now,
+                updated_at=now,
+            )
+            db.add(active_profile)
+            db.flush()
+
+        _ensure_behavior_pattern_backfill(db)
+        _ensure_workflow_backfill(db)
+        _ensure_claude_event_links(db)
+
+        runtime_profiles = [
+            {'id': 9, 'username': '白丰硕', 'avatar': '白', 'title': '强化学习与具身智能专家', 'bio': '专注强化学习、具身智能与大型 GitHub 项目工程化实践', 'followers': 18600, 'patterns_count': 19},
+            {'id': 10, 'username': '周大围', 'avatar': '周', 'title': '机器人与 Motion Plan 专家', 'bio': '聚焦机器人系统、运动规划与复杂场景任务编排', 'followers': 13200, 'patterns_count': 16},
+            {'id': 11, 'username': '王培朔', 'avatar': '王', 'title': '长程记忆与 VLA 专家', 'bio': '专注长程规划、记忆系统和 Vision-Language-Action 方向', 'followers': 15800, 'patterns_count': 17},
+            {'id': 12, 'username': '郭欣睿', 'avatar': '郭', 'title': '柔性机器人专家', 'bio': '聚焦柔性机器人、本体建模与接触丰富操作', 'followers': 9600, 'patterns_count': 13},
+            {'id': 13, 'username': '高京', 'avatar': '高', 'title': 'AI4Science 与工程运营专家', 'bio': '专注 AI4Science、顶级代码工程化和开源运营体系', 'followers': 22400, 'patterns_count': 21},
+        ]
+        for payload in runtime_profiles:
+            _upsert_shared_profile(db, payload)
+
+        runtime_packs = [
+            {
+                'id': 9,
+                'author_id': 9,
+                'name': '白丰硕的 RL 与具身智能工程库',
+                'description': '强化学习、具身智能和大型 GitHub 项目协作的实践模式集合',
+                'category': 'coding',
+                'patterns': json.dumps([
+                    _sp(901, '实验前先做最小闭环', 'coding', '先用最小环境和最小任务打通训练-评估-日志闭环，再上复杂 benchmark', 95, '新算法先在 toy task 跑通完整闭环'),
+                    _sp(902, '大项目拆成可审查 PR', 'collaboration', '大型项目开发必须拆成小 PR，保证每轮可 review、可回滚、可复现', 93, '单个 PR 聚焦单一目标且附验证结果'),
+                    _sp(903, '日志先于调参', 'review', '调参前先补齐训练日志、评估表和异常事件记录', 91, '没有可比日志时禁止继续盲调超参'),
+                ], ensure_ascii=False),
+                'downloads': 7420,
+                'stars': 2190,
+                'tags': json.dumps(['RL', 'Embodied', 'GitHub', 'Engineering'], ensure_ascii=False),
+                'created_at': NOW - 9 * DAY,
+            },
+            {
+                'id': 10,
+                'author_id': 10,
+                'name': '周大围的机器人 Motion Plan 工作流',
+                'description': '机器人系统与运动规划的开发规范，从建模、求解到实机验证',
+                'category': 'coding',
+                'patterns': json.dumps([
+                    _sp(1001, '先碰撞检查再执行', 'coding', '任何规划轨迹在下发控制前必须完成碰撞检查和约束验证', 96, '执行前固定跑一次 collision check'),
+                    _sp(1002, '规划失败保留现场', 'review', '运动规划失败时必须保存场景、起终点和约束参数以便复盘', 90, '失败案例自动落盘 scene snapshot'),
+                    _sp(1003, '仿真与实机同接口', 'devops', '规划器在仿真和实机之间共享统一接口，避免双套实现漂移', 88, 'planner API 在 sim/real 保持一致'),
+                ], ensure_ascii=False),
+                'downloads': 5140,
+                'stars': 1640,
+                'tags': json.dumps(['Robot', 'MotionPlan', 'ROS', 'Planning'], ensure_ascii=False),
+                'created_at': NOW - 8 * DAY,
+            },
+            {
+                'id': 11,
+                'author_id': 11,
+                'name': '王培朔的长程记忆与 VLA 模式库',
+                'description': '围绕长程任务、记忆检索和 VLA 系统设计的行为模式集合',
+                'category': 'collaboration',
+                'patterns': json.dumps([
+                    _sp(1101, '任务先分阶段再执行', 'collaboration', '长程任务先拆成阶段目标、状态记忆和回滚点，再交给 agent 执行', 94, '任务执行前必须生成 stage plan'),
+                    _sp(1102, '记忆写入要带证据', 'coding', '长期记忆写入必须携带来源证据和置信度，避免脏记忆污染决策', 92, '写入 memory 前附 source + confidence'),
+                    _sp(1103, 'VLA 评估先看长程成功率', 'review', '评估 VLA 不只看单步准确率，要优先看长程任务完成率', 89, '实验报告必须包含 long-horizon success rate'),
+                ], ensure_ascii=False),
+                'downloads': 6680,
+                'stars': 2010,
+                'tags': json.dumps(['LongHorizon', 'Memory', 'VLA', 'Planning'], ensure_ascii=False),
+                'created_at': NOW - 7 * DAY,
+            },
+            {
+                'id': 12,
+                'author_id': 12,
+                'name': '郭欣睿的柔性机器人实验规范',
+                'description': '柔性机器人研发流程中的实验、建模和数据记录最佳实践',
+                'category': 'review',
+                'patterns': json.dumps([
+                    _sp(1201, '材料与控制参数同步记录', 'review', '每次柔性机器人实验都要同步记录材料状态、控制参数和环境条件', 94, '实验日志必须包含材料与环境参数'),
+                    _sp(1202, '接触异常优先看传感器漂移', 'review', '出现接触异常时优先排查传感器漂移和标定误差', 90, '接触异常先执行 sensor recalibration checklist'),
+                    _sp(1203, '仿真模型定期回归真实数据', 'coding', '柔性体模型需要定期用实测数据回归，避免仿真长期漂移', 87, '每周用真实轨迹更新模型参数'),
+                ], ensure_ascii=False),
+                'downloads': 3920,
+                'stars': 1260,
+                'tags': json.dumps(['SoftRobot', 'Manipulation', 'Experiment', 'Modeling'], ensure_ascii=False),
+                'created_at': NOW - 6 * DAY,
+            },
+            {
+                'id': 13,
+                'author_id': 13,
+                'name': '高京的 AI4Science 与开源运营体系',
+                'description': 'AI4Science 项目的工程交付、自动化运营和开源维护方法论',
+                'category': 'devops',
+                'patterns': json.dumps([
+                    _sp(1301, '实验资产统一编号', 'devops', '数据、模型、报告和脚本统一编号，确保科研资产可追溯', 95, '每次实验产物必须带 run id'),
+                    _sp(1302, '发布前先做复现彩排', 'collaboration', '对外发布前必须用新环境做一次完整复现彩排', 93, 'release 前跑 clean-room reproduction'),
+                    _sp(1303, '开源更新附迁移说明', 'devops', '每次重要更新必须附安装/迁移说明，降低用户升级成本', 90, 'breaking change 必须附 migration note'),
+                ], ensure_ascii=False),
+                'downloads': 8840,
+                'stars': 2760,
+                'tags': json.dumps(['AI4Science', 'DevOps', 'OpenSource', 'Operations'], ensure_ascii=False),
+                'created_at': NOW - 5 * DAY,
+            },
+        ]
+        for payload in runtime_packs:
+            _upsert_shared_pack(db, payload)
+
+        db.commit()
+        analyze_recent_sessions_with_active_profile(db, limit=50)
+    except Exception:
+        db.rollback()
         raise
     finally:
         db.close()

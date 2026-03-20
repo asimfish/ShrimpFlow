@@ -1,19 +1,28 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { usePatternsStore } from '@/stores/patterns'
-import { exportPatternsApi } from '@/http_api/patterns'
+import { exportPatternsApi, importPatternsApi } from '@/http_api/patterns'
 
 const router = useRouter()
 const store = usePatternsStore()
 const expandedPatterns = ref<Set<number>>(new Set())
 const selectedForExport = ref<Set<number>>(new Set())
-const targetProject = ref('')
 const exportSuccess = ref(false)
 const exportMsg = ref('')
+const exportError = ref('')
 
-// id=99 是特殊的"代码开发与Git提交规范"模式，点击展示 workflow 动画
+const fileInput = ref<HTMLInputElement | null>(null)
+const importing = ref(false)
+const importMsg = ref('')
+const importError = ref('')
+
+const categoryFilter = ref<'all' | 'git' | 'coding' | 'review' | 'devops' | 'collaboration'>('all')
+const statusFilter = ref<'all' | 'learning' | 'confirmed' | 'exportable'>('all')
+const sourceFilter = ref<'all' | 'auto' | 'manual' | 'imported' | 'forked'>('all')
+const searchQuery = ref('')
+
 const showWorkflowDemo = ref(false)
 
 onMounted(async () => {
@@ -26,23 +35,66 @@ const toggleExpand = (id: number) => {
 }
 
 const toggleSelect = (id: number) => {
-  if (selectedForExport.value.has(id)) selectedForExport.value.delete(id)
-  else selectedForExport.value.add(id)
+  const next = new Set(selectedForExport.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  selectedForExport.value = next
 }
 
 const handleExport = async () => {
   const ids = [...selectedForExport.value]
+  if (ids.length === 0) return
+  exportError.value = ''
   const res = await exportPatternsApi(ids)
   if (res.data) {
+    const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${res.data.profile.name || 'clawprofile'}-${Date.now()}.clawprofile.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    exportMsg.value = `已导出 ${res.data.patterns.length} 个模式和 ${res.data.workflows.length} 个工作流`
     exportSuccess.value = true
-    exportMsg.value = `${ids.length} 个模式已成功导出`
     setTimeout(() => { exportSuccess.value = false }, 3000)
+  } else {
+    exportError.value = res.error ?? 'ClawProfile 导出失败'
   }
+}
+
+const handleImportFile = async (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  importing.value = true
+  importMsg.value = ''
+  importError.value = ''
+  const text = await file.text()
+  const json = JSON.parse(text)
+  const payload = Array.isArray(json)
+    ? { patterns: json }
+    : {
+        profile: json.profile,
+        patterns: json.patterns ?? [],
+        workflows: json.workflows ?? [],
+      }
+  const res = await importPatternsApi(payload)
+  importing.value = false
+  if (res.data) {
+    importMsg.value = `成功导入 ${res.data.imported} 个模式，${res.data.workflows} 个工作流`
+    await Promise.all([store.fetchPatterns(), store.fetchWorkflows()])
+    setTimeout(() => { importMsg.value = '' }, 4000)
+  } else {
+    importError.value = res.error ?? 'ClawProfile 导入失败'
+  }
+  // 重置 input 以便重复导入同一文件
+  if (fileInput.value) fileInput.value.value = ''
 }
 
 const handleDelete = async (id: number) => {
   await store.deletePattern(id)
-  selectedForExport.value.delete(id)
+  const next = new Set(selectedForExport.value)
+  next.delete(id)
+  selectedForExport.value = next
 }
 
 const categoryColorMap: Record<string, string> = {
@@ -81,6 +133,47 @@ const confidenceColor = (c: number) => {
   if (c >= 50) return 'bg-openclaw'
   return 'bg-gray-500'
 }
+
+const confidenceLevelColor: Record<string, string> = {
+  low: 'bg-red-500/20 text-red-400',
+  medium: 'bg-yellow-500/20 text-yellow-400',
+  high: 'bg-blue-500/20 text-blue-400',
+  very_high: 'bg-emerald-500/20 text-emerald-400',
+}
+
+const confidenceLevelLabel: Record<string, string> = {
+  low: '低', medium: '中', high: '高', very_high: '极高',
+}
+
+const sourceLabel: Record<string, string> = {
+  auto: '自动挖掘',
+  manual: '手工维护',
+  imported: '社区导入',
+  forked: '派生模式',
+}
+
+const filteredPatterns = computed(() =>
+  store.patterns.filter(pattern => {
+    if (categoryFilter.value !== 'all' && pattern.category !== categoryFilter.value) return false
+    if (statusFilter.value !== 'all' && pattern.status !== statusFilter.value) return false
+    if (sourceFilter.value !== 'all' && pattern.source !== sourceFilter.value) return false
+    if (searchQuery.value.trim()) {
+      const q = searchQuery.value.toLowerCase()
+      return (
+        pattern.name.toLowerCase().includes(q)
+        || pattern.description.toLowerCase().includes(q)
+        || pattern.learned_from.toLowerCase().includes(q)
+      )
+    }
+    return true
+  })
+)
+
+const patternStats = computed(() => ({
+  auto: store.patterns.filter(p => p.source === 'auto').length,
+  imported: store.patterns.filter(p => p.source === 'imported').length,
+  exportable: store.patterns.filter(p => p.status === 'exportable').length,
+}))
 </script>
 
 <template>
@@ -88,6 +181,25 @@ const confidenceColor = (c: number) => {
     <div>
       <h1 class="text-2xl font-semibold">行为模式</h1>
       <p class="text-sm text-gray-400 mt-1">从你的开发行为中学习模式，下发为团队 Workflow</p>
+    </div>
+
+    <div class="grid grid-cols-4 gap-4">
+      <div class="bg-surface-1 rounded-xl border border-surface-3 p-4">
+        <div class="text-[11px] text-gray-500">总模式数</div>
+        <div class="text-2xl font-semibold text-gray-100 mt-1">{{ store.patterns.length }}</div>
+      </div>
+      <div class="bg-surface-1 rounded-xl border border-surface-3 p-4">
+        <div class="text-[11px] text-gray-500">自动挖掘</div>
+        <div class="text-2xl font-semibold text-accent mt-1">{{ patternStats.auto }}</div>
+      </div>
+      <div class="bg-surface-1 rounded-xl border border-surface-3 p-4">
+        <div class="text-[11px] text-gray-500">社区导入</div>
+        <div class="text-2xl font-semibold text-openclaw mt-1">{{ patternStats.imported }}</div>
+      </div>
+      <div class="bg-surface-1 rounded-xl border border-surface-3 p-4">
+        <div class="text-[11px] text-gray-500">可导出 ClawProfile</div>
+        <div class="text-2xl font-semibold text-emerald-400 mt-1">{{ patternStats.exportable }}</div>
+      </div>
     </div>
 
     <!-- 流程说明 -->
@@ -116,11 +228,77 @@ const confidenceColor = (c: number) => {
       </div>
     </div>
 
+    <div class="bg-surface-1 rounded-xl border border-surface-3 p-4 space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="text-sm font-medium text-gray-200">ClawProfile 管理</div>
+          <div class="text-xs text-gray-500 mt-1">导出选中的本地模式为完整 ClawProfile，或导入社区/本地 profile</div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="px-3 py-2 rounded-lg bg-surface-2 text-xs text-gray-300 hover:bg-surface-3" @click="fileInput?.click()">
+            {{ importing ? '导入中...' : '导入 ClawProfile' }}
+          </button>
+          <button
+            class="px-3 py-2 rounded-lg text-xs font-medium"
+            :class="selectedForExport.size ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30' : 'bg-surface-2 text-gray-500 cursor-not-allowed'"
+            :disabled="selectedForExport.size === 0"
+            @click="handleExport"
+          >
+            导出 ClawProfile
+          </button>
+        </div>
+      </div>
+      <input ref="fileInput" type="file" accept=".json,.clawprofile" class="hidden" @change="handleImportFile" />
+      <div v-if="importMsg" class="text-xs text-emerald-400">{{ importMsg }}</div>
+      <div v-if="importError" class="text-xs text-red-400">{{ importError }}</div>
+      <div v-if="exportSuccess" class="text-xs text-emerald-400">{{ exportMsg }}</div>
+      <div v-if="exportError" class="text-xs text-red-400">{{ exportError }}</div>
+    </div>
+
+    <div class="bg-surface-1 rounded-xl border border-surface-3 p-4 space-y-3">
+      <div class="flex items-center gap-3 flex-wrap">
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="搜索模式名、描述、来源..."
+          class="flex-1 min-w-56 bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 text-sm text-gray-300 outline-none focus:border-accent"
+        />
+        <select v-model="categoryFilter" class="bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 text-sm text-gray-300">
+          <option value="all">全部分类</option>
+          <option value="git">Git 规范</option>
+          <option value="coding">编码习惯</option>
+          <option value="review">代码审查</option>
+          <option value="devops">运维部署</option>
+          <option value="collaboration">协作模式</option>
+        </select>
+        <select v-model="statusFilter" class="bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 text-sm text-gray-300">
+          <option value="all">全部状态</option>
+          <option value="learning">学习中</option>
+          <option value="confirmed">已确认</option>
+          <option value="exportable">可导出</option>
+        </select>
+        <select v-model="sourceFilter" class="bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 text-sm text-gray-300">
+          <option value="all">全部来源</option>
+          <option value="auto">自动挖掘</option>
+          <option value="manual">手工维护</option>
+          <option value="imported">社区导入</option>
+          <option value="forked">派生模式</option>
+        </select>
+      </div>
+      <div class="text-xs text-gray-500">当前显示 {{ filteredPatterns.length }} / {{ store.patterns.length }} 个模式</div>
+    </div>
+
     <!-- 已学习的行为模式 -->
     <div>
-      <div class="text-sm font-medium mb-3 text-gray-300">已学习的行为模式 ({{ store.patterns.length }})</div>
+      <div class="text-sm font-medium mb-3 text-gray-300">已学习的行为模式 ({{ filteredPatterns.length }})</div>
       <div class="grid grid-cols-2 gap-4">
-        <div v-for="pattern in store.patterns" :key="pattern.id" class="bg-surface-1 rounded-xl border border-surface-3 p-4 space-y-3 cursor-pointer hover:border-accent/30 transition-colors" :class="pattern.id === 99 ? 'border-emerald-500/40 ring-1 ring-emerald-500/20' : ''" @click="pattern.id === 99 ? (showWorkflowDemo = true) : router.push(`/patterns/${pattern.id}`)">
+        <div
+          v-for="pattern in filteredPatterns"
+          :key="pattern.id"
+          class="bg-surface-1 rounded-xl border border-surface-3 p-4 space-y-3 cursor-pointer hover:border-accent/30 transition-colors"
+          :class="pattern.id === 99 ? 'border-emerald-500/40 ring-1 ring-emerald-500/20' : ''"
+          @click="pattern.id === 99 ? (showWorkflowDemo = true) : router.push(`/patterns/${pattern.id}`)"
+        >
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <span class="text-[11px] px-2 py-0.5 rounded border" :class="categoryColorMap[pattern.category]">{{ categoryLabel[pattern.category] }}</span>
@@ -128,6 +306,8 @@ const confidenceColor = (c: number) => {
                 <span v-if="pattern.status === 'learning'" class="inline-block w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse mr-1" />
                 {{ statusLabel[pattern.status] }}
               </span>
+              <span v-if="pattern.confidence_level" class="text-[10px] px-1.5 py-0.5 rounded" :class="confidenceLevelColor[pattern.confidence_level]">{{ confidenceLevelLabel[pattern.confidence_level] }}</span>
+              <span v-if="pattern.source" class="text-[10px] px-1.5 py-0.5 rounded bg-surface-3 text-gray-500">{{ sourceLabel[pattern.source] ?? pattern.source }}</span>
             </div>
             <div class="flex items-center gap-2">
               <span class="text-[10px] text-gray-500">{{ pattern.evidence_count }} 条证据</span>
@@ -136,6 +316,7 @@ const confidenceColor = (c: number) => {
                 type="checkbox"
                 :checked="selectedForExport.has(pattern.id)"
                 class="w-3.5 h-3.5 rounded accent-emerald-500"
+                @click.stop
                 @change="toggleSelect(pattern.id)"
               />
             </div>
@@ -156,8 +337,26 @@ const confidenceColor = (c: number) => {
             <div class="text-xs text-gray-300 font-mono">{{ pattern.rule }}</div>
           </div>
 
+          <!-- trigger 展示 -->
+          <div v-if="pattern.trigger" class="bg-surface-2 rounded-lg p-2.5">
+            <div class="text-[10px] text-gray-500 mb-1">触发条件</div>
+            <template v-if="typeof pattern.trigger === 'object'">
+              <div class="text-xs text-gray-300">{{ (pattern.trigger as any).when }}</div>
+              <div v-if="(pattern.trigger as any).globs" class="flex flex-wrap gap-1 mt-1">
+                <span v-for="g in (pattern.trigger as any).globs" :key="g" class="text-[10px] px-1.5 py-0.5 rounded bg-surface-3 text-gray-500 font-mono">{{ g }}</span>
+              </div>
+            </template>
+            <div v-else class="text-xs text-gray-300">{{ pattern.trigger }}</div>
+          </div>
+
+          <!-- body 预览 -->
+          <div v-if="pattern.body && expandedPatterns.has(pattern.id)" class="bg-surface-2 rounded-lg p-2.5">
+            <div class="text-[10px] text-gray-500 mb-1">Prompt 正文</div>
+            <div class="text-xs text-gray-400 whitespace-pre-wrap leading-relaxed max-h-32 overflow-y-auto">{{ pattern.body }}</div>
+          </div>
+
           <!-- 学习过程折叠区 -->
-          <button class="text-[10px] text-accent hover:text-accent-glow transition-colors" @click="toggleExpand(pattern.id)">
+          <button class="text-[10px] text-accent hover:text-accent-glow transition-colors" @click.stop="toggleExpand(pattern.id)">
             {{ expandedPatterns.has(pattern.id) ? '收起学习过程' : '查看学习过程' }}
           </button>
           <div v-if="expandedPatterns.has(pattern.id)" class="space-y-2 border-t border-surface-3 pt-3">
@@ -185,41 +384,16 @@ const confidenceColor = (c: number) => {
       </div>
     </div>
 
-    <!-- 模式导入区域 -->
-    <div class="bg-surface-1 rounded-xl border border-emerald-500/30 p-5">
-      <div class="text-sm font-medium mb-3 text-emerald-400">导入模式到新项目</div>
-      <div class="flex items-end gap-4">
-        <div class="flex-1">
-          <div class="text-[10px] text-gray-500 mb-1">目标项目</div>
-          <input
-            v-model="targetProject"
-            type="text"
-            placeholder="输入项目名称..."
-            class="w-full bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 text-xs text-gray-300 outline-none focus:border-emerald-500"
-          />
-        </div>
-        <div class="text-[10px] text-gray-500">
-          已选择 {{ selectedForExport.size }} 个模式
-        </div>
-        <button
-          class="px-4 py-2 rounded-lg text-xs font-medium transition-colors"
-          :class="selectedForExport.size > 0 && targetProject ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 cursor-pointer' : 'bg-surface-3 text-gray-600 cursor-not-allowed'"
-          :disabled="selectedForExport.size === 0 || !targetProject"
-          @click="handleExport"
-        >
-          开始导入
-        </button>
-      </div>
-      <div v-if="exportSuccess" class="mt-3 text-xs text-emerald-400 bg-emerald-500/10 rounded-lg p-2">
-        {{ exportMsg }}
-      </div>
-    </div>
-
     <!-- 团队 Workflow 下发 -->
     <div>
       <div class="text-sm font-medium mb-3 text-gray-300">团队 Workflow 下发</div>
       <div class="space-y-3">
-        <div v-for="wf in store.workflows" :key="wf.id" class="bg-surface-1 rounded-xl border border-surface-3 p-4 cursor-pointer hover:border-accent/30 transition-colors" @click="router.push(`/workflows/${wf.id}`)">
+        <div
+          v-for="wf in store.workflows"
+          :key="wf.id"
+          class="bg-surface-1 rounded-xl border border-surface-3 p-4 cursor-pointer hover:border-accent/30 transition-colors"
+          @click="router.push(`/workflows/${wf.id}`)"
+        >
           <div class="flex items-center justify-between mb-2">
             <div class="flex items-center gap-2">
               <span class="text-sm font-medium text-gray-200">{{ wf.name }}</span>

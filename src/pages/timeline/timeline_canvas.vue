@@ -212,8 +212,10 @@ const drawTimeline = () => {
       return sourceShape[d.source](cx, cy, r)
     })
 
-  // 同一 OpenClaw 会话的事件用虚线连接
-  const openclawEvents = data.filter(d => d.source === 'openclaw' && d.openclaw_session_id)
+  // 同一 AI 会话的事件用虚线连接
+  const openclawEvents = data.filter(d =>
+    (d.source === 'openclaw' || d.source === 'claude_code') && d.openclaw_session_id
+  )
   const sessionGroups = new Map<number, DevEvent[]>()
   openclawEvents.forEach(d => {
     const sid = d.openclaw_session_id!

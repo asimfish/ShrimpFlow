@@ -2,7 +2,7 @@
 # ShrimpFlow Shell Hook - 采集终端命令
 # 安装方式: source hooks/shell_hook.sh
 
-SHRIMPFLOW_API="http://localhost:7890/api/collect/terminal"
+SHRIMPFLOW_API="${SHRIMPFLOW_API:-http://localhost:7891/api/collect/terminal}"
 
 # zsh preexec hook - 命令执行前记录
 shrimpflow_preexec() {

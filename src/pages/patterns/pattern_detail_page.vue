@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import type { BehaviorPattern } from '@/types'
@@ -9,12 +9,42 @@ import { getPatternApi } from '@/http_api/patterns'
 const route = useRoute()
 const router = useRouter()
 const pattern = ref<BehaviorPattern | null>(null)
+const loading = ref(false)
+const loadError = ref<string | null>(null)
+const notFound = ref(false)
+let activeRequestId = 0
 
-onMounted(async () => {
-  const id = Number(route.params.id)
-  const { data } = await getPatternApi(id)
+const loadPattern = async (rawId: unknown) => {
+  const id = Number(rawId)
+  const requestId = ++activeRequestId
+
+  pattern.value = null
+  loadError.value = null
+  notFound.value = false
+  loading.value = false
+
+  if (!Number.isFinite(id) || id <= 0) {
+    notFound.value = true
+    return
+  }
+
+  loading.value = true
+  const { data, error } = await getPatternApi(id)
+
+  if (requestId !== activeRequestId) return
+
   if (data) pattern.value = data
-})
+  else if (error?.startsWith('404')) notFound.value = true
+  else loadError.value = error ?? '行为模式加载失败，请稍后重试'
+
+  loading.value = false
+}
+
+const retryLoad = () => void loadPattern(route.params.id)
+
+watch(() => route.params.id, id => {
+  void loadPattern(id)
+}, { immediate: true })
 
 const statusColorMap: Record<string, string> = {
   learning: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
@@ -117,13 +147,24 @@ const finalConfidence = computed(() => {
       返回行为模式列表
     </button>
 
+    <div v-if="loading" class="bg-surface-1 rounded-xl border border-surface-3 py-20 text-center text-gray-500">
+      <div class="text-lg mb-2">正在加载行为模式...</div>
+      <div class="text-sm text-gray-600">请稍候</div>
+    </div>
+
+    <div v-else-if="loadError" class="bg-surface-1 rounded-xl border border-red-500/20 py-20 text-center text-gray-400">
+      <div class="text-lg mb-2 text-gray-200">行为模式加载失败</div>
+      <div class="text-sm text-red-300 mb-4">{{ loadError }}</div>
+      <button class="text-sm text-accent hover:text-accent-glow cursor-pointer" @click="retryLoad">重试</button>
+    </div>
+
     <!-- 未找到 -->
-    <div v-if="!pattern" class="text-center text-gray-500 py-20">
+    <div v-else-if="notFound" class="text-center text-gray-500 py-20">
       <div class="text-lg mb-2">未找到该行为模式</div>
       <button class="text-sm text-accent hover:text-accent-glow cursor-pointer" @click="goBack">返回列表</button>
     </div>
 
-    <template v-if="pattern">
+    <template v-else-if="pattern">
       <!-- 顶部信息 -->
       <div class="bg-surface-1 rounded-xl border border-surface-3 p-6">
         <div class="flex items-start justify-between">
@@ -147,6 +188,41 @@ const finalConfidence = computed(() => {
         <div class="mt-4 bg-surface-2 rounded-lg p-3">
           <div class="text-[10px] text-gray-500 mb-1">可执行规则</div>
           <div class="text-sm text-gray-300 font-mono">{{ pattern.rule }}</div>
+        </div>
+        <!-- trigger 详情 -->
+        <div v-if="pattern.trigger" class="mt-3 bg-surface-2 rounded-lg p-3">
+          <div class="text-[10px] text-gray-500 mb-1">触发条件</div>
+          <template v-if="typeof pattern.trigger === 'object'">
+            <div class="text-sm text-gray-300">{{ (pattern.trigger as any).when }}</div>
+            <div v-if="(pattern.trigger as any).event" class="text-xs text-gray-500 mt-1">事件: {{ (pattern.trigger as any).event }}</div>
+            <div v-if="(pattern.trigger as any).globs" class="flex flex-wrap gap-1.5 mt-1.5">
+              <span v-for="g in (pattern.trigger as any).globs" :key="g" class="text-[10px] px-2 py-0.5 rounded bg-surface-3 text-gray-400 font-mono">{{ g }}</span>
+            </div>
+            <div v-if="(pattern.trigger as any).context" class="flex flex-wrap gap-1.5 mt-1.5">
+              <span v-for="c in (pattern.trigger as any).context" :key="c" class="text-[10px] px-2 py-0.5 rounded bg-accent/10 text-accent">{{ c }}</span>
+            </div>
+          </template>
+          <div v-else class="text-sm text-gray-300">{{ pattern.trigger }}</div>
+        </div>
+      </div>
+
+      <!-- Prompt 正文 (body) -->
+      <div v-if="pattern.body" class="bg-surface-1 rounded-xl border border-surface-3 p-6">
+        <div class="text-sm font-medium text-gray-300 mb-3">Prompt 正文</div>
+        <div class="text-sm text-gray-400 whitespace-pre-wrap leading-relaxed font-mono bg-surface-2 rounded-lg p-4 max-h-80 overflow-y-auto">{{ pattern.body }}</div>
+      </div>
+
+      <!-- 经验洞察 (learned_from_data) -->
+      <div v-if="pattern.learned_from_data && pattern.learned_from_data.length > 0" class="bg-surface-1 rounded-xl border border-surface-3 p-6">
+        <div class="text-sm font-medium text-gray-300 mb-4">经验洞察 ({{ pattern.learned_from_data.length }})</div>
+        <div class="space-y-3">
+          <div v-for="(item, idx) in pattern.learned_from_data" :key="idx" class="bg-surface-2 rounded-lg p-3 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <div class="text-xs text-gray-500">{{ item.context }}</div>
+              <div class="text-[10px] px-2 py-0.5 rounded" :class="item.confidence >= 70 ? 'bg-emerald-500/20 text-emerald-400' : item.confidence >= 40 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'">{{ item.confidence }}%</div>
+            </div>
+            <div class="text-xs text-gray-300">{{ item.insight }}</div>
+          </div>
         </div>
       </div>
 

@@ -49,8 +49,29 @@ export type StatsOverview = {
   total_projects: number
   total_skills: number
   total_openclaw_sessions: number
+  total_claude_sessions: number
+  total_git_commits: number
   most_active_project: string
   streak_days: number
+}
+
+export type ClawProfile = {
+  id: number
+  schema: string
+  name: string
+  display: string
+  description: string | null
+  author: string | null
+  tags: string[]
+  license: string | null
+  forked_from: string | null
+  trust: string | null
+  injection: { mode?: string; budget?: number } | null
+  is_active: boolean
+  created_at: number | null
+  updated_at: number | null
+  pattern_count: number
+  workflow_count: number
 }
 
 // 时间线缩放级别
@@ -79,6 +100,10 @@ export type OpenClawSession = {
   messages: OpenClawMessage[]
   project: string
   tags: string[]
+  profile_id?: number | null
+  injected_pattern_slugs?: string[]
+  analysis_summary?: string | null
+  analysis_status?: string | null
   created_at: number
   summary: string
 }
@@ -87,9 +112,21 @@ export type OpenClawSession = {
 export type OpenClawDocument = {
   id: number
   title: string
-  type: 'daily_task' | 'paper_note' | 'experiment_log' | 'meeting_note'
+  type:
+    | 'daily_task'
+    | 'paper_note'
+    | 'experiment_log'
+    | 'meeting_note'
+    | 'daily_summary'
+    | 'ai_tools_daily'
+    | 'ai_tools_weekly'
+    | 'ai_tools_index'
+    | 'github_daily'
+    | 'media_daily'
+    | 'misc'
   content: string
   tags: string[]
+  profile_id?: number | null
   created_at: number
   source_session_id: number
 }
@@ -121,9 +158,23 @@ export type PatternExecution = {
   result: 'success' | 'skipped' | 'modified'
 }
 
+export type PatternTrigger = {
+  when: string
+  globs?: string[]
+  event?: string
+  context?: string[]
+}
+
+export type PatternInsight = {
+  context: string
+  insight: string
+  confidence: number
+}
+
 // 行为模式
 export type BehaviorPattern = {
   id: number
+  profile_id?: number | null
   name: string
   category: 'git' | 'coding' | 'review' | 'devops' | 'collaboration'
   description: string
@@ -137,17 +188,35 @@ export type BehaviorPattern = {
   rules: PatternRule[]
   executions: PatternExecution[]
   applicable_scenarios: string[]
+  // ClawProfile v1
+  slug: string | null
+  trigger: string | PatternTrigger | null
+  body: string | null
+  source: 'auto' | 'manual' | 'imported' | 'forked' | null
+  confidence_level: 'low' | 'medium' | 'high' | 'very_high' | null
+  learned_from_data: PatternInsight[] | null
+}
+
+// Workflow 步骤
+export type WorkflowStep = {
+  pattern?: string
+  inline?: string
+  when?: string
+  gate?: string
+  parallel?: WorkflowStep[]
 }
 
 // 团队 Workflow
 export type TeamWorkflow = {
   id: number
+  profile_id?: number | null
   name: string
   description: string
   patterns: number[]
   target_team: string
   status: 'draft' | 'active' | 'distributed'
   created_at: number
+  steps: WorkflowStep[]
 }
 
 // 社区分享用户

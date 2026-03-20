@@ -11,6 +11,7 @@ from models.event import DevEvent
 from models.skill import Skill
 from models.openclaw import OpenClawDocument, OpenClawSession
 from models.digest import DailySummary
+from services.openclaw_runtime import analyze_recent_sessions_with_active_profile
 
 
 HOME = str(Path.home())
@@ -150,6 +151,8 @@ def collect_shell_history(db):
         if batch:
             db.add_all(batch)
         db.commit()
+        if result.inserted > 0:
+            analyze_recent_sessions_with_active_profile(db, limit=min(result.inserted + 5, 50))
     except Exception as e:
         result.errors.append(str(e)[:200])
         db.rollback()
@@ -173,6 +176,36 @@ def _extract_text(raw_content):
                 parts.append(block)
         return ' '.join(parts)
     return ''
+
+
+def _discover_git_repos() -> list[str]:
+    search_roots = [
+        (os.path.join(HOME, 'Desktop'), 3),
+        (os.path.join(HOME, 'Desktop', '比赛'), 4),
+    ]
+    explicit_repos = [
+        os.path.join(HOME, 'Desktop', '比赛', 'omnistack', 'OmniStack'),
+    ]
+
+    repos: set[str] = set()
+    for root_path, max_depth in search_roots:
+        if not os.path.isdir(root_path):
+            continue
+        base_depth = root_path.rstrip(os.sep).count(os.sep)
+        for current_root, dirs, _files in os.walk(root_path):
+            depth = current_root.rstrip(os.sep).count(os.sep) - base_depth
+            if depth > max_depth:
+                dirs.clear()
+                continue
+            if '.git' in dirs:
+                repos.add(current_root)
+                dirs.remove('.git')
+
+    for repo in explicit_repos:
+        if os.path.isdir(os.path.join(repo, '.git')):
+            repos.add(repo)
+
+    return sorted(repos)
 
 
 # 2. Claude Code 日志采集 — 生成 OpenClawSession + DevEvent
@@ -310,7 +343,8 @@ def collect_claude_code(db):
                     directory='', project=project_name, branch='',
                     exit_code=0, duration_ms=0,
                     semantic=summary,
-                    tags=json.dumps(['claude', 'ai', 'session']),
+                    tags=json.dumps(['claude', 'ai', 'session', category, project_name]),
+                    openclaw_session_id=session.id,
                 ))
 
                 result.inserted += 1
@@ -422,19 +456,10 @@ def collect_clawd_docs(db):
 # 4. Git 历史采集
 def collect_git_history(db):
     result = CollectResult('git_history')
-    cutoff = _get_max_timestamp(db, 'git')
-    desktop = os.path.join(HOME, 'Desktop')
-
-    # 找 git 仓库（深度 ≤ 2）
-    repos = []
-    for root, dirs, files in os.walk(desktop):
-        depth = root.replace(desktop, '').count(os.sep)
-        if depth > 2:
-            dirs.clear()
-            continue
-        if '.git' in dirs:
-            repos.append(root)
-            dirs.remove('.git')
+    repos = _discover_git_repos()
+    existing_actions = {
+        row[0] for row in db.query(DevEvent.action).filter(DevEvent.source == 'git').all()
+    }
 
     try:
         batch = []
@@ -458,9 +483,11 @@ def collect_git_history(db):
                     continue
                 commit_hash, ts_str, msg, author = parts
                 ts = int(ts_str)
-                if ts <= cutoff:
+                action = f'commit: {msg} ({commit_hash[:7]})'
+                if action in existing_actions:
                     result.skipped += 1
                     continue
+                existing_actions.add(action)
 
                 # 获取当前分支
                 branch_out = subprocess.run(
@@ -471,11 +498,11 @@ def collect_git_history(db):
 
                 batch.append(DevEvent(
                     timestamp=ts, source='git',
-                    action=f'commit: {msg} ({commit_hash[:7]})',
+                    action=action,
                     directory=repo, project=project, branch=branch,
                     exit_code=0, duration_ms=0,
                     semantic=f'Git commit by {author}',
-                    tags=json.dumps(['git', 'commit']),
+                    tags=json.dumps(['git', 'commit', 'history', project, commit_hash[:7]]),
                 ))
                 result.inserted += 1
 

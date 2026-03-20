@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
+import { useEventsStore } from '@/stores/events'
+
 const route = useRoute()
+const eventsStore = useEventsStore()
 
 const navItems = [
   { path: '/dashboard', label: '总览', icon: 'grid' },
@@ -18,32 +21,42 @@ const navItems = [
 
 const isActive = (path: string) => route.path === path || route.path.startsWith(path + '/')
 
-// 实时事件流模拟
-const liveEvents = ref<{ text: string; color: string; id: number }[]>([])
-let eventId = 0
-const fakeEvents = [
-  { text: 'openclaw chat: 分析实验结果', color: 'text-openclaw' },
-  { text: 'git commit: feat: add DR', color: 'text-git' },
-  { text: 'python train.py --epochs 200', color: 'text-terminal' },
-  { text: 'claude: Edit ppo_agent.py', color: 'text-claude' },
-  { text: 'pytest tests/ -v', color: 'text-terminal' },
-  { text: 'openclaw skill: code-review', color: 'text-openclaw' },
-  { text: 'nvidia-smi', color: 'text-terminal' },
-  { text: 'git merge feat/reward', color: 'text-git' },
-  { text: 'env: CUDA 12.4 detected', color: 'text-env' },
-  { text: 'openclaw chat: 调试 OOM', color: 'text-openclaw' },
-  { text: 'colcon build --packages-select', color: 'text-terminal' },
-  { text: 'git commit: fix: tf2 timeout', color: 'text-git' },
-]
+const sourceColorMap: Record<string, string> = {
+  openclaw: 'text-openclaw',
+  terminal: 'text-terminal',
+  git: 'text-git',
+  claude_code: 'text-claude',
+  env: 'text-env',
+}
 
-let timer: ReturnType<typeof setInterval>
-onMounted(() => {
-  timer = setInterval(() => {
-    const ev = fakeEvents[Math.floor(Math.random() * fakeEvents.length)]
-    liveEvents.value = [{ ...ev, id: eventId++ }, ...liveEvents.value].slice(0, 4)
-  }, 2500)
+const sourceLabelMap: Record<string, string> = {
+  openclaw: 'OpenClaw',
+  terminal: '终端',
+  git: 'Git',
+  claude_code: 'Claude',
+  env: '环境',
+}
+
+const liveEvents = computed(() =>
+  eventsStore.liveEvents.map(event => ({
+    id: event.id,
+    color: sourceColorMap[event.source] ?? 'text-gray-300',
+    text: `${sourceLabelMap[event.source] ?? event.source}: ${event.action}`,
+  })),
+)
+
+const realtimeIndicatorClass = computed(() => {
+  if (eventsStore.realtimeStatus === 'connected') return 'bg-emerald-400 animate-pulse'
+  if (eventsStore.realtimeStatus === 'connecting') return 'bg-amber-400 animate-pulse'
+  return 'bg-gray-500'
 })
-onUnmounted(() => clearInterval(timer))
+
+const realtimeLabel = computed(() => {
+  if (eventsStore.realtimeStatus === 'connected') return '实时事件流'
+  if (eventsStore.realtimeStatus === 'connecting') return '连接事件流中'
+  if (eventsStore.realtimeStatus === 'disconnected') return '事件流已断开'
+  return '等待事件流'
+})
 </script>
 
 <template>
@@ -111,8 +124,8 @@ onUnmounted(() => clearInterval(timer))
     <!-- 实时事件流 -->
     <div class="border-t border-surface-3 p-3">
       <div class="flex items-center gap-1.5 mb-2">
-        <div class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-        <span class="text-[10px] text-gray-500">实时事件流</span>
+        <div class="w-1.5 h-1.5 rounded-full" :class="realtimeIndicatorClass" />
+        <span class="text-[10px] text-gray-500">{{ realtimeLabel }}</span>
       </div>
       <div class="space-y-1 overflow-hidden h-[72px]">
         <TransitionGroup name="event-slide">
@@ -125,6 +138,12 @@ onUnmounted(() => clearInterval(timer))
             {{ ev.text }}
           </div>
         </TransitionGroup>
+        <div v-if="liveEvents.length === 0" class="text-[10px] text-gray-600">
+          暂无实时事件
+        </div>
+      </div>
+      <div v-if="eventsStore.realtimeError" class="mt-2 text-[10px] text-amber-400/80">
+        {{ eventsStore.realtimeError }}
       </div>
     </div>
 

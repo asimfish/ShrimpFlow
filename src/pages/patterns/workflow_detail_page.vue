@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import type { TeamWorkflow, BehaviorPattern } from '@/types'
@@ -9,16 +9,53 @@ const route = useRoute()
 const router = useRouter()
 const workflow = ref<TeamWorkflow | null>(null)
 const allPatterns = ref<BehaviorPattern[]>([])
+const loading = ref(false)
+const loadError = ref<string | null>(null)
+const patternsError = ref<string | null>(null)
+const notFound = ref(false)
+let activeRequestId = 0
 
-onMounted(async () => {
-  const id = Number(route.params.id)
-  const [wRes, pRes] = await Promise.all([getWorkflowApi(id), getPatternsApi()])
-  if (wRes.data) workflow.value = wRes.data
-  if (pRes.data) allPatterns.value = pRes.data
-})
+const loadWorkflow = async (rawId: unknown) => {
+  const id = Number(rawId)
+  const requestId = ++activeRequestId
+
+  workflow.value = null
+  allPatterns.value = []
+  loadError.value = null
+  patternsError.value = null
+  notFound.value = false
+
+  if (!Number.isFinite(id) || id <= 0) {
+    loading.value = false
+    notFound.value = true
+    return
+  }
+
+  loading.value = true
+  const [workflowRes, patternsRes] = await Promise.all([getWorkflowApi(id), getPatternsApi()])
+
+  if (requestId !== activeRequestId) return
+
+  if (workflowRes.data) workflow.value = workflowRes.data
+  else if (workflowRes.error?.startsWith('404')) notFound.value = true
+  else loadError.value = workflowRes.error ?? '工作流加载失败，请稍后重试'
+
+  if (patternsRes.data) allPatterns.value = patternsRes.data
+  else if (workflowRes.data) patternsError.value = patternsRes.error ?? '关联模式加载失败'
+
+  loading.value = false
+}
+
+const retryLoad = () => void loadWorkflow(route.params.id)
+
+watch(() => route.params.id, id => {
+  void loadWorkflow(id)
+}, { immediate: true })
 
 const includedPatterns = computed(() =>
-  workflow.value?.patterns.map(id => allPatterns.value.find(p => p.id === id)).filter(Boolean) ?? []
+  (workflow.value?.patterns
+    .map(id => allPatterns.value.find(p => p.id === id))
+    .filter((pattern): pattern is BehaviorPattern => Boolean(pattern))) ?? []
 )
 
 const statusColorMap: Record<string, string> = {
@@ -53,6 +90,10 @@ const confidenceColor = (c: number) => {
 
 const goBack = () => router.push('/patterns')
 const goPattern = (id: number) => router.push(`/patterns/${id}`)
+const goPatternBySlug = (slug: string) => {
+  const p = allPatterns.value.find(p => p.slug === slug)
+  if (p) router.push(`/patterns/${p.id}`)
+}
 
 const executionSteps = [
   { label: '触发', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
@@ -70,13 +111,28 @@ const executionSteps = [
       返回行为模式列表
     </button>
 
+    <div v-if="loading" class="bg-surface-1 rounded-xl border border-surface-3 py-20 text-center text-gray-500">
+      <div class="text-lg mb-2">正在加载工作流...</div>
+      <div class="text-sm text-gray-600">请稍候</div>
+    </div>
+
+    <div v-else-if="loadError" class="bg-surface-1 rounded-xl border border-red-500/20 py-20 text-center text-gray-400">
+      <div class="text-lg mb-2 text-gray-200">工作流加载失败</div>
+      <div class="text-sm text-red-300 mb-4">{{ loadError }}</div>
+      <button class="text-sm text-accent hover:text-accent-glow cursor-pointer" @click="retryLoad">重试</button>
+    </div>
+
     <!-- 未找到 -->
-    <div v-if="!workflow" class="text-center text-gray-500 py-20">
+    <div v-else-if="notFound" class="text-center text-gray-500 py-20">
       <div class="text-lg mb-2">未找到该工作流</div>
       <button class="text-sm text-accent hover:text-accent-glow cursor-pointer" @click="goBack">返回列表</button>
     </div>
 
-    <template v-if="workflow">
+    <template v-else-if="workflow">
+      <div v-if="patternsError" class="bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-4 py-3 text-sm text-yellow-200">
+        {{ patternsError }}
+      </div>
+
       <!-- 顶部信息 -->
       <div class="bg-surface-1 rounded-xl border border-surface-3 p-6">
         <div class="flex items-start justify-between">
@@ -102,29 +158,71 @@ const executionSteps = [
         <div class="grid grid-cols-2 gap-3">
           <div
             v-for="p in includedPatterns"
-            :key="p!.id"
+            :key="p.id"
             class="bg-surface-2 rounded-lg p-4 space-y-3 cursor-pointer hover:border-accent/40 border border-surface-3 transition-colors"
-            @click="goPattern(p!.id)"
+            @click="goPattern(p.id)"
           >
             <div class="flex items-center gap-2">
-              <span class="text-sm font-medium text-gray-200">{{ p!.name }}</span>
-              <span class="text-[10px] px-2 py-0.5 rounded border" :class="categoryColorMap[p!.category]">{{ categoryLabel[p!.category] }}</span>
+              <span class="text-sm font-medium text-gray-200">{{ p.name }}</span>
+              <span class="text-[10px] px-2 py-0.5 rounded border" :class="categoryColorMap[p.category]">{{ categoryLabel[p.category] }}</span>
             </div>
             <div>
               <div class="flex items-center justify-between mb-1">
                 <span class="text-[10px] text-gray-500">置信度</span>
-                <span class="text-[10px] text-gray-400">{{ p!.confidence }}%</span>
+                <span class="text-[10px] text-gray-400">{{ p.confidence }}%</span>
               </div>
               <div class="h-1.5 bg-surface-3 rounded-full overflow-hidden">
-                <div class="h-full rounded-full transition-all" :class="confidenceColor(p!.confidence)" :style="{ width: `${p!.confidence}%` }" />
+                <div class="h-full rounded-full transition-all" :class="confidenceColor(p.confidence)" :style="{ width: `${p.confidence}%` }" />
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 执行流程 -->
-      <div class="bg-surface-1 rounded-xl border border-surface-3 p-6">
+      <!-- Steps 编排流程 -->
+      <div v-if="workflow.steps && workflow.steps.length > 0" class="bg-surface-1 rounded-xl border border-surface-3 p-6">
+        <div class="text-sm font-medium text-gray-300 mb-5">编排步骤 ({{ workflow.steps.length }})</div>
+        <div class="relative pl-8">
+          <!-- 垂直连接线 -->
+          <div class="absolute left-[11px] top-3 bottom-3 w-0.5 bg-gradient-to-b from-accent via-openclaw to-emerald-500 rounded-full" />
+          <div v-for="(step, idx) in workflow.steps" :key="idx" class="relative pb-6 last:pb-0">
+            <!-- 节点 -->
+            <div class="absolute -left-8 top-1 w-5 h-5 rounded-full border-2 border-surface-1 flex items-center justify-center text-[9px] font-bold"
+              :class="step.parallel ? 'bg-purple-500 text-white' : step.inline ? 'bg-yellow-500 text-black' : 'bg-accent text-white'">
+              {{ step.parallel ? 'P' : idx + 1 }}
+            </div>
+            <!-- parallel 步骤 -->
+            <div v-if="step.parallel" class="space-y-2">
+              <div class="text-[10px] text-purple-400 mb-1">并行执行</div>
+              <div class="grid grid-cols-2 gap-2">
+                <div v-for="(sub, si) in step.parallel" :key="si" class="bg-surface-2 rounded-lg p-2.5 border border-purple-500/20">
+                  <div class="text-xs text-gray-300">{{ sub.inline ?? sub.pattern }}</div>
+                  <div v-if="sub.when" class="text-[10px] text-gray-500 mt-1">when: {{ sub.when }}</div>
+                </div>
+              </div>
+            </div>
+            <!-- pattern 引用步骤 -->
+            <div v-else-if="step.pattern" class="bg-surface-2 rounded-lg p-3 border border-accent/20 cursor-pointer hover:border-accent/40 transition-colors"
+              @click="goPatternBySlug(step.pattern)">
+              <div class="flex items-center gap-2">
+                <svg class="w-3.5 h-3.5 text-accent shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7z" /></svg>
+                <span class="text-xs text-accent font-mono">{{ step.pattern }}</span>
+              </div>
+              <div v-if="step.when" class="text-[10px] text-gray-500 mt-1.5">when: {{ step.when }}</div>
+              <div v-if="step.gate" class="text-[10px] text-emerald-400 mt-1">gate: {{ step.gate }}</div>
+            </div>
+            <!-- inline 步骤 -->
+            <div v-else-if="step.inline" class="bg-surface-2 rounded-lg p-3 border border-yellow-500/20">
+              <div class="text-xs text-gray-300">{{ step.inline }}</div>
+              <div v-if="step.when" class="text-[10px] text-gray-500 mt-1.5">when: {{ step.when }}</div>
+              <div v-if="step.gate" class="text-[10px] text-emerald-400 mt-1">gate: {{ step.gate }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 执行流程（旧版，无 steps 时显示） -->
+      <div v-else class="bg-surface-1 rounded-xl border border-surface-3 p-6">
         <div class="text-sm font-medium text-gray-300 mb-5">执行流程</div>
         <div class="flex items-center justify-center gap-3">
           <template v-for="(step, idx) in executionSteps" :key="step.label">
@@ -145,11 +243,11 @@ const executionSteps = [
         <div class="flex flex-wrap gap-2">
           <span
             v-for="p in includedPatterns"
-            :key="'scenarios-' + p!.id"
+            :key="'scenarios-' + p.id"
             class="contents"
           >
             <span
-              v-for="scenario in p!.applicable_scenarios"
+              v-for="scenario in p.applicable_scenarios"
               :key="scenario"
               class="text-xs px-3 py-1 rounded-full bg-surface-3 text-gray-400 border border-surface-3"
             >

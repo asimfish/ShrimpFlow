@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from db import get_db
 from models.openclaw import OpenClawSession, OpenClawDocument
+from services.openclaw_runtime import analyze_session_with_active_profile
 
 router = APIRouter(tags=["openclaw"])
 
@@ -13,6 +14,10 @@ def _session_to_dict(row: OpenClawSession) -> dict:
         'id': row.id, 'title': row.title, 'category': row.category,
         'messages': json.loads(row.messages) if row.messages else [],
         'project': row.project, 'tags': json.loads(row.tags) if row.tags else [],
+        'profile_id': row.profile_id,
+        'injected_pattern_slugs': json.loads(row.injected_pattern_slugs) if row.injected_pattern_slugs else [],
+        'analysis_summary': row.analysis_summary,
+        'analysis_status': row.analysis_status,
         'created_at': row.created_at, 'summary': row.summary,
     }
 
@@ -21,6 +26,7 @@ def _doc_to_dict(row: OpenClawDocument) -> dict:
     return {
         'id': row.id, 'title': row.title, 'type': row.type,
         'content': row.content, 'tags': json.loads(row.tags) if row.tags else [],
+        'profile_id': row.profile_id,
         'created_at': row.created_at, 'source_session_id': row.source_session_id,
     }
 
@@ -58,3 +64,11 @@ def get_document(doc_id: int, db: Session = Depends(get_db)):
     if not row:
         raise HTTPException(status_code=404, detail="Document not found")
     return _doc_to_dict(row)
+
+
+@router.post("/openclaw/sessions/{session_id}/analyze")
+def analyze_session(session_id: int, db: Session = Depends(get_db)):
+    try:
+        return analyze_session_with_active_profile(db, session_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))

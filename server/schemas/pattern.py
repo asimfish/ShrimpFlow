@@ -27,6 +27,7 @@ class PatternExecutionResponse(BaseModel):
 
 class BehaviorPatternResponse(BaseModel):
     id: int
+    profile_id: int | None = None
     name: str
     category: str
     description: str
@@ -40,3 +41,10 @@ class BehaviorPatternResponse(BaseModel):
     rules: list[PatternRuleResponse]
     executions: list[PatternExecutionResponse]
     applicable_scenarios: list[str]
+    # ClawProfile v1
+    slug: str | None = None
+    trigger: dict | str | None = None
+    body: str | None = None
+    source: str | None = None
+    confidence_level: str | None = None
+    learned_from_data: list[dict] | None = None

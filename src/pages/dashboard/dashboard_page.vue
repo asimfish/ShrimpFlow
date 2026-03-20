@@ -1,26 +1,36 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import type { StatsOverview, BehaviorPattern } from '@/types'
 import { useEventsStore } from '@/stores/events'
 import { useSkillsStore } from '@/stores/skills'
 import { useOpenClawStore } from '@/stores/openclaw'
+import { useDigestStore } from '@/stores/digest'
 import { getStatsApi } from '@/http_api/stats'
 import { getPatternsApi } from '@/http_api/patterns'
-import { collectAllApi } from '@/http_api/collect'
+import { collectAllAndAnalyzeApi } from '@/http_api/collect'
 
 const router = useRouter()
 const eventsStore = useEventsStore()
 const skillsStore = useSkillsStore()
 const openclawStore = useOpenClawStore()
+const digestStore = useDigestStore()
 
 const stats = ref<StatsOverview | null>(null)
 const patterns = ref<BehaviorPattern[]>([])
 const collecting = ref(false)
 const collectResult = ref('')
-// countUp 数字动画
-const animatedValues = ref({ total_events: 0, total_openclaw_sessions: 0, total_projects: 0, total_skills: 0, streak_days: 0 })
+
+const animatedValues = ref({
+  total_events: 0,
+  total_openclaw_sessions: 0,
+  total_claude_sessions: 0,
+  total_git_commits: 0,
+  total_projects: 0,
+  total_skills: 0,
+  streak_days: 0,
+})
 
 const animateNumber = (key: keyof typeof animatedValues.value, target: number, duration: number) => {
   const start = performance.now()
@@ -33,17 +43,47 @@ const animateNumber = (key: keyof typeof animatedValues.value, target: number, d
   requestAnimationFrame(step)
 }
 
-onMounted(async () => {
-  const [sRes, pRes] = await Promise.all([getStatsApi(), getPatternsApi()])
+const loadStats = async () => {
+  const sRes = await getStatsApi()
   if (sRes.data) {
     stats.value = sRes.data
-    animateNumber('total_events', sRes.data.total_events, 1200)
-    animateNumber('total_openclaw_sessions', sRes.data.total_openclaw_sessions, 1000)
-    animateNumber('total_projects', sRes.data.total_projects, 800)
-    animateNumber('total_skills', sRes.data.total_skills, 900)
-    animateNumber('streak_days', sRes.data.streak_days, 700)
+    animateNumber('total_events', sRes.data.total_events ?? 0, 1200)
+    animateNumber('total_openclaw_sessions', sRes.data.total_openclaw_sessions ?? 0, 1000)
+    animateNumber('total_claude_sessions', sRes.data.total_claude_sessions ?? 0, 1000)
+    animateNumber('total_git_commits', sRes.data.total_git_commits ?? 0, 900)
+    animateNumber('total_projects', sRes.data.total_projects ?? 0, 800)
+    animateNumber('total_skills', sRes.data.total_skills ?? 0, 900)
+    animateNumber('streak_days', sRes.data.streak_days ?? 0, 700)
   }
+}
+
+let statsRefreshTimer: ReturnType<typeof setTimeout> | null = null
+
+const scheduleStatsRefresh = (delayMs = 600) => {
+  if (statsRefreshTimer) clearTimeout(statsRefreshTimer)
+  statsRefreshTimer = setTimeout(() => {
+    statsRefreshTimer = null
+    void loadStats()
+  }, delayMs)
+}
+
+onMounted(async () => {
+  const [, pRes] = await Promise.all([loadStats(), getPatternsApi()])
   if (pRes.data) patterns.value = pRes.data
+  await Promise.all([
+    eventsStore.fetchEvents(),
+    skillsStore.fetchSkills(),
+    openclawStore.fetchSessions(),
+  ])
+})
+
+onUnmounted(() => {
+  if (statsRefreshTimer) clearTimeout(statsRefreshTimer)
+})
+
+watch(() => eventsStore.lastRealtimeEventAt, timestamp => {
+  if (!timestamp) return
+  scheduleStatsRefresh()
 })
 
 const sourceDistribution = computed(() => {
@@ -65,6 +105,14 @@ const recentEvents = computed(() =>
 const topPatterns = computed(() =>
   [...patterns.value].sort((a, b) => b.confidence - a.confidence).slice(0, 3)
 )
+
+// AI 对话：OpenClaw + Claude Code sessions 合并，按时间排序取最近 3 条
+const recentAiSessions = computed(() =>
+  [...openclawStore.sessions].sort((a, b) => b.created_at - a.created_at).slice(0, 3)
+)
+
+const isClaudeCodeSession = (session: { tags: string[] }) =>
+  session.tags.includes('claude_code')
 
 const sourceColor: Record<string, string> = {
   openclaw: 'text-openclaw',
@@ -98,23 +146,24 @@ const formatTime = (ts: number) => {
 const handleCollectAll = async () => {
   collecting.value = true
   collectResult.value = ''
-  const res = await collectAllApi()
+  const res = await collectAllAndAnalyzeApi()
   collecting.value = false
   if (res.data) {
-    const results = (res.data as any).results
-    if (results) {
-      const total = results.reduce((s: number, r: any) => s + r.inserted, 0)
-      collectResult.value = `采集完成: 新增 ${total} 条数据`
-    } else {
-      collectResult.value = '采集完成'
-    }
-    // 刷新统计
-    const sRes = await getStatsApi()
-    if (sRes.data) {
-      stats.value = sRes.data
-      animateNumber('total_events', sRes.data.total_events, 800)
-    }
-    setTimeout(() => { collectResult.value = '' }, 5000)
+    const d = res.data as any
+    const total = d.results ? d.results.reduce((s: number, r: any) => s + r.inserted, 0) : 0
+    const mined = d.mining_count ?? 0
+    collectResult.value = `采集完成: 新增 ${total} 条数据，挖掘 ${mined} 个模式${d.digest_updated ? '，已更新今日摘要' : ''}`
+    // 刷新所有模块
+    await Promise.all([
+      loadStats(),
+      eventsStore.fetchEvents(),
+      skillsStore.fetchSkills(),
+      openclawStore.fetchSessions(),
+      digestStore.fetchSummaries(),
+    ])
+    const pRes = await getPatternsApi()
+    if (pRes.data) patterns.value = pRes.data
+    setTimeout(() => { collectResult.value = '' }, 6000)
   }
 }
 </script>
@@ -127,18 +176,20 @@ const handleCollectAll = async () => {
         <h1 class="text-2xl font-semibold">ShrimpFlow 总览</h1>
         <p class="text-sm text-gray-400 mt-1">Record - Visualize - Learn - Become You | 你的 AI 开发者数字孪生</p>
       </div>
-      <div class="flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 cursor-pointer" @click="router.push('/security')">
-        <div class="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-        <span class="text-[10px] text-emerald-400">本地模式 · 已脱敏</span>
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 cursor-pointer" @click="router.push('/security')">
+          <div class="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+          <span class="text-[10px] text-emerald-400">本地模式 · 已脱敏</span>
+        </div>
+        <button
+          class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+          :class="collecting ? 'bg-surface-3 text-gray-500 cursor-wait' : 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 cursor-pointer'"
+          :disabled="collecting"
+          @click="handleCollectAll"
+        >
+          {{ collecting ? '采集分析中...' : '一键采集' }}
+        </button>
       </div>
-      <button
-        class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-        :class="collecting ? 'bg-surface-3 text-gray-500 cursor-wait' : 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 cursor-pointer'"
-        :disabled="collecting"
-        @click="handleCollectAll"
-      >
-        {{ collecting ? '采集中...' : '一键采集' }}
-      </button>
     </div>
     <div v-if="collectResult" class="text-xs text-cyan-400 bg-cyan-500/10 rounded-lg px-3 py-1.5 -mt-4">
       {{ collectResult }}
@@ -148,7 +199,6 @@ const handleCollectAll = async () => {
     <div class="bg-surface-1 rounded-xl border border-surface-3 p-5 gradient-border">
       <div class="text-sm font-medium mb-4 text-gray-300">ShrimpFlow 四层架构</div>
       <div class="grid grid-cols-4 gap-3">
-        <!-- Shadow -->
         <div class="relative bg-surface-2 rounded-xl p-4 border border-accent/30 cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:shadow-accent/10 transition-all" @click="router.push('/layer/shadow')">
           <div class="flex items-center gap-2 mb-2">
             <div class="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
@@ -163,7 +213,6 @@ const handleCollectAll = async () => {
           </div>
           <div class="text-[10px] text-gray-500 mt-1">95% 完成</div>
         </div>
-        <!-- Mirror -->
         <div class="relative bg-surface-2 rounded-xl p-4 border border-openclaw/30 cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:shadow-openclaw/10 transition-all" @click="router.push('/layer/mirror')">
           <div class="flex items-center gap-2 mb-2">
             <div class="w-8 h-8 rounded-lg bg-openclaw/20 flex items-center justify-center">
@@ -178,7 +227,6 @@ const handleCollectAll = async () => {
           </div>
           <div class="text-[10px] text-gray-500 mt-1">80% 完成</div>
         </div>
-        <!-- Brain -->
         <div class="relative bg-surface-2 rounded-xl p-4 border border-purple-500/30 cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:shadow-purple-500/10 transition-all" @click="router.push('/layer/brain')">
           <div class="flex items-center gap-2 mb-2">
             <div class="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
@@ -193,7 +241,6 @@ const handleCollectAll = async () => {
           </div>
           <div class="text-[10px] text-gray-500 mt-1">60% 完成</div>
         </div>
-        <!-- Autopilot -->
         <div class="relative bg-surface-2 rounded-xl p-4 border border-emerald-500/30 cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:shadow-emerald-500/10 transition-all" @click="router.push('/layer/autopilot')">
           <div class="flex items-center gap-2 mb-2">
             <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
@@ -211,23 +258,32 @@ const handleCollectAll = async () => {
       </div>
     </div>
 
-    <!-- 统计卡片 -->
+    <!-- 统计卡片：4 列 -->
     <div class="grid grid-cols-4 gap-4">
+      <!-- 总事件数 -->
       <div class="bg-surface-1 rounded-xl p-4 border border-surface-3 cursor-pointer glow-card" @click="router.push('/timeline')">
         <div class="text-xs text-gray-400">总事件数</div>
         <div class="text-2xl font-bold mt-1 count-up">{{ animatedValues.total_events.toLocaleString() }}</div>
         <div class="text-xs text-gray-500 mt-1">跨越 {{ stats?.total_days }} 天</div>
       </div>
+      <!-- AI 交互 -->
       <div class="bg-surface-1 rounded-xl p-4 border border-surface-3 cursor-pointer glow-card openclaw-pulse" @click="router.push('/openclaw')">
-        <div class="text-xs text-openclaw">OpenClaw 会话</div>
-        <div class="text-2xl font-bold mt-1 text-openclaw count-up">{{ animatedValues.total_openclaw_sessions }}</div>
-        <div class="text-xs text-gray-500 mt-1">AI 辅助交互</div>
+        <div class="text-xs text-openclaw">AI 交互</div>
+        <div class="text-2xl font-bold mt-1 text-openclaw count-up">
+          {{ (animatedValues.total_openclaw_sessions + animatedValues.total_claude_sessions).toLocaleString() }}
+        </div>
+        <div class="flex items-center gap-3 mt-1">
+          <span class="text-[10px] text-gray-500">OC {{ stats?.total_openclaw_sessions ?? 0 }}</span>
+          <span class="text-[10px] text-blue-400">CC {{ stats?.total_claude_sessions ?? 0 }}</span>
+        </div>
       </div>
+      <!-- Git 提交 -->
       <div class="bg-surface-1 rounded-xl p-4 border border-surface-3 cursor-pointer glow-card" @click="router.push('/timeline')">
-        <div class="text-xs text-gray-400">活跃项目</div>
-        <div class="text-2xl font-bold mt-1 count-up">{{ animatedValues.total_projects }}</div>
+        <div class="text-xs text-git">Git 提交</div>
+        <div class="text-2xl font-bold mt-1 text-git count-up">{{ animatedValues.total_git_commits.toLocaleString() }}</div>
         <div class="text-xs text-gray-500 mt-1">最活跃: {{ stats?.most_active_project }}</div>
       </div>
+      <!-- 技能追踪 -->
       <div class="bg-surface-1 rounded-xl p-4 border border-surface-3 cursor-pointer glow-card" @click="router.push('/skills')">
         <div class="text-xs text-gray-400">技能追踪</div>
         <div class="text-2xl font-bold mt-1 count-up">{{ animatedValues.total_skills }}</div>
@@ -241,7 +297,7 @@ const handleCollectAll = async () => {
         <div class="text-sm font-medium mb-3">事件来源分布</div>
         <div class="space-y-2.5">
           <div v-for="(count, source) in sourceDistribution" :key="source" class="flex items-center gap-3">
-            <div class="w-16 text-xs" :class="sourceColor[source]">{{ sourceNameMap[source] }}</div>
+            <div class="w-20 text-xs" :class="sourceColor[source]">{{ sourceNameMap[source] }}</div>
             <div class="flex-1 h-2 bg-surface-3 rounded-full overflow-hidden">
               <div
                 class="h-full rounded-full transition-all"
@@ -289,7 +345,7 @@ const handleCollectAll = async () => {
       </div>
     </div>
 
-    <!-- 最近活动 -->
+    <!-- 最近活动 + AI 对话 -->
     <div class="grid grid-cols-2 gap-4">
       <div class="bg-surface-1 rounded-xl p-4 border border-surface-3">
         <div class="text-sm font-medium mb-3">最近活动</div>
@@ -306,22 +362,30 @@ const handleCollectAll = async () => {
         </div>
       </div>
 
-      <!-- OpenClaw 最近对话 -->
+      <!-- AI 对话（OpenClaw + Claude Code） -->
       <div class="bg-surface-1 rounded-xl p-4 border border-surface-3">
         <div class="flex items-center justify-between mb-3">
-          <div class="text-sm font-medium">OpenClaw 最近对话</div>
+          <div class="text-sm font-medium">AI 对话</div>
           <button class="text-[10px] text-openclaw hover:text-openclaw/80 transition-colors" @click="router.push('/openclaw')">查看全部</button>
         </div>
         <div class="space-y-3">
           <div
-            v-for="session in openclawStore.recentSessions"
+            v-for="session in recentAiSessions"
             :key="session.id"
             class="bg-surface-2 rounded-lg p-3 cursor-pointer hover:bg-surface-3/50 transition-colors"
             @click="openclawStore.selectSession(session.id); router.push('/openclaw')"
           >
             <div class="flex items-center gap-2 mb-1">
-              <div class="w-3 h-3 rounded-full bg-openclaw/30 flex items-center justify-center">
-                <span class="text-[6px] text-openclaw font-bold">OC</span>
+              <div
+                class="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+                :class="isClaudeCodeSession(session) ? 'bg-blue-500/20' : 'bg-openclaw/20'"
+              >
+                <span
+                  class="text-[8px] font-bold"
+                  :class="isClaudeCodeSession(session) ? 'text-blue-400' : 'text-openclaw'"
+                >
+                  {{ isClaudeCodeSession(session) ? 'CC' : 'OC' }}
+                </span>
               </div>
               <span class="text-xs text-gray-200 truncate">{{ session.title }}</span>
             </div>

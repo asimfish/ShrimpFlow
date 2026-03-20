@@ -2,7 +2,7 @@
 # ShrimpFlow Git Hook - post-commit
 # 安装方式: cp hooks/git_hook.sh .git/hooks/post-commit && chmod +x .git/hooks/post-commit
 
-SHRIMPFLOW_API="http://localhost:7890/api/collect/git"
+SHRIMPFLOW_API="${SHRIMPFLOW_API:-http://localhost:7891/api/collect/git}"
 
 # 获取最新提交信息
 COMMIT_MSG=$(git log -1 --pretty=format:"%s")

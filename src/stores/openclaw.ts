@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
 import type { OpenClawSession, OpenClawDocument } from '@/types'
-import { getSessionsApi, getDocumentsApi } from '@/http_api/openclaw'
+import { analyzeSessionApi, getSessionsApi, getDocumentsApi } from '@/http_api/openclaw'
 
 export const useOpenClawStore = defineStore('openclaw', () => {
   const sessions = ref<OpenClawSession[]>([])
@@ -11,6 +11,7 @@ export const useOpenClawStore = defineStore('openclaw', () => {
   const activeTab = ref<'sessions' | 'documents'>('sessions')
   const categoryFilter = ref('')
   const loading = ref(false)
+  const analyzing = ref(false)
 
   const fetchSessions = async () => {
     loading.value = true
@@ -42,5 +43,19 @@ export const useOpenClawStore = defineStore('openclaw', () => {
     activeTab.value = 'sessions'
   }
 
-  return { sessions, documents, selectedSessionId, selectedSession, activeTab, categoryFilter, filteredSessions, recentSessions, selectSession, loading, fetchSessions, fetchDocuments }
+  const analyzeSelectedSession = async () => {
+    if (!selectedSessionId.value) return null
+    analyzing.value = true
+    try {
+      const result = await analyzeSessionApi(selectedSessionId.value)
+      if (result.data) {
+        await fetchSessions()
+      }
+      return result
+    } finally {
+      analyzing.value = false
+    }
+  }
+
+  return { sessions, documents, selectedSessionId, selectedSession, activeTab, categoryFilter, filteredSessions, recentSessions, selectSession, loading, analyzing, fetchSessions, fetchDocuments, analyzeSelectedSession }
 })

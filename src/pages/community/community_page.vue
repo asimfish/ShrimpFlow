@@ -1,23 +1,54 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 
-import type { SharedPatternPack } from '@/types'
-import { getPacksApi } from '@/http_api/community'
+import type { SharedPatternPack, BehaviorPattern } from '@/types'
+import { getPacksApi, createPackApi } from '@/http_api/community'
+import { importPatternsApi } from '@/http_api/patterns'
+import { usePatternsStore } from '@/stores/patterns'
 
 const searchQuery = ref('')
 const categoryFilter = ref('all')
 const expandedPackId = ref<number | null>(null)
 const importSuccess = ref<number | null>(null)
+const importingPackId = ref<number | null>(null)
+const loading = ref(false)
+const packsError = ref<string | null>(null)
+const patternsError = ref<string | null>(null)
+const actionError = ref<string | null>(null)
 
 const publishName = ref('')
 const publishDesc = ref('')
 const publishCategory = ref('coding')
+const publishTags = ref('')
+const selectedPatternIds = ref<Set<number>>(new Set())
+const publishing = ref(false)
+const publishSuccess = ref(false)
 
 const packs = ref<SharedPatternPack[]>([])
+const patternsStore = usePatternsStore()
+const myPatterns = computed<BehaviorPattern[]>(() => patternsStore.patterns)
 
-onMounted(async () => {
-  const packRes = await getPacksApi()
+const loadCommunityData = async () => {
+  loading.value = true
+  packsError.value = null
+  patternsError.value = null
+  actionError.value = null
+
+  const [packRes, patternRes] = await Promise.all([
+    getPacksApi(),
+    patternsStore.fetchPatterns(),
+  ])
+
   if (packRes.data) packs.value = packRes.data
+  else packsError.value = packRes.error ?? '社区模式包加载失败'
+
+  if (!patternRes.data) patternsError.value = patternRes.error ?? '本地模式加载失败'
+
+  loading.value = false
+}
+
+onMounted(() => {
+  void loadCommunityData()
 })
 
 const categories = [
@@ -63,13 +94,49 @@ const filteredPacks = computed(() => {
   return result
 })
 
+// 只显示已确认或可导出的模式供发布选择
+const publishablePatterns = computed(() =>
+  myPatterns.value.filter(p => p.status === 'confirmed' || p.status === 'exportable')
+)
+
+const canPublish = computed(() =>
+  Boolean(publishName.value.trim() && publishDesc.value.trim() && selectedPatternIds.value.size > 0)
+)
+
+watch(publishablePatterns, patterns => {
+  const validIds = new Set(patterns.map(pattern => pattern.id))
+  const nextIds = [...selectedPatternIds.value].filter(id => validIds.has(id))
+  if (nextIds.length !== selectedPatternIds.value.size) {
+    selectedPatternIds.value = new Set(nextIds)
+  }
+}, { immediate: true })
+
 const toggleExpand = (id: number) => {
   expandedPackId.value = expandedPackId.value === id ? null : id
 }
 
-const handleImport = (packId: number) => {
-  importSuccess.value = packId
-  setTimeout(() => { importSuccess.value = null }, 2500)
+const togglePatternSelect = (id: number) => {
+  const next = new Set(selectedPatternIds.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  selectedPatternIds.value = next
+}
+
+const handleImport = async (pack: SharedPatternPack) => {
+  actionError.value = null
+  importingPackId.value = pack.id
+  const res = await importPatternsApi({ patterns: pack.patterns })
+
+  if (res.data) {
+    const refreshRes = await patternsStore.fetchPatterns()
+    if (!refreshRes.data) patternsError.value = refreshRes.error ?? '本地模式刷新失败'
+    importSuccess.value = pack.id
+    setTimeout(() => { importSuccess.value = null }, 2500)
+  } else {
+    actionError.value = res.error ?? '导入失败，请稍后重试'
+  }
+
+  importingPackId.value = null
 }
 
 const formatCount = (n: number) => {
@@ -78,10 +145,33 @@ const formatCount = (n: number) => {
   return String(n)
 }
 
-const handlePublish = () => {
-  publishName.value = ''
-  publishDesc.value = ''
-  publishCategory.value = 'coding'
+const handlePublish = async () => {
+  if (!canPublish.value) return
+  actionError.value = null
+  publishSuccess.value = false
+  publishing.value = true
+  const selectedPatterns = myPatterns.value.filter(p => selectedPatternIds.value.has(p.id))
+  const tags = publishTags.value.split(',').map(t => t.trim()).filter(Boolean)
+  const res = await createPackApi({
+    name: publishName.value.trim(),
+    description: publishDesc.value.trim(),
+    category: publishCategory.value,
+    patterns: selectedPatterns,
+    tags,
+  })
+  publishing.value = false
+  if (res.data) {
+    publishSuccess.value = true
+    packs.value = [res.data, ...packs.value]
+    publishName.value = ''
+    publishDesc.value = ''
+    publishTags.value = ''
+    publishCategory.value = 'coding'
+    selectedPatternIds.value = new Set()
+    setTimeout(() => { publishSuccess.value = false }, 4000)
+  } else {
+    actionError.value = res.error ?? '发布失败，请稍后重试'
+  }
 }
 </script>
 
@@ -126,8 +216,36 @@ const handlePublish = () => {
       共 {{ filteredPacks.length }} 个模式包
     </div>
 
+    <div v-if="actionError" class="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-sm text-red-300">
+      {{ actionError }}
+    </div>
+
+    <div v-if="packsError && packs.length > 0" class="bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-4 py-3 text-sm text-yellow-200">
+      {{ packsError }}
+    </div>
+
+    <div v-if="patternsError" class="bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-4 py-3 text-sm text-yellow-200">
+      {{ patternsError }}
+    </div>
+
     <!-- 模式包卡片网格 -->
-    <div class="grid grid-cols-2 gap-4">
+    <div v-if="loading" class="bg-surface-1 rounded-xl border border-surface-3 py-20 text-center text-gray-500">
+      <div class="text-lg mb-2">正在加载社区模式包...</div>
+      <div class="text-sm text-gray-600">请稍候</div>
+    </div>
+
+    <div v-else-if="packsError && packs.length === 0" class="bg-surface-1 rounded-xl border border-red-500/20 py-20 text-center text-gray-400">
+      <div class="text-lg mb-2 text-gray-200">社区模式包加载失败</div>
+      <div class="text-sm text-red-300 mb-4">{{ packsError }}</div>
+      <button class="text-sm text-accent hover:text-accent-glow cursor-pointer" @click="loadCommunityData">重试</button>
+    </div>
+
+    <div v-else-if="filteredPacks.length === 0" class="bg-surface-1 rounded-xl border border-surface-3 py-20 text-center text-gray-500">
+      <div class="text-lg mb-2">暂无匹配的模式包</div>
+      <div class="text-sm text-gray-600">试试调整搜索词或分类</div>
+    </div>
+
+    <div v-else class="grid grid-cols-2 gap-4">
       <div
         v-for="pack in filteredPacks"
         :key="pack.id"
@@ -189,9 +307,11 @@ const handlePublish = () => {
           <button
             v-if="importSuccess !== pack.id"
             class="w-full py-1.5 rounded-lg text-xs font-medium bg-accent/15 text-accent hover:bg-accent/25 transition-colors"
-            @click.stop="handleImport(pack.id)"
+            :class="importingPackId === pack.id ? 'cursor-wait opacity-70' : ''"
+            :disabled="importingPackId === pack.id"
+            @click.stop="handleImport(pack)"
           >
-            导入到我的模式库
+            {{ importingPackId === pack.id ? '导入中...' : '导入到我的模式库' }}
           </button>
           <div
             v-else
@@ -224,8 +344,9 @@ const handlePublish = () => {
 
     <!-- 发布我的模式 -->
     <div class="bg-surface-1 rounded-xl border border-accent/30 p-5 space-y-4">
-      <div class="text-sm font-medium text-accent">发布我的模式</div>
-      <div class="text-xs text-gray-400">将你的行为模式打包分享给社区</div>
+      <div class="text-sm font-medium text-accent">发布我的 ClawProfile</div>
+      <div class="text-xs text-gray-400">将你归纳好的行为模式打包发布到社区</div>
+
       <div class="grid grid-cols-2 gap-4">
         <div>
           <div class="text-[10px] text-gray-500 mb-1">模式包名称</div>
@@ -248,25 +369,76 @@ const handlePublish = () => {
           </select>
         </div>
       </div>
+
       <div>
         <div class="text-[10px] text-gray-500 mb-1">描述</div>
         <textarea
           v-model="publishDesc"
           placeholder="描述你的模式包..."
-          rows="3"
+          rows="2"
           class="w-full bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 text-xs text-gray-300 outline-none focus:border-accent transition-colors resize-none"
         />
       </div>
-      <div class="flex justify-end">
+
+      <div>
+        <div class="text-[10px] text-gray-500 mb-1">标签（逗号分隔）</div>
+        <input
+          v-model="publishTags"
+          type="text"
+          placeholder="如: python, 效率, 代码规范"
+          class="w-full bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 text-xs text-gray-300 outline-none focus:border-accent transition-colors"
+        />
+      </div>
+
+      <!-- 选择要发布的模式 -->
+      <div>
+        <div class="text-[10px] text-gray-500 mb-2">
+          选择要发布的模式（已确认 / 可导出）
+          <span v-if="publishablePatterns.length === 0" class="text-yellow-500 ml-2">— 请先在模式页面确认模式</span>
+        </div>
+        <div v-if="publishablePatterns.length > 0" class="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+          <label
+            v-for="p in publishablePatterns"
+            :key="p.id"
+            class="flex items-center gap-2.5 cursor-pointer p-2 rounded-lg hover:bg-surface-2 transition-colors"
+          >
+            <input
+              type="checkbox"
+              :checked="selectedPatternIds.has(p.id)"
+              class="w-3.5 h-3.5 rounded accent-accent shrink-0"
+              @change="togglePatternSelect(p.id)"
+            />
+            <span class="text-xs text-gray-300 flex-1 truncate">{{ p.name }}</span>
+            <span class="text-[10px] text-gray-500 shrink-0">{{ p.confidence }}%</span>
+            <span
+              class="text-[10px] px-1.5 py-0.5 rounded shrink-0"
+              :class="p.status === 'exportable' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'"
+            >
+              {{ p.status === 'exportable' ? '可导出' : '已确认' }}
+            </span>
+          </label>
+        </div>
+        <div v-if="selectedPatternIds.size > 0" class="text-[10px] text-accent mt-1">
+          已选择 {{ selectedPatternIds.size }} 个模式
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between">
+        <div v-if="publishSuccess" class="text-xs text-emerald-400 bg-emerald-500/10 rounded-lg px-3 py-1.5">
+          发布成功，已添加到社区
+        </div>
+        <div v-else class="text-[10px] text-gray-600">
+          {{ canPublish ? '准备发布' : '请填写名称、描述并选择至少一个模式' }}
+        </div>
         <button
           class="px-5 py-2 rounded-lg text-xs font-medium transition-colors"
-          :class="publishName && publishDesc
+          :class="canPublish && !publishing
             ? 'bg-accent/20 text-accent hover:bg-accent/30 cursor-pointer'
             : 'bg-surface-3 text-gray-600 cursor-not-allowed'"
-          :disabled="!publishName || !publishDesc"
+          :disabled="!canPublish || publishing"
           @click="handlePublish"
         >
-          发布
+          {{ publishing ? '发布中...' : '发布' }}
         </button>
       </div>
     </div>

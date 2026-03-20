@@ -1,4 +1,4 @@
-import type { BehaviorPattern, TeamWorkflow } from '@/types'
+import type { BehaviorPattern, TeamWorkflow, PatternInsight, PatternTrigger } from '@/types'
 
 import { get, post, put, del } from './client'
 
@@ -24,8 +24,54 @@ export const updatePatternApi = (id: number, data: Partial<BehaviorPattern>) =>
 
 export const deletePatternApi = (id: number) => del<void>(`/patterns/${id}`)
 
-export const exportPatternsApi = (ids: number[]) =>
-  get<BehaviorPattern[]>(`/patterns/export?ids=${ids.join(',')}`)
+export type ClawProfileExchangePattern = {
+  slug: string
+  frontmatter: {
+    name: string
+    confidence: 'low' | 'medium' | 'high' | 'very_high'
+    confidence_score: number
+    category: string
+    trigger?: string | PatternTrigger | null
+    evidence?: number
+    source?: string
+    learned_from?: PatternInsight[]
+  }
+  body: string
+  evolution: { date: string; score: number; note: string }[]
+}
 
-export const importPatternsApi = (data: { patterns: Partial<BehaviorPattern>[] }) =>
-  post<{ count: number }>('/patterns/import', data)
+export type ClawProfileExchangeWorkflow = {
+  slug: string
+  frontmatter: {
+    name: string
+    steps: TeamWorkflow['steps']
+  }
+  body: string
+}
+
+export type ClawProfileExchange = {
+  schema: string
+  profile: {
+    name: string
+    display: string
+    description?: string
+    author?: string
+    tags?: string[]
+    license?: string
+    trust?: string
+    injection?: { mode?: string; budget?: number }
+  }
+  patterns: ClawProfileExchangePattern[]
+  workflows: ClawProfileExchangeWorkflow[]
+  exported_at: number
+}
+
+export const exportPatternsApi = (ids: number[]) =>
+  get<ClawProfileExchange>(`/patterns/export?ids=${ids.join(',')}`)
+
+export const importPatternsApi = (data: {
+  profile?: ClawProfileExchange['profile']
+  patterns: Partial<BehaviorPattern>[] | ClawProfileExchangePattern[]
+  workflows?: ClawProfileExchangeWorkflow[]
+}) =>
+  post<{ imported: number; workflows: number }>('/patterns/import', data)

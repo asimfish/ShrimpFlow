@@ -27,9 +27,12 @@ def get_events(
     search: str = Query(None),
     time_range: str = Query(None),
     limit: int = Query(5000),
+    include_seed: bool = Query(False),
     db: Session = Depends(get_db),
 ):
     q = db.query(DevEvent).order_by(DevEvent.timestamp.desc())
+    if not include_seed:
+        q = q.filter(~DevEvent.tags.contains('"seed"'))
     if source:
         q = q.filter(DevEvent.source == source)
     if project:

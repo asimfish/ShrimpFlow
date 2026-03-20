@@ -1,4 +1,5 @@
 import json
+import re
 from collections import defaultdict
 from datetime import datetime
 
@@ -6,6 +7,21 @@ from sqlalchemy.orm import Session
 
 from models.event import DevEvent
 from models.pattern import BehaviorPattern
+
+
+def _confidence_to_level(score: int) -> str:
+    if score >= 90:
+        return 'very_high'
+    if score >= 70:
+        return 'high'
+    if score >= 40:
+        return 'medium'
+    return 'low'
+
+
+def _name_to_slug(name: str) -> str:
+    slug = re.sub(r'[^a-zA-Z0-9\u4e00-\u9fff]+', '-', name).strip('-').lower()
+    return slug[:50]
 
 
 # 挖掘结果类型
@@ -216,7 +232,9 @@ def mine_all_patterns(events):
 
 # 触发挖掘并存储结果
 def run_mining(db: Session):
-    events = db.query(DevEvent).order_by(DevEvent.timestamp.desc()).limit(5000).all()
+    events = db.query(DevEvent).filter(
+        ~DevEvent.tags.contains('"seed"'),
+    ).order_by(DevEvent.timestamp.desc()).limit(5000).all()
     if not events:
         return []
 
@@ -232,6 +250,7 @@ def run_mining(db: Session):
             # 更新置信度
             new_conf = int(bayesian_update(existing.confidence / 100, 0.1) * 100)
             existing.confidence = new_conf
+            existing.confidence_level = _confidence_to_level(new_conf)
             existing.evidence_count += p.occurrences
             # 追加演化记录
             evolution = json.loads(existing.evolution) if existing.evolution else []
@@ -241,10 +260,60 @@ def run_mining(db: Session):
                 'event_description': f'挖掘更新: {p.occurrences} 次观察',
             })
             existing.evolution = json.dumps(evolution)
+            # 追加 learned_from_data
+            lfd = json.loads(existing.learned_from_data) if existing.learned_from_data else []
+            lfd.append({
+                'context': f'auto_mining_{datetime.now().strftime("%m%d")}',
+                'insight': f'{p.type} 模式再次确认，{p.occurrences} 次新观察',
+                'confidence': new_conf,
+            })
+            existing.learned_from_data = json.dumps(lfd)
             saved.append(p.to_dict())
         else:
-            # 新建模式
+            # 新建模式 — ClawProfile v1 compliant
             category_map = {'sequence': 'coding', 'time': 'devops', 'correlation': 'collaboration'}
+            slug = _name_to_slug(p.name)
+            conf_level = _confidence_to_level(p.confidence)
+
+            # 根据类型生成 trigger
+            trigger = None
+            if p.type == 'sequence':
+                steps = p.name.split(' -> ')
+                trigger = json.dumps({
+                    'when': f'检测到 {steps[0]} 动作',
+                    'event': steps[0],
+                    'context': [f'后续预期: {" → ".join(steps[1:])}'],
+                })
+            elif p.type == 'time':
+                trigger = f'时间模式: {p.name}'
+            elif p.type == 'correlation':
+                parts = p.name.split(' -> ')
+                trigger = json.dumps({
+                    'when': f'{parts[0]} 完成后',
+                    'event': parts[0] if len(parts) > 0 else p.name,
+                    'context': [f'关联动作: {parts[-1]}'] if len(parts) > 1 else [],
+                })
+
+            # 生成 body (prompt 正文)
+            body = f'## {p.name}\n\n{p.description}\n\n'
+            if p.examples:
+                body += '### 观察到的实例\n\n'
+                for ex in p.examples:
+                    body += f'- {ex}\n'
+
+            # 生成 learned_from_data
+            learned_from_data = [{
+                'context': f'auto_mining_{p.type}',
+                'insight': p.description,
+                'confidence': p.confidence,
+            }]
+            for ex in p.examples[:2]:
+                learned_from_data.append({
+                    'context': ex[:80],
+                    'insight': f'来自 {p.type} 挖掘的实例证据',
+                    'confidence': p.confidence,
+                })
+
             pattern = BehaviorPattern(
                 name=p.name, category=category_map.get(p.type, 'coding'),
                 description=p.description, confidence=p.confidence,
@@ -259,6 +328,12 @@ def run_mining(db: Session):
                 rules=json.dumps([]),
                 executions=json.dumps([]),
                 applicable_scenarios=json.dumps(p.examples),
+                slug=slug,
+                trigger=trigger,
+                body=body,
+                source='auto',
+                confidence_level=conf_level,
+                learned_from_data=json.dumps(learned_from_data),
             )
             db.add(pattern)
             saved.append(p.to_dict())

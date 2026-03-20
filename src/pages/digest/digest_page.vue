@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import type { BehaviorPattern } from '@/types'
@@ -17,10 +17,28 @@ const openclawStore = useOpenClawStore()
 const skillsStore = useSkillsStore()
 
 const patterns = ref<BehaviorPattern[]>([])
+let digestRefreshTimer: ReturnType<typeof setTimeout> | null = null
 
 onMounted(async () => {
   const pRes = await getPatternsApi()
   if (pRes.data) patterns.value = pRes.data
+})
+
+onUnmounted(() => {
+  if (digestRefreshTimer) clearTimeout(digestRefreshTimer)
+})
+
+const scheduleDigestRefresh = (delayMs = 900) => {
+  if (digestRefreshTimer) clearTimeout(digestRefreshTimer)
+  digestRefreshTimer = setTimeout(() => {
+    digestRefreshTimer = null
+    void digestStore.fetchSummaries()
+  }, delayMs)
+}
+
+watch(() => eventsStore.lastRealtimeEventAt, timestamp => {
+  if (!timestamp) return
+  scheduleDigestRefresh()
 })
 
 const DAY = 86400
@@ -99,9 +117,15 @@ const weekDays = ['日', '一', '二', '三', '四', '五', '六']
 
 const selectedDayOpenClawSessions = computed(() => {
   if (!selectedDate.value) return []
-  const dayOC = selectedDayEvents.value.filter(e => e.source === 'openclaw' && e.openclaw_session_id)
-  const ids = [...new Set(dayOC.map(e => e.openclaw_session_id))]
-  return ids.map(id => openclawStore.sessions.find(s => s.id === id)).filter(Boolean)
+  const linkedAiEvents = selectedDayEvents.value.filter(
+    e => (e.source === 'openclaw' || e.source === 'claude_code') && e.openclaw_session_id,
+  )
+  const ids = new Set(linkedAiEvents.map(e => e.openclaw_session_id))
+  for (const session of openclawStore.sessions) {
+    const sessionDate = dayjs(session.created_at * 1000).format('YYYY-MM-DD')
+    if (sessionDate === selectedDate.value) ids.add(session.id)
+  }
+  return [...ids].map(id => openclawStore.sessions.find(s => s.id === id)).filter(Boolean)
 })
 
 const dailyPatternProgress = computed(() => {

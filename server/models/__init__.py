@@ -5,3 +5,4 @@ from models.openclaw import OpenClawSession, OpenClawDocument
 from models.digest import DailySummary
 from models.workflow import TeamWorkflow
 from models.community import SharedProfile, SharedPatternPack
+from models.profile import ClawProfile

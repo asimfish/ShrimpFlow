@@ -9,7 +9,10 @@ class TeamWorkflow(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String, nullable=False)
     description = Column(String)
-    patterns = Column(String)  # JSON int[]
+    profile_id = Column(Integer, index=True)
+    patterns = Column(String)  # JSON int[] (兼容旧数据)
     target_team = Column(String)
     status = Column(String, default="draft")
     created_at = Column(Integer)
+    # ClawProfile v1 新增
+    steps = Column(String)  # JSON: [{pattern, when, gate}, {inline, when}, {parallel}]

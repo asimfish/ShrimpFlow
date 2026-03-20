@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { useOpenClawStore } from '@/stores/openclaw'
 import { dayjs } from '@/libs/dayjs'
@@ -36,6 +36,13 @@ const docTypeLabels: Record<string, string> = {
   paper_note: '论文笔记',
   experiment_log: '实验日志',
   meeting_note: '会议纪要',
+  daily_summary: '每日总结',
+  ai_tools_daily: 'AI 工具日报',
+  ai_tools_weekly: 'AI 工具周报',
+  ai_tools_index: 'AI 工具索引',
+  github_daily: 'GitHub 日报',
+  media_daily: '媒体日报',
+  misc: '其他文档',
 }
 
 const docTypeColors: Record<string, string> = {
@@ -43,14 +50,69 @@ const docTypeColors: Record<string, string> = {
   paper_note: 'bg-blue-500/20 text-blue-400',
   experiment_log: 'bg-emerald-500/20 text-emerald-400',
   meeting_note: 'bg-openclaw/20 text-openclaw',
+  daily_summary: 'bg-openclaw/20 text-openclaw',
+  ai_tools_daily: 'bg-cyan-500/20 text-cyan-400',
+  ai_tools_weekly: 'bg-cyan-500/20 text-cyan-400',
+  ai_tools_index: 'bg-cyan-500/20 text-cyan-400',
+  github_daily: 'bg-git/20 text-git',
+  media_daily: 'bg-purple-500/20 text-purple-400',
+  misc: 'bg-surface-3 text-gray-400',
 }
 
 const formatTime = (ts: number) => dayjs(ts * 1000).format('MM-DD HH:mm')
+const isClaudeSession = (tags: string[]) => tags.includes('claude_code')
+const analysisError = ref<string | null>(null)
 
-const selectedDocId = computed({
-  get: () => store.documents[0]?.id ?? 0,
-  set: () => {},
-})
+const analyzeCurrentSession = async () => {
+  analysisError.value = null
+  const result = await store.analyzeSelectedSession()
+  if (result && result.error) analysisError.value = result.error
+}
+
+const selectedDocId = ref<number | null>(null)
+
+const selectedDocument = computed(() =>
+  store.documents.find(doc => doc.id === selectedDocId.value) ?? null
+)
+
+const filteredSessionIds = computed(() => store.filteredSessions.map(session => session.id))
+const documentIds = computed(() => store.documents.map(doc => doc.id))
+
+const syncSelections = () => {
+  if (store.activeTab === 'sessions') {
+    if (filteredSessionIds.value.length === 0) {
+      store.selectedSessionId = null
+      return
+    }
+
+    if (!filteredSessionIds.value.includes(store.selectedSessionId ?? -1)) {
+      store.selectSession(filteredSessionIds.value[0])
+    }
+    return
+  }
+
+  if (documentIds.value.length === 0) {
+    selectedDocId.value = null
+    return
+  }
+
+  if (!documentIds.value.includes(selectedDocId.value ?? -1)) {
+    selectedDocId.value = documentIds.value[0]
+  }
+}
+
+watch(
+  () => [
+    store.activeTab,
+    store.categoryFilter,
+    filteredSessionIds.value.join(','),
+    documentIds.value.join(','),
+    store.selectedSessionId,
+    selectedDocId.value,
+  ],
+  syncSelections,
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -119,7 +181,8 @@ const selectedDocId = computed({
           <button
             v-for="doc in store.documents"
             :key="doc.id"
-            class="w-full text-left p-3 border-b border-surface-3/50 transition-colors hover:bg-surface-2/50"
+            class="w-full text-left p-3 border-b border-surface-3/50 transition-colors"
+            :class="selectedDocId === doc.id ? 'bg-surface-2' : 'hover:bg-surface-2/50'"
             @click="selectedDocId = doc.id"
           >
             <div class="flex items-center gap-2 mb-1">
@@ -140,11 +203,24 @@ const selectedDocId = computed({
       <template v-if="store.activeTab === 'sessions' && store.selectedSession">
         <!-- 会话头部 -->
         <div class="p-4 border-b border-surface-3">
-          <div class="flex items-center gap-2 mb-1">
+          <div class="flex items-center justify-between gap-3 mb-1">
+            <div class="flex items-center gap-2">
             <span class="text-[10px] px-1.5 py-0.5 rounded" :class="categoryColors[store.selectedSession.category]">
               {{ categoryLabels[store.selectedSession.category] }}
             </span>
             <span class="text-xs text-gray-500">{{ store.selectedSession.project }}</span>
+              <span v-if="store.selectedSession.analysis_status" class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400">
+                {{ store.selectedSession.analysis_status }}
+              </span>
+            </div>
+            <button
+              class="px-2.5 py-1 rounded-lg text-[10px] font-medium"
+              :class="store.analyzing ? 'bg-surface-3 text-gray-500' : 'bg-openclaw/15 text-openclaw hover:bg-openclaw/25'"
+              :disabled="store.analyzing"
+              @click="analyzeCurrentSession"
+            >
+              {{ store.analyzing ? '分析中...' : '按 Active Profile 分析' }}
+            </button>
           </div>
           <h2 class="text-base font-medium text-gray-200">{{ store.selectedSession.title }}</h2>
           <p class="text-xs text-gray-500 mt-1">{{ store.selectedSession.summary }}</p>
@@ -153,6 +229,20 @@ const selectedDocId = computed({
               {{ tag }}
             </span>
           </div>
+            <div v-if="store.selectedSession.analysis_summary" class="mt-3 bg-surface-2 rounded-lg p-3">
+              <div class="text-[10px] text-gray-500 mb-1">Active ClawProfile 分析</div>
+              <div class="text-xs text-gray-300 leading-relaxed">{{ store.selectedSession.analysis_summary }}</div>
+            <div v-if="store.selectedSession.injected_pattern_slugs?.length" class="flex flex-wrap gap-1.5 mt-2">
+              <span
+                v-for="slug in store.selectedSession.injected_pattern_slugs"
+                :key="slug"
+                class="text-[10px] px-2 py-0.5 rounded bg-accent/15 text-accent font-mono"
+              >
+                {{ slug }}
+              </span>
+            </div>
+          </div>
+          <div v-if="analysisError" class="mt-2 text-[11px] text-red-400">{{ analysisError }}</div>
         </div>
 
         <!-- 对话消息 -->
@@ -171,12 +261,15 @@ const selectedDocId = computed({
               <div class="flex items-center gap-1.5 mb-2">
                 <div
                   v-if="msg.role === 'assistant'"
-                  class="w-4 h-4 rounded-full bg-openclaw/30 flex items-center justify-center"
+                  class="w-4 h-4 rounded-full flex items-center justify-center"
+                  :class="isClaudeSession(store.selectedSession.tags) ? 'bg-claude/30' : 'bg-openclaw/30'"
                 >
-                  <span class="text-[8px] text-openclaw font-bold">OC</span>
+                  <span class="text-[8px] font-bold" :class="isClaudeSession(store.selectedSession.tags) ? 'text-claude' : 'text-openclaw'">
+                    {{ isClaudeSession(store.selectedSession.tags) ? 'CC' : 'OC' }}
+                  </span>
                 </div>
-                <span class="text-[10px]" :class="msg.role === 'user' ? 'text-accent' : 'text-openclaw'">
-                  {{ msg.role === 'user' ? '你' : 'OpenClaw' }}
+                <span class="text-[10px]" :class="msg.role === 'user' ? 'text-accent' : (isClaudeSession(store.selectedSession.tags) ? 'text-claude' : 'text-openclaw')">
+                  {{ msg.role === 'user' ? '你' : (isClaudeSession(store.selectedSession.tags) ? 'Claude Code' : 'OpenClaw') }}
                 </span>
                 <span class="text-[10px] text-gray-600">{{ formatTime(msg.timestamp) }}</span>
               </div>
@@ -188,19 +281,19 @@ const selectedDocId = computed({
       </template>
 
       <!-- 知识库文档视图 -->
-      <template v-else-if="store.activeTab === 'documents' && store.documents.length">
+      <template v-else-if="store.activeTab === 'documents' && selectedDocument">
         <div class="flex-1 overflow-y-auto p-6">
-          <div v-for="doc in store.documents" :key="doc.id" class="mb-6 bg-surface-1 rounded-xl border border-surface-3 p-5">
+          <div class="bg-surface-1 rounded-xl border border-surface-3 p-5">
             <div class="flex items-center gap-2 mb-2">
-              <span class="text-[10px] px-1.5 py-0.5 rounded" :class="docTypeColors[doc.type]">
-                {{ docTypeLabels[doc.type] }}
+              <span class="text-[10px] px-1.5 py-0.5 rounded" :class="docTypeColors[selectedDocument.type]">
+                {{ docTypeLabels[selectedDocument.type] }}
               </span>
-              <span class="text-[10px] text-gray-500">{{ formatTime(doc.created_at) }}</span>
+              <span class="text-[10px] text-gray-500">{{ formatTime(selectedDocument.created_at) }}</span>
             </div>
-            <h3 class="text-sm font-medium text-gray-200 mb-3">{{ doc.title }}</h3>
-            <div class="text-xs text-gray-400 leading-relaxed whitespace-pre-wrap">{{ doc.content }}</div>
+            <h3 class="text-sm font-medium text-gray-200 mb-3">{{ selectedDocument.title }}</h3>
+            <div class="text-xs text-gray-400 leading-relaxed whitespace-pre-wrap">{{ selectedDocument.content }}</div>
             <div class="flex flex-wrap gap-1 mt-3">
-              <span v-for="tag in doc.tags" :key="tag" class="text-[10px] px-1.5 py-0.5 rounded-full bg-surface-3 text-gray-500">
+              <span v-for="tag in selectedDocument.tags" :key="tag" class="text-[10px] px-1.5 py-0.5 rounded-full bg-surface-3 text-gray-500">
                 {{ tag }}
               </span>
             </div>

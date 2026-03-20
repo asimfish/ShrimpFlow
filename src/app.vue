@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, onUnmounted } from 'vue'
 
 import AppSidebar from '@/components/layout/app_sidebar.vue'
 import GlobalSearch from '@/components/global_search.vue'
@@ -15,10 +15,15 @@ const digestStore = useDigestStore()
 
 onMounted(() => {
   eventsStore.fetchEvents()
+  eventsStore.startRealtime()
   skillsStore.fetchSkills()
   openclawStore.fetchSessions()
   openclawStore.fetchDocuments()
   digestStore.fetchSummaries()
+})
+
+onUnmounted(() => {
+  eventsStore.stopRealtime()
 })
 </script>
 

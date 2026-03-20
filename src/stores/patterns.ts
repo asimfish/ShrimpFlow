@@ -8,19 +8,35 @@ export const usePatternsStore = defineStore('patterns', () => {
   const patterns = ref<BehaviorPattern[]>([])
   const workflows = ref<TeamWorkflow[]>([])
   const loading = ref(false)
+  const patternsError = ref<string | null>(null)
+  const workflowsError = ref<string | null>(null)
 
   const fetchPatterns = async (params?: { category?: string; status?: string }) => {
     loading.value = true
-    const { data } = await patternsApi.getPatternsApi(params)
-    if (data) patterns.value = data
-    loading.value = false
+    patternsError.value = null
+
+    try {
+      const result = await patternsApi.getPatternsApi(params)
+      if (result.data) patterns.value = result.data
+      else patternsError.value = result.error ?? '行为模式加载失败'
+      return result
+    } finally {
+      loading.value = false
+    }
   }
 
   const fetchWorkflows = async () => {
     loading.value = true
-    const { data } = await patternsApi.getWorkflowsApi()
-    if (data) workflows.value = data
-    loading.value = false
+    workflowsError.value = null
+
+    try {
+      const result = await patternsApi.getWorkflowsApi()
+      if (result.data) workflows.value = result.data
+      else workflowsError.value = result.error ?? '工作流加载失败'
+      return result
+    } finally {
+      loading.value = false
+    }
   }
 
   const createPattern = async (patternData: Partial<BehaviorPattern>) => {
@@ -41,5 +57,16 @@ export const usePatternsStore = defineStore('patterns', () => {
     return !error
   }
 
-  return { patterns, workflows, loading, fetchPatterns, fetchWorkflows, createPattern, updatePattern, deletePattern }
+  return {
+    patterns,
+    workflows,
+    loading,
+    patternsError,
+    workflowsError,
+    fetchPatterns,
+    fetchWorkflows,
+    createPattern,
+    updatePattern,
+    deletePattern,
+  }
 })

@@ -55,6 +55,7 @@ def generate_daily_summary(db, date_str):
     events = db.query(DevEvent).filter(
         DevEvent.timestamp >= day_start,
         DevEvent.timestamp < day_end,
+        ~DevEvent.tags.contains('"seed"'),
     ).order_by(DevEvent.timestamp).all()
 
     if not events:
@@ -63,18 +64,22 @@ def generate_daily_summary(db, date_str):
     # 统计数据
     project_counts = defaultdict(int)
     cmd_counts = defaultdict(int)
-    openclaw_count = 0
+    ai_session_ids = set()
+    ai_activity_count = 0
 
     for e in events:
         project_counts[e.project] += 1
         if e.source == 'terminal':
             cmd = e.action.split(' ')[0]
             cmd_counts[cmd] += 1
-        if e.source == 'openclaw':
-            openclaw_count += 1
+        if e.source in ('openclaw', 'claude_code'):
+            ai_activity_count += 1
+            if e.openclaw_session_id:
+                ai_session_ids.add(e.openclaw_session_id)
 
     top_projects = sorted(project_counts.items(), key=lambda x: x[1], reverse=True)[:5]
     top_commands = sorted(cmd_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+    ai_session_count = len(ai_session_ids) if ai_session_ids else ai_activity_count
 
     # 尝试用 Claude 生成摘要
     client = _get_client()
@@ -93,10 +98,10 @@ def generate_daily_summary(db, date_str):
             )
             ai_summary = response.content[0].text
         except Exception:
-            ai_summary = f'今天共产生 {len(events)} 个事件，OpenClaw 交互 {openclaw_count} 次。主要集中在 {top_projects[0][0] if top_projects else "未知"} 项目。'
+            ai_summary = f'今天共产生 {len(events)} 个事件，AI 协作 {ai_session_count} 次。主要集中在 {top_projects[0][0] if top_projects else "未知"} 项目。'
     else:
         # 无 API key 时使用模板
-        ai_summary = f'今天共产生 {len(events)} 个事件，OpenClaw 交互 {openclaw_count} 次。主要集中在 {top_projects[0][0] if top_projects else "未知"} 项目。'
+        ai_summary = f'今天共产生 {len(events)} 个事件，AI 协作 {ai_session_count} 次。主要集中在 {top_projects[0][0] if top_projects else "未知"} 项目。'
 
     # 更新或创建 DailySummary
     existing = db.query(DailySummary).filter(DailySummary.date == date_str).first()
@@ -105,7 +110,7 @@ def generate_daily_summary(db, date_str):
         existing.top_projects = json.dumps([{'name': n, 'count': c} for n, c in top_projects])
         existing.top_commands = json.dumps([{'cmd': c, 'count': n} for c, n in top_commands])
         existing.ai_summary = ai_summary
-        existing.openclaw_sessions = openclaw_count
+        existing.openclaw_sessions = ai_session_count
     else:
         db.add(DailySummary(
             date=date_str,
@@ -113,7 +118,7 @@ def generate_daily_summary(db, date_str):
             top_projects=json.dumps([{'name': n, 'count': c} for n, c in top_projects]),
             top_commands=json.dumps([{'cmd': c, 'count': n} for c, n in top_commands]),
             ai_summary=ai_summary,
-            openclaw_sessions=openclaw_count,
+            openclaw_sessions=ai_session_count,
         ))
     db.commit()
 
@@ -121,7 +126,7 @@ def generate_daily_summary(db, date_str):
         'date': date_str, 'event_count': len(events),
         'top_projects': [{'name': n, 'count': c} for n, c in top_projects],
         'top_commands': [{'cmd': c, 'count': n} for c, n in top_commands],
-        'ai_summary': ai_summary, 'openclaw_sessions': openclaw_count,
+        'ai_summary': ai_summary, 'openclaw_sessions': ai_session_count,
     }
 
 

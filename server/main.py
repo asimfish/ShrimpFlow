@@ -2,8 +2,8 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from db import engine, Base
-from routes import events, skills, patterns, openclaw, digest, community, stats, collector, search
+from db import engine, Base, ensure_runtime_schema
+from routes import events, skills, patterns, openclaw, digest, community, stats, collector, search, profiles
 
 app = FastAPI(title="ShrimpFlow API", version="0.1.0")
 
@@ -24,13 +24,16 @@ app.include_router(community.router, prefix="/api")
 app.include_router(stats.router, prefix="/api")
 app.include_router(collector.router, prefix="/api")
 app.include_router(search.router, prefix="/api")
+app.include_router(profiles.router, prefix="/api")
 
 
 @app.on_event("startup")
 def on_startup():
     Base.metadata.create_all(bind=engine)
-    from seed import seed_database
+    ensure_runtime_schema()
+    from seed import seed_database, ensure_runtime_records
     seed_database()
+    ensure_runtime_records()
 
 
 if __name__ == "__main__":

@@ -176,6 +176,8 @@ export const mockStats: StatsOverview = {
   total_projects: 5,
   total_skills: mockSkills.length,
   total_openclaw_sessions: mockEvents.filter(e => e.source === 'openclaw').length,
+  total_claude_sessions: mockEvents.filter(e => e.source === 'claude_code').length,
+  total_git_commits: mockEvents.filter(e => e.source === 'git').length,
   most_active_project: 'embodied-nav',
   streak_days: 12,
 }
@@ -532,6 +534,12 @@ export const mockPatterns: BehaviorPattern[] = [
       { id: 3, pattern_id: 1, timestamp: now - 6 * DAY, trigger_event: '创建 visual_encoder.py', action_taken: '未检测到测试文件，提醒用户', result: 'modified' },
     ],
     applicable_scenarios: ['新 RL 算法实现', '策略网络开发', '工具函数编写', '数据处理模块'],
+    slug: 'test-before-experiment',
+    trigger: { when: '创建新的实验代码文件', globs: ['**/train*.py', '**/agent*.py'], event: 'file_create', context: ['RL 训练', '策略网络'] },
+    body: '## 实验前先写测试\n\n在实现新的 RL 算法前，先编写评估测试用例。',
+    source: 'auto',
+    confidence_level: 'very_high',
+    learned_from_data: [{ context: 'pytest 调用分析', insight: '47 次观察到 test 文件先于实现文件创建', confidence: 92 }],
   },
   {
     id: 2,
@@ -565,6 +573,7 @@ export const mockPatterns: BehaviorPattern[] = [
       { id: 5, pattern_id: 2, timestamp: now - 2 * DAY, trigger_event: 'git commit "feat: add DR module"', action_taken: '格式正确，通过', result: 'success' },
     ],
     applicable_scenarios: ['所有 Git 项目', '团队协作', '开源贡献', 'CI/CD 集成'],
+    slug: 'conventional-commits', trigger: 'git commit 执行时', body: null, source: 'auto', confidence_level: 'high', learned_from_data: null,
   },
   {
     id: 3,
@@ -596,6 +605,7 @@ export const mockPatterns: BehaviorPattern[] = [
       { id: 7, pattern_id: 3, timestamp: now - 3 * DAY, trigger_event: 'SAC 训练完成', action_taken: '超过 30 分钟才记录', result: 'modified' },
     ],
     applicable_scenarios: ['RL 训练实验', '消融实验', '对比实验', '超参搜索'],
+    slug: 'instant-experiment-log', trigger: '训练脚本执行完成', body: null, source: 'auto', confidence_level: 'high', learned_from_data: null,
   },
   {
     id: 4,
@@ -628,6 +638,7 @@ export const mockPatterns: BehaviorPattern[] = [
       { id: 9, pattern_id: 4, timestamp: now - 5 * DAY, trigger_event: 'merge fix/tf2-transform', action_taken: '快速修复，跳过了 review', result: 'skipped' },
     ],
     applicable_scenarios: ['分支合并', 'PR 审查', '算法实现验证', '性能关键代码'],
+    slug: 'ai-code-review', trigger: 'git merge 或 PR 创建', body: null, source: 'auto', confidence_level: 'high', learned_from_data: null,
   },
   {
     id: 5,
@@ -659,6 +670,7 @@ export const mockPatterns: BehaviorPattern[] = [
       { id: 11, pattern_id: 5, timestamp: now - 3 * DAY, trigger_event: '启动 SAC 训练', action_taken: '发现 GPU 被占用，等待释放', result: 'modified' },
     ],
     applicable_scenarios: ['RL 训练', '模型评估', '大规模实验', '分布式训练'],
+    slug: 'pre-train-env-check', trigger: null, body: null, source: 'auto', confidence_level: 'medium', learned_from_data: null,
   },
   {
     id: 6,
@@ -685,6 +697,7 @@ export const mockPatterns: BehaviorPattern[] = [
       { id: 12, pattern_id: 6, timestamp: now - 2 * DAY, trigger_event: '开始实现 ViT 编码器', action_taken: '检测到已有 ViT 论文讨论会话', result: 'success' },
     ],
     applicable_scenarios: ['新算法实现', '方案设计', '技术选型', '论文复现'],
+    slug: 'paper-first-design', trigger: null, body: null, source: 'auto', confidence_level: 'medium', learned_from_data: null,
   },
   {
     id: 7,
@@ -713,6 +726,7 @@ export const mockPatterns: BehaviorPattern[] = [
       { id: 13, pattern_id: 7, timestamp: now - DAY, trigger_event: '切换到 ros2-workspace', action_taken: '自动激活 ros2 环境', result: 'success' },
     ],
     applicable_scenarios: ['多项目开发', 'Python 项目', 'ML 实验', 'ROS2 开发'],
+    slug: 'conda-env-isolation', trigger: null, body: null, source: 'auto', confidence_level: 'high', learned_from_data: null,
   },
   {
     id: 8,
@@ -739,6 +753,7 @@ export const mockPatterns: BehaviorPattern[] = [
       { id: 14, pattern_id: 8, timestamp: now - 2 * DAY, trigger_event: 'git checkout -b new-feature', action_taken: '提示添加前缀', result: 'modified' },
     ],
     applicable_scenarios: ['所有 Git 项目', '团队协作', '实验管理'],
+    slug: 'branch-naming', trigger: null, body: null, source: 'auto', confidence_level: 'medium', learned_from_data: null,
   },
   {
     id: 9,
@@ -765,6 +780,7 @@ export const mockPatterns: BehaviorPattern[] = [
       { id: 15, pattern_id: 9, timestamp: now - DAY, trigger_event: '启动新实验', action_taken: '检测到使用命令行参数，建议改用配置文件', result: 'modified' },
     ],
     applicable_scenarios: ['RL 训练', '超参搜索', '消融实验', '可复现研究'],
+    slug: 'experiment-config-yaml', trigger: null, body: null, source: 'auto', confidence_level: 'medium', learned_from_data: null,
   },
   {
     id: 10,
@@ -790,6 +806,7 @@ export const mockPatterns: BehaviorPattern[] = [
       { id: 16, pattern_id: 10, timestamp: now - DAY, trigger_event: 'git commit', action_taken: 'flake8 发现 2 个问题，已修复', result: 'success' },
     ],
     applicable_scenarios: ['Python 项目', '代码提交', 'CI/CD'],
+    slug: 'lint-before-commit', trigger: null, body: null, source: 'auto', confidence_level: 'medium', learned_from_data: null,
   },
   {
     id: 99,
@@ -829,6 +846,7 @@ export const mockPatterns: BehaviorPattern[] = [
       { id: 102, pattern_id: 99, timestamp: now - 5 * DAY, trigger_event: 'PR #42 代码审查', action_taken: '按审查流程完成 review 并合并', result: 'success' },
     ],
     applicable_scenarios: ['新项目启动', '团队协作开发', '开源项目管理', 'CI/CD 流水线', '代码质量保障'],
+    slug: 'full-dev-lifecycle', trigger: '创建新项目', body: null, source: 'auto', confidence_level: 'very_high', learned_from_data: null,
   },
 ]
 
@@ -842,6 +860,12 @@ export const mockWorkflows: TeamWorkflow[] = [
     target_team: '具身智能实验室',
     status: 'active',
     created_at: now - 5 * DAY,
+    steps: [
+      { pattern: 'test-before-experiment', when: '开始新实验实现', gate: '测试文件已创建且可运行' },
+      { inline: '实现实验代码，确保测试通过', when: '测试框架就绪' },
+      { pattern: 'instant-experiment-log', when: '训练脚本执行完成', gate: '实验总结已写入知识库' },
+      { pattern: 'ai-code-review', when: '准备合并分支', gate: 'review 无 critical 问题' },
+    ],
   },
   {
     id: 2,
@@ -851,6 +875,10 @@ export const mockWorkflows: TeamWorkflow[] = [
     target_team: '机器人开发组',
     status: 'distributed',
     created_at: now - 3 * DAY,
+    steps: [
+      { pattern: 'conventional-commits', when: 'git commit' },
+      { inline: 'colcon build 编译验证', when: '代码修改完成' },
+    ],
   },
   {
     id: 3,
@@ -860,6 +888,11 @@ export const mockWorkflows: TeamWorkflow[] = [
     target_team: '全体成员',
     status: 'draft',
     created_at: now - DAY,
+    steps: [
+      { inline: '阅读实验室代码规范文档', when: '入职第一天' },
+      { pattern: 'conventional-commits', when: '首次提交代码' },
+      { pattern: 'test-before-experiment', when: '首次编写实验代码' },
+    ],
   },
   {
     id: 4,
@@ -869,6 +902,14 @@ export const mockWorkflows: TeamWorkflow[] = [
     target_team: '研究生',
     status: 'active',
     created_at: now - 4 * DAY,
+    steps: [
+      { pattern: 'instant-experiment-log', when: '实验完成' },
+      { inline: '整理实验数据，生成对比表格和图表', when: '所有实验完成' },
+      { parallel: [
+        { inline: '同行内部审阅', when: '初稿完成' },
+        { inline: 'AI 辅助语法检查', when: '初稿完成' },
+      ] },
+    ],
   },
   {
     id: 5,
@@ -878,6 +919,11 @@ export const mockWorkflows: TeamWorkflow[] = [
     target_team: 'AI 开发组',
     status: 'draft',
     created_at: now - 2 * DAY,
+    steps: [
+      { inline: '创建独立 conda 环境', when: '项目启动' },
+      { pattern: 'conventional-commits', when: '初始化 Git 仓库' },
+      { pattern: 'test-before-experiment', when: '开始编码' },
+    ],
   },
   {
     id: 6,
@@ -887,6 +933,10 @@ export const mockWorkflows: TeamWorkflow[] = [
     target_team: '全体成员',
     status: 'distributed',
     created_at: now - 6 * DAY,
+    steps: [
+      { pattern: 'conventional-commits', when: 'git commit' },
+      { inline: 'lint 检查通过', when: '代码修改完成', gate: 'pylint score >= 8.0' },
+    ],
   },
 ]
 
@@ -908,6 +958,7 @@ const sp = (id: number, name: string, cat: BehaviorPattern['category'], desc: st
   learned_from: '社区分享', rule, created_at: now - 30 * DAY, status: 'exportable' as const,
   evolution: [{ date: '01-01', confidence: conf, event_description: '导入时已确认' }],
   rules: [], executions: [], applicable_scenarios: [],
+  slug: null, trigger: null, body: null, source: 'imported', confidence_level: null, learned_from_data: null,
 })
 
 // 社区分享模式包

@@ -7,5 +7,7 @@ class StatsOverview(BaseModel):
     total_projects: int
     total_skills: int
     total_openclaw_sessions: int
+    total_claude_sessions: int
+    total_git_commits: int
     most_active_project: str
     streak_days: int

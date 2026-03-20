@@ -12,6 +12,10 @@ class OpenClawSession(Base):
     messages = Column(String)  # JSON OpenClawMessage[]
     project = Column(String)
     tags = Column(String)  # JSON string[]
+    profile_id = Column(Integer, index=True, nullable=True)
+    injected_pattern_slugs = Column(String)  # JSON string[]
+    analysis_summary = Column(String)
+    analysis_status = Column(String)
     created_at = Column(Integer)
     summary = Column(String)
 
@@ -24,5 +28,6 @@ class OpenClawDocument(Base):
     type = Column(String, nullable=False)
     content = Column(String)
     tags = Column(String)  # JSON string[]
+    profile_id = Column(Integer, index=True, nullable=True)
     created_at = Column(Integer)
     source_session_id = Column(Integer, nullable=True)

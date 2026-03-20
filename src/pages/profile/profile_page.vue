@@ -1,23 +1,56 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 
-import type { StatsOverview, BehaviorPattern } from '@/types'
+import type { StatsOverview, BehaviorPattern, ClawProfile } from '@/types'
 import { useEventsStore } from '@/stores/events'
 import { useSkillsStore } from '@/stores/skills'
 import { getStatsApi } from '@/http_api/stats'
 import { getPatternsApi } from '@/http_api/patterns'
+import { activateProfileApi, getActiveProfileApi, getProfilesApi } from '@/http_api/profiles'
 
 const eventsStore = useEventsStore()
 const skillsStore = useSkillsStore()
 
 const stats = ref<StatsOverview | null>(null)
 const patterns = ref<BehaviorPattern[]>([])
+const profiles = ref<ClawProfile[]>([])
+const activeProfile = ref<ClawProfile | null>(null)
+const profilesLoading = ref(false)
+const profilesError = ref<string | null>(null)
+const activatingProfileId = ref<number | null>(null)
 
 onMounted(async () => {
   const [sRes, pRes] = await Promise.all([getStatsApi(), getPatternsApi()])
   if (sRes.data) stats.value = sRes.data
   if (pRes.data) patterns.value = pRes.data
+  await loadProfiles()
 })
+
+const loadProfiles = async () => {
+  profilesLoading.value = true
+  profilesError.value = null
+  const [profilesRes, activeRes] = await Promise.all([getProfilesApi(), getActiveProfileApi()])
+  if (profilesRes.data) profiles.value = profilesRes.data
+  else profilesError.value = profilesRes.error ?? 'ClawProfile 列表加载失败'
+  if (activeRes.data) activeProfile.value = activeRes.data
+  else if (!profilesError.value) profilesError.value = activeRes.error ?? 'Active ClawProfile 加载失败'
+  profilesLoading.value = false
+}
+
+const activateProfile = async (profileId: number) => {
+  activatingProfileId.value = profileId
+  const result = await activateProfileApi(profileId)
+  activatingProfileId.value = null
+  if (result.data) {
+    activeProfile.value = result.data
+    profiles.value = profiles.value.map(profile => ({
+      ...profile,
+      is_active: profile.id === result.data!.id,
+    }))
+  } else {
+    profilesError.value = result.error ?? '激活 ClawProfile 失败'
+  }
+}
 
 const now = Math.floor(Date.now() / 1000)
 const DAY = 86400
@@ -102,6 +135,79 @@ const weekComparison = computed(() => {
     <div>
       <h1 class="text-2xl font-semibold">开发者画像</h1>
       <p class="text-sm text-gray-400 mt-1">你的 AI 开发者数字孪生名片</p>
+    </div>
+
+    <div class="bg-surface-1 rounded-2xl border border-openclaw/20 p-6 space-y-4">
+      <div class="flex items-start justify-between gap-6">
+        <div>
+          <div class="text-sm font-medium text-gray-200">Active ClawProfile</div>
+          <div class="text-xs text-gray-500 mt-1">当前系统用于 OpenClaw/Claude 会话分析与模式注入的核心档案</div>
+        </div>
+        <button class="text-xs text-accent hover:text-accent-glow" @click="loadProfiles">刷新</button>
+      </div>
+
+      <div v-if="profilesLoading" class="text-sm text-gray-500">正在加载 ClawProfile...</div>
+      <div v-else-if="profilesError" class="text-sm text-red-300">{{ profilesError }}</div>
+      <div v-else-if="activeProfile" class="grid grid-cols-[1.4fr_1fr] gap-4">
+        <div class="bg-surface-2 rounded-xl border border-surface-3 p-4">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-xs px-2 py-0.5 rounded-full bg-openclaw/15 text-openclaw">{{ activeProfile.trust || 'local' }}</span>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400">active</span>
+          </div>
+          <div class="text-lg font-semibold text-gray-100">{{ activeProfile.display }}</div>
+          <div class="text-xs text-gray-500 mt-1 font-mono">{{ activeProfile.name }}</div>
+          <div class="text-sm text-gray-400 mt-3 leading-relaxed">{{ activeProfile.description || '暂无描述' }}</div>
+          <div class="flex flex-wrap gap-2 mt-3">
+            <span v-for="tag in activeProfile.tags" :key="tag" class="text-[10px] px-2 py-0.5 rounded-full bg-surface-3 text-gray-400">
+              {{ tag }}
+            </span>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-surface-2 rounded-xl border border-surface-3 p-4">
+            <div class="text-[11px] text-gray-500">模式数</div>
+            <div class="text-2xl font-semibold text-accent mt-1">{{ activeProfile.pattern_count }}</div>
+          </div>
+          <div class="bg-surface-2 rounded-xl border border-surface-3 p-4">
+            <div class="text-[11px] text-gray-500">工作流数</div>
+            <div class="text-2xl font-semibold text-openclaw mt-1">{{ activeProfile.workflow_count }}</div>
+          </div>
+          <div class="bg-surface-2 rounded-xl border border-surface-3 p-4 col-span-2">
+            <div class="text-[11px] text-gray-500 mb-1">注入策略</div>
+            <div class="text-sm text-gray-300">
+              mode={{ activeProfile.injection?.mode || 'proactive' }} · budget={{ activeProfile.injection?.budget ?? 'unlimited' }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <div class="text-xs text-gray-500">可切换的 ClawProfile</div>
+        <div class="grid grid-cols-2 gap-3">
+          <div
+            v-for="profile in profiles"
+            :key="profile.id"
+            class="bg-surface-2 rounded-xl border p-4"
+            :class="profile.is_active ? 'border-emerald-500/30' : 'border-surface-3'"
+          >
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <div class="text-sm font-medium text-gray-200">{{ profile.display }}</div>
+                <div class="text-[10px] text-gray-500 font-mono mt-1">{{ profile.name }}</div>
+              </div>
+              <button
+                class="px-2.5 py-1 rounded-lg text-[10px] font-medium"
+                :class="profile.is_active ? 'bg-emerald-500/15 text-emerald-400 cursor-default' : 'bg-accent/15 text-accent hover:bg-accent/25'"
+                :disabled="profile.is_active || activatingProfileId === profile.id"
+                @click="activateProfile(profile.id)"
+              >
+                {{ profile.is_active ? '已激活' : activatingProfileId === profile.id ? '切换中...' : '设为 Active' }}
+              </button>
+            </div>
+            <div class="text-xs text-gray-400 mt-2 line-clamp-2">{{ profile.description || '暂无描述' }}</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 名片卡 -->

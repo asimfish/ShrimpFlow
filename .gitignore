@@ -32,6 +32,8 @@ __pycache__/
 server/.venv/
 server/.env
 server/shrimpflow.db
+server/runtime_settings.json
+.shrimpflow-dev.pids
 
 # Claude
 .claude/settings.local.json

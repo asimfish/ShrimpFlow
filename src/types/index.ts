@@ -1,7 +1,7 @@
 // ShrimpFlow 类型定义
 
 // 统一事件格式
-export type EventSource = 'terminal' | 'git' | 'openclaw' | 'claude_code' | 'codex' | 'env'
+export type EventSource = 'terminal' | 'git' | 'openclaw' | 'claude_code' | 'codex' | 'cursor' | 'vscode' | 'env'
 
 export type DevEvent = {
   id: number
@@ -37,6 +37,21 @@ export type Skill = {
   total_uses: number
   last_used: number
   first_seen: number
+}
+
+export type LearningPlanPhase = {
+  title: string
+  objective: string
+  actions: string[]
+}
+
+export type LearningPlan = {
+  goal: string
+  summary: string
+  strengths: string[]
+  focus_areas: string[]
+  phases: LearningPlanPhase[]
+  recommendations: string[]
 }
 
 // 技能类别
@@ -97,10 +112,15 @@ export type OpenClawMessage = {
 export type OpenClawSession = {
   id: number
   title: string
+  display_title?: string
   category: 'paper' | 'debug' | 'review' | 'experiment' | 'architecture' | 'learning'
   messages: OpenClawMessage[]
   project: string
   tags: string[]
+  origin?: 'openclaw' | 'claude_code' | 'codex' | 'cursor' | 'vscode' | 'unknown'
+  origin_label?: string
+  index_label?: string
+  display_summary?: string
   profile_id?: number | null
   injected_pattern_slugs?: string[]
   analysis_summary?: string | null
@@ -113,6 +133,7 @@ export type OpenClawSession = {
 export type OpenClawDocument = {
   id: number
   title: string
+  display_title?: string
   type:
     | 'daily_task'
     | 'paper_note'
@@ -127,6 +148,10 @@ export type OpenClawDocument = {
     | 'misc'
   content: string
   tags: string[]
+  origin?: 'openclaw' | 'claude_code' | 'codex' | 'cursor' | 'vscode' | 'unknown'
+  origin_label?: string
+  index_label?: string
+  preview_excerpt?: string
   profile_id?: number | null
   created_at: number
   source_session_id: number
@@ -258,6 +283,34 @@ export type SharedClawProfile = {
   stars: number
   tags: string[]
   created_at: number
+}
+
+// 定时采集配置
+export type ScheduleConfig = {
+  enabled: boolean
+  interval_hours: number
+  running: boolean
+}
+
+export type AIProviderStrategy = 'auto' | 'heuristic_only' | string
+
+export type AIProviderOption = {
+  key: string
+  label: string
+  configured?: boolean
+  family?: string
+  models?: { id: string; name: string }[]
+  default_model?: string | null
+  active?: boolean
+  preferred?: boolean
+}
+
+export type AISettings = {
+  selected_provider: string
+  default_model: string
+  selector_model: string
+  providers: AIProviderOption[]
+  models: { id: string; name: string }[]
 }
 
 export type OpenClawInvocationLog = {

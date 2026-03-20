@@ -3,19 +3,17 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import type { BehaviorPattern } from '@/types'
-import { getPatternsApi } from '@/http_api/patterns'
 
 import { useEventsStore } from '@/stores/events'
+import { usePatternsStore } from '@/stores/patterns'
 import { mineAllPatterns } from '@/utils/pattern_mining'
 
 const router = useRouter()
 const eventsStore = useEventsStore()
-
-const patterns = ref<BehaviorPattern[]>([])
+const patternsStore = usePatternsStore()
 
 onMounted(async () => {
-  const res = await getPatternsApi()
-  if (res.data) patterns.value = res.data
+  await Promise.all([eventsStore.ensureLoaded(), patternsStore.ensurePatternsLoaded()])
 })
 
 // 运行挖掘算法
@@ -52,15 +50,15 @@ const confidenceColor = (c: number) => {
 }
 
 const learningPatterns = computed(() =>
-  patterns.value.filter((p: BehaviorPattern) => p.status === 'learning')
+  patternsStore.patterns.filter((p: BehaviorPattern) => p.status === 'learning')
 )
 
 const confirmedPatterns = computed(() =>
-  patterns.value.filter((p: BehaviorPattern) => p.status === 'confirmed')
+  patternsStore.patterns.filter((p: BehaviorPattern) => p.status === 'confirmed')
 )
 
 const exportablePatterns = computed(() =>
-  patterns.value.filter((p: BehaviorPattern) => p.status === 'exportable')
+  patternsStore.patterns.filter((p: BehaviorPattern) => p.status === 'exportable')
 )
 
 const handleClickPattern = (pattern: BehaviorPattern) => {

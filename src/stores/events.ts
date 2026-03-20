@@ -53,6 +53,7 @@ export const useEventsStore = defineStore('events', () => {
   const searchQuery = ref('')
   const timeRange = ref<'today' | 'week' | 'month' | 'all'>('all')
   const loading = ref(false)
+  const loaded = ref(false)
   const realtimeStatus = ref<RealtimeStatus>('idle')
   const realtimeError = ref<string | null>(null)
   const lastRealtimeEventAt = ref(0)
@@ -63,6 +64,7 @@ export const useEventsStore = defineStore('events', () => {
   let recentSyncTimer: ReturnType<typeof setTimeout> | null = null
   let periodicSyncTimer: ReturnType<typeof setInterval> | null = null
   let recentSyncInFlight = false
+  let fetchPromise: Promise<{ data: DevEvent[] | null; error: string | null }> | null = null
 
   const mergeEvents = (incoming: DevEvent[]) => {
     if (!incoming.length) return 0
@@ -77,16 +79,29 @@ export const useEventsStore = defineStore('events', () => {
     liveEvents.value = uniqueEvents([event, ...liveEvents.value]).slice(0, LIVE_EVENT_LIMIT)
   }
 
-  const fetchEvents = async () => {
+  const fetchEvents = async (force = false) => {
+    if (!force && fetchPromise) return fetchPromise
+    if (!force && loaded.value) return { data: events.value, error: null }
+
     loading.value = true
-    const { data } = await getEventsApi()
-    if (data) {
-      events.value = uniqueEvents(data)
-      if (!liveEvents.value.length) {
-        liveEvents.value = events.value.slice(0, LIVE_EVENT_LIMIT)
+    fetchPromise = (async () => {
+      const result = await getEventsApi()
+      if (result.data) {
+        events.value = uniqueEvents(result.data)
+        loaded.value = true
+        if (!liveEvents.value.length) {
+          liveEvents.value = events.value.slice(0, LIVE_EVENT_LIMIT)
+        }
       }
+      return result
+    })()
+
+    try {
+      return await fetchPromise
+    } finally {
+      fetchPromise = null
+      loading.value = false
     }
-    loading.value = false
   }
 
   const syncRecentEvents = async () => {
@@ -95,6 +110,7 @@ export const useEventsStore = defineStore('events', () => {
     recentSyncInFlight = true
     const { data } = await getEventsApi({ limit: RECENT_SYNC_LIMIT })
     if (data) {
+      loaded.value = true
       const addedCount = mergeEvents(data)
       liveEvents.value = uniqueEvents([...data, ...liveEvents.value]).slice(0, LIVE_EVENT_LIMIT)
       if (addedCount > 0) {
@@ -170,6 +186,13 @@ export const useEventsStore = defineStore('events', () => {
         return
       }
 
+      // 模式待确认推送
+      if (payload && typeof payload === 'object' && 'type' in payload && payload.type === 'pattern_pending') {
+        const detail = (payload as Record<string, unknown>).pattern
+        window.dispatchEvent(new CustomEvent('pattern-pending', { detail }))
+        return
+      }
+
       const event = normalizeEvent(payload)
       if (event) {
         handleIncomingEvent(event)
@@ -220,6 +243,8 @@ export const useEventsStore = defineStore('events', () => {
     }
   }
 
+  const ensureLoaded = () => fetchEvents(false)
+
   const filteredEvents = computed(() =>
     events.value.filter(event => {
       if (sourceFilter.value && event.source !== sourceFilter.value) return false
@@ -263,10 +288,12 @@ export const useEventsStore = defineStore('events', () => {
     projects,
     eventsByDate,
     loading,
+    loaded,
     realtimeStatus,
     realtimeError,
     lastRealtimeEventAt,
     fetchEvents,
+    ensureLoaded,
     startRealtime,
     stopRealtime,
     syncRecentEvents,

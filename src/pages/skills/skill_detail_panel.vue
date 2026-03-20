@@ -5,6 +5,7 @@ import type { Skill } from '@/types'
 
 const props = defineProps<{
   skill: Skill | null
+  embedded?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -63,7 +64,7 @@ const levelDesc = computed(() => {
 <template>
   <div
     v-if="skill"
-    class="w-80 shrink-0 bg-surface-1 border-l border-surface-3 flex flex-col overflow-hidden"
+    :class="props.embedded ? 'bg-surface-1 rounded-xl border border-surface-3 flex flex-col overflow-hidden' : 'w-80 shrink-0 bg-surface-1 border-l border-surface-3 flex flex-col overflow-hidden'"
   >
     <div class="flex items-center justify-between px-4 py-3 border-b border-surface-3">
       <div class="flex items-center gap-2">

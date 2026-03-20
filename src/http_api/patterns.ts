@@ -75,3 +75,13 @@ export const importPatternsApi = (data: {
   workflows?: ClawProfileExchangeWorkflow[]
 }) =>
   post<{ imported: number; workflows: number }>('/patterns/import', data)
+
+// 模式确认/拒绝
+export const confirmPatternApi = (id: number) =>
+  post<{ id: number; status: string }>(`/patterns/${id}/confirm`, {})
+
+export const rejectPatternApi = (id: number) =>
+  post<{ id: number; status: string }>(`/patterns/${id}/reject`, {})
+
+export const getPendingPatternsApi = () =>
+  get<BehaviorPattern[]>('/patterns/pending')

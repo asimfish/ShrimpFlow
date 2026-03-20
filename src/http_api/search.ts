@@ -3,7 +3,7 @@ import { get } from './client'
 type SearchResult = {
   events: { id: number; action: string; source: string; project: string }[]
   patterns: { id: number; name: string; category: string; confidence: number }[]
-  sessions: { id: number; title: string; category: string }[]
+  sessions: { id: number; title: string; category: string; origin?: string }[]
   packs: { id: number; name: string; category: string }[]
 }
 

@@ -101,8 +101,14 @@ const generateEventData = (source: DevEvent['source']): GeneratedEventData => {
       const d = codexActions[Math.floor(Math.random() * codexActions.length)]
       return { ...base, action: d.action, semantic: d.semantic, tags: d.tags, exit_code: 0, duration_ms: 500 + Math.floor(Math.random() * 5000) }
     }
+    case 'cursor':
+      return { ...base, action: 'cursor: edited src/components/pattern_panel.vue', semantic: 'Cursor 编辑前端组件', tags: ['cursor', 'file_edit'], exit_code: 0, duration_ms: 800 + Math.floor(Math.random() * 3000) }
+    case 'vscode':
+      return { ...base, action: 'vscode: workspace /Users/liyufeng/Desktop/比赛/devtwin', semantic: 'VS Code 打开工作区', tags: ['vscode', 'workspace'], exit_code: 0, duration_ms: 500 + Math.floor(Math.random() * 2000) }
     case 'env':
       return { ...base, action: 'env snapshot: CUDA 12.4 / PyTorch 2.3 / ROS2 Humble', semantic: '环境变更检测', tags: ['env'], exit_code: 0, duration_ms: 0 }
+    default:
+      return { ...base, action: 'terminal: ls', semantic: '终端操作', tags: ['shell'], exit_code: 0, duration_ms: 50 }
   }
 }
 

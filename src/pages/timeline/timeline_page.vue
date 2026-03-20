@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 
 import { useEventsStore } from '@/stores/events'
 import type { DevEvent } from '@/types'
@@ -9,11 +9,31 @@ import EventDetailPanel from './event_detail_panel.vue'
 
 const eventsStore = useEventsStore()
 const selectedEvent = ref<DevEvent | null>(null)
+const MAX_TIMELINE_EVENTS = 1200
 
 onMounted(async () => {
-  if (eventsStore.events.length === 0) {
-    await eventsStore.fetchEvents()
+  await eventsStore.ensureLoaded()
+})
+
+const sampledEvents = computed(() => {
+  const items = eventsStore.filteredEvents
+  if (items.length <= MAX_TIMELINE_EVENTS) return items
+
+  const pinned = items.filter(event => event.openclaw_session_id).slice(0, 240)
+  const pinnedIds = new Set(pinned.map(event => event.id))
+  const rest = items.filter(event => !pinnedIds.has(event.id))
+  const sampleSize = Math.max(0, MAX_TIMELINE_EVENTS - pinned.length)
+  if (sampleSize <= 0) return pinned.slice(0, MAX_TIMELINE_EVENTS)
+
+  const stride = rest.length / sampleSize
+  const sampled: DevEvent[] = []
+  for (let index = 0; index < sampleSize; index++) {
+    const event = rest[Math.floor(index * stride)]
+    if (event) sampled.push(event)
   }
+  return [...pinned, ...sampled]
+    .sort((a, b) => b.timestamp - a.timestamp || b.id - a.id)
+    .slice(0, MAX_TIMELINE_EVENTS)
 })
 
 const selectEvent = (event: DevEvent) => {
@@ -31,6 +51,9 @@ const closeDetail = () => {
       <div class="p-6 pb-0">
         <h1 class="text-2xl font-semibold">时间线</h1>
         <p class="text-sm text-gray-400 mt-1">你的 OpenClaw 开发活动流</p>
+        <p v-if="eventsStore.filteredEvents.length > sampledEvents.length" class="text-[11px] text-amber-400 mt-2">
+          为保证流畅度，当前仅渲染 {{ sampledEvents.length }} / {{ eventsStore.filteredEvents.length }} 个事件
+        </p>
       </div>
       <TimelineToolbar />
       <div v-if="eventsStore.loading" class="flex-1 flex items-center justify-center text-gray-500">
@@ -47,7 +70,7 @@ const closeDetail = () => {
       </div>
       <TimelineCanvas
         v-else
-        :events="eventsStore.filteredEvents"
+        :events="sampledEvents"
         @select="selectEvent"
       />
     </div>

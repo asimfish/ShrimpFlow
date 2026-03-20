@@ -164,6 +164,8 @@ const simplifyAction = (e: DevEvent): string => {
   }
   if (e.source === 'claude_code') return 'claude-edit'
   if (e.source === 'codex') return 'codex-edit'
+  if (e.source === 'cursor') return 'cursor-edit'
+  if (e.source === 'vscode') return 'vscode-edit'
   // terminal
   if (e.action.includes('python')) return 'python-run'
   if (e.action.includes('pytest') || e.action.includes('test')) return 'test-run'

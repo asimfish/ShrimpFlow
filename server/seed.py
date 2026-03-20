@@ -1255,7 +1255,7 @@ def _ensure_claude_event_links(db) -> None:
             doc.profile_id = active_profile.id
 
 
-def ensure_runtime_records() -> None:
+def ensure_runtime_records(run_session_analysis: bool = False) -> None:
     """Backfill live SQLite data and keep showcase community records current."""
     db = SessionLocal()
     try:
@@ -1375,6 +1375,70 @@ def ensure_runtime_records() -> None:
                 'tags': json.dumps(['AI4Science', 'DevOps', 'OpenSource', 'Operations'], ensure_ascii=False),
                 'created_at': NOW - 5 * DAY,
             },
+            {
+                'id': 14,
+                'author_id': 9,
+                'name': '白丰硕的 Baseline First 实验准则',
+                'description': '任何新方向都先打通 baseline、日志和误差分析，再谈复杂方法设计。',
+                'category': 'review',
+                'patterns': json.dumps([
+                    _sp(1401, '新方向先跑 baseline', 'review', '任何新方向必须先复现稳定 baseline，再开始创新迭代', 96, '没有 baseline 曲线时不讨论新方法优劣'),
+                    _sp(1402, '异常现象先做误差分桶', 'review', '模型异常时先按场景、距离和任务阶段做误差分桶', 91, '先定位失败分布，再决定是否调模型'),
+                    _sp(1403, '实验结论必须可视化', 'coding', '关键实验都要配图、表格和失败案例，不接受只有口头结论', 90, '周报默认包含可视化结果'),
+                ], ensure_ascii=False),
+                'downloads': 4620,
+                'stars': 1480,
+                'tags': json.dumps(['Baseline', 'ErrorAnalysis', 'Embodied', 'Experiment'], ensure_ascii=False),
+                'created_at': NOW - 4 * DAY,
+            },
+            {
+                'id': 15,
+                'author_id': 10,
+                'name': '周大围的机器人交付准则',
+                'description': '从规划、控制到部署，强调实机前检查和交付闭环。',
+                'category': 'devops',
+                'patterns': json.dumps([
+                    _sp(1501, '实机前先跑干运行', 'devops', '所有控制逻辑上线前必须做 dry-run 和 shadow mode 检查', 95, '未做 dry-run 不允许连接真实机器人'),
+                    _sp(1502, '部署脚本强制自检', 'devops', '部署脚本必须先检查依赖、版本和设备连通性', 89, '部署前自动检查 ROS graph 和设备状态'),
+                    _sp(1503, '实机失败 10 分钟内复盘', 'collaboration', '实机失败后 10 分钟内记录现象、日志和恢复方案', 88, '现场失败立即沉淀复盘模板'),
+                ], ensure_ascii=False),
+                'downloads': 4010,
+                'stars': 1330,
+                'tags': json.dumps(['RobotDelivery', 'Deployment', 'Safety', 'ROS'], ensure_ascii=False),
+                'created_at': NOW - 3 * DAY,
+            },
+            {
+                'id': 16,
+                'author_id': 11,
+                'name': '王培朔的记忆优先 Agent 规范',
+                'description': '围绕记忆写入、检索和长期任务稳定性的实践规范。',
+                'category': 'collaboration',
+                'patterns': json.dumps([
+                    _sp(1601, '记忆条目必须可回溯', 'collaboration', '任何长期记忆必须能追溯到原始会话、实验或文档', 94, '记忆卡片默认带 source link'),
+                    _sp(1602, '长任务设置回滚点', 'collaboration', '长任务执行中必须设置阶段回滚点和状态快照', 92, '每个阶段结束保存 snapshot'),
+                    _sp(1603, '重要上下文优先结构化', 'coding', '高价值上下文优先转成结构化记录，减少纯文本遗失', 90, '实验配置、失败原因、复现步骤统一结构化'),
+                ], ensure_ascii=False),
+                'downloads': 5230,
+                'stars': 1710,
+                'tags': json.dumps(['Memory', 'Agent', 'LongHorizon', 'Structure'], ensure_ascii=False),
+                'created_at': NOW - 2 * DAY,
+            },
+            {
+                'id': 17,
+                'author_id': 13,
+                'name': '高京的发布即产品 ClawProfile',
+                'description': '把科研工程成果按产品交付标准整理、发布和维护。',
+                'category': 'collaboration',
+                'patterns': json.dumps([
+                    _sp(1701, 'README 先于宣传', 'collaboration', '任何发布前先把 README、安装和 FAQ 写到位，再做宣传', 95, '发布当天默认同步更新 README'),
+                    _sp(1702, '每次发布附升级路径', 'devops', '新版本默认附 migration path 和兼容性说明', 92, '用户升级要有明确 path'),
+                    _sp(1703, '社区反馈 24 小时内分级处理', 'collaboration', 'issue 和讨论必须在 24 小时内完成分级和回应', 89, '开源维护像产品运营一样做 SLA'),
+                ], ensure_ascii=False),
+                'downloads': 6120,
+                'stars': 2050,
+                'tags': json.dumps(['Release', 'README', 'Community', 'OpenSource'], ensure_ascii=False),
+                'created_at': NOW - DAY,
+            },
         ]
         for payload in runtime_packs:
             _upsert_shared_pack(db, payload)
@@ -1489,7 +1553,8 @@ def ensure_runtime_records() -> None:
             _upsert_shared_claw_profile(db, payload)
 
         db.commit()
-        analyze_recent_sessions_with_active_profile(db, limit=50)
+        if run_session_analysis:
+            analyze_recent_sessions_with_active_profile(db, limit=50)
     except Exception:
         db.rollback()
         raise

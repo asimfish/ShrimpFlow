@@ -79,7 +79,7 @@ def collect_openclaw(req: CollectEventRequest, db: Session = Depends(get_db)):
 
 from services.real_data_collector import (
     collect_shell_history, collect_claude_code, collect_codex_sessions,
-    collect_clawd_docs, collect_git_history, collect_all,
+    collect_clawd_docs, collect_git_history, collect_vscode_cursor, collect_all,
 )
 
 
@@ -118,6 +118,13 @@ def api_collect_git(db: Session = Depends(get_db)):
     return result.to_dict()
 
 
+@router.post("/collect/vscode-cursor")
+def api_collect_vscode_cursor(db: Session = Depends(get_db)):
+    from services.real_data_collector import collect_vscode_cursor
+    result = collect_vscode_cursor(db)
+    return result.to_dict()
+
+
 @router.post("/collect/all")
 def api_collect_all(db: Session = Depends(get_db)):
     from services.real_data_collector import collect_all
@@ -125,16 +132,16 @@ def api_collect_all(db: Session = Depends(get_db)):
     return {'results': results}
 
 
-@router.post("/collect/all-and-analyze")
-def api_collect_all_and_analyze(db: Session = Depends(get_db)):
+def run_collect_and_analyze(db: Session) -> dict:
+    # 公共逻辑: 采集 + 挖掘 + AI增强 + 生成摘要
     from services.real_data_collector import collect_all
     from services.pattern_mining import run_mining
     from services.ai_summary import generate_pattern_description, generate_daily_summary
+    from services.pattern_confirm import push_pending_patterns
     from models.pattern import BehaviorPattern
     from models.event import DevEvent
-    from models.digest import DailySummary
-    from datetime import datetime, timezone
-    from sqlalchemy import func, distinct
+    from datetime import datetime
+    from sqlalchemy import func
     import json as _json
 
     results = collect_all(db)
@@ -150,7 +157,7 @@ def api_collect_all_and_analyze(db: Session = Depends(get_db)):
                 row.description = desc
     db.commit()
 
-    # 为所有有真实事件的日期重新生成摘要，避免 seed 摘要长期污染
+    # 为所有有真实事件的日期重新生成摘要
     event_dates = db.query(
         func.strftime('%Y-%m-%d', DevEvent.timestamp, 'unixepoch').label('d')
     ).filter(
@@ -163,8 +170,21 @@ def api_collect_all_and_analyze(db: Session = Depends(get_db)):
         generate_daily_summary(db, date_str)
         generated_count += 1
 
-    # 也更新今日摘要
     today_str = datetime.now().strftime('%Y-%m-%d')
     generate_daily_summary(db, today_str)
 
-    return {'results': results, 'mining_count': len(mined), 'digest_updated': True, 'digests_generated': generated_count}
+    # 推送高置信度待确认模式
+    pushed = push_pending_patterns(db)
+
+    return {
+        'results': results,
+        'mining_count': len(mined),
+        'digest_updated': True,
+        'digests_generated': generated_count,
+        'patterns_pushed': pushed,
+    }
+
+
+@router.post("/collect/all-and-analyze")
+def api_collect_all_and_analyze(db: Session = Depends(get_db)):
+    return run_collect_and_analyze(db)

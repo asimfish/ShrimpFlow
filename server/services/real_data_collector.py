@@ -11,6 +11,7 @@ from models.event import DevEvent
 from models.skill import Skill
 from models.openclaw import OpenClawDocument, OpenClawSession
 from models.digest import DailySummary
+from services.content_labels import derive_project_label, infer_session_category, summarize_session_summary, summarize_session_title
 from services.openclaw_runtime import analyze_recent_sessions_with_active_profile
 
 
@@ -286,25 +287,10 @@ def collect_claude_code(db):
                     result.skipped += 1
                     continue
 
-                # 生成 session title（取第一条 user 消息的前50字）
-                first_user = next((m for m in messages if m['role'] == 'user'), None)
-                title = first_user['content'][:50] if first_user else f'Claude Code Session {session_id[:8]}'
-                title = title.replace('\n', ' ')
-
                 created_at = first_ts if first_ts else int(os.path.getmtime(jsonl_file))
-
-                # 推断 category
-                content_lower = ' '.join(m['content'].lower() for m in messages[:5])
-                if any(w in content_lower for w in ['bug', 'fix', 'error', 'debug', '报错']):
-                    category = 'debug'
-                elif any(w in content_lower for w in ['review', '审查', '检查']):
-                    category = 'review'
-                elif any(w in content_lower for w in ['设计', 'design', '架构', 'architecture']):
-                    category = 'architecture'
-                elif any(w in content_lower for w in ['论文', 'paper', '分析']):
-                    category = 'paper'
-                else:
-                    category = 'learning'
+                category = infer_session_category(messages, fallback='learning')
+                title = summarize_session_title(messages, f'Claude Code Session {session_id[:8]}', category)
+                project_name = derive_project_label(project_name, messages)
 
                 # 转换为 OpenClawMessage 格式
                 openclaw_messages = []
@@ -315,7 +301,13 @@ def collect_claude_code(db):
                         'timestamp': m['timestamp'],
                     })
 
-                summary = f'Claude Code 对话 ({len(messages)} 条消息, 项目: {project_name})'
+                summary = summarize_session_summary(
+                    openclaw_messages,
+                    f'Claude Code 对话 ({len(messages)} 条消息)',
+                    project_name,
+                    'claude_code',
+                    category,
+                )
 
                 # 写入 OpenClawSession
                 session = OpenClawSession(
@@ -440,21 +432,10 @@ def collect_codex_sessions(db):
                 result.skipped += 1
                 continue
 
-            title = next((m['content'][:60].replace('\n', ' ') for m in messages if m['role'] == 'user'), f'Codex Session {jsonl_file.stem[:8]}')
             created_at = first_ts or int(os.path.getmtime(jsonl_file))
-            project_name = os.path.basename(cwd) if cwd else 'codex'
-
-            content_lower = ' '.join(m['content'].lower() for m in messages[:5])
-            if any(w in content_lower for w in ['bug', 'fix', 'error', 'debug', '报错']):
-                category = 'debug'
-            elif any(w in content_lower for w in ['review', '审查', '检查']):
-                category = 'review'
-            elif any(w in content_lower for w in ['设计', 'design', '架构', 'architecture']):
-                category = 'architecture'
-            elif any(w in content_lower for w in ['论文', 'paper', '分析']):
-                category = 'paper'
-            else:
-                category = 'learning'
+            project_name = derive_project_label(os.path.basename(cwd) if cwd else 'codex', messages, cwd)
+            category = infer_session_category(messages, fallback='learning')
+            title = summarize_session_title(messages, f'Codex Session {jsonl_file.stem[:8]}', category)
 
             session = OpenClawSession(
                 title=title,
@@ -463,7 +444,13 @@ def collect_codex_sessions(db):
                 project=project_name,
                 tags=json.dumps(['codex', project_name], ensure_ascii=False),
                 created_at=created_at,
-                summary=f'Codex 对话 ({len(messages)} 条消息, 项目: {project_name})',
+                summary=summarize_session_summary(
+                    messages[:60],
+                    f'Codex 对话 ({len(messages)} 条消息)',
+                    project_name,
+                    'codex',
+                    category,
+                ),
             )
             db.add(session)
             db.flush()
@@ -666,6 +653,241 @@ def collect_git_history(db):
     return result
 
 
+# 5. VSCode/Cursor 数据采集（工作区历史 + 扩展 + AI 追踪）
+def collect_vscode_cursor(db):
+    result = CollectResult('vscode_cursor')
+
+    # 采集来源：Cursor 和 VSCode 的 workspaceStorage + state.vscdb
+    editors = [
+        ('cursor', os.path.join(HOME, 'Library', 'Application Support', 'Cursor', 'User')),
+        ('vscode', os.path.join(HOME, 'Library', 'Application Support', 'Code', 'User')),
+    ]
+
+    existing_actions = {
+        row[0]
+        for row in db.query(DevEvent.action).filter(DevEvent.source == 'vscode_cursor').all()
+    }
+
+    try:
+        batch = []
+
+        for editor_name, user_dir in editors:
+            if not os.path.isdir(user_dir):
+                continue
+
+            # 5a. 采集工作区历史 — 从 workspaceStorage/*/workspace.json
+            ws_dir = os.path.join(user_dir, 'workspaceStorage')
+            if os.path.isdir(ws_dir):
+                for ws_hash in os.listdir(ws_dir):
+                    ws_json = os.path.join(ws_dir, ws_hash, 'workspace.json')
+                    if not os.path.isfile(ws_json):
+                        continue
+                    try:
+                        with open(ws_json, 'r', errors='replace') as f:
+                            ws_data = json.loads(f.read())
+                    except (json.JSONDecodeError, OSError):
+                        continue
+
+                    folder_uri = ws_data.get('folder', '')
+                    if not folder_uri:
+                        continue
+
+                    # 解码 URI
+                    from urllib.parse import unquote
+                    folder_decoded = unquote(folder_uri)
+
+                    # 判断本地 vs 远程
+                    is_remote = 'vscode-remote://' in folder_uri
+                    if is_remote:
+                        # 提取远程路径和主机
+                        parts = folder_decoded.replace('vscode-remote://ssh-remote+', '')
+                        slash_idx = parts.find('/')
+                        if slash_idx > 0:
+                            host = parts[:slash_idx]
+                            remote_path = parts[slash_idx:]
+                            project_name = os.path.basename(remote_path.rstrip('/'))
+                            action = f'{editor_name}: remote workspace {host}:{remote_path}'
+                        else:
+                            continue
+                    else:
+                        local_path = folder_decoded.replace('file://', '')
+                        project_name = os.path.basename(local_path.rstrip('/'))
+                        action = f'{editor_name}: workspace {local_path}'
+
+                    if action in existing_actions:
+                        result.skipped += 1
+                        continue
+
+                    # 使用目录修改时间
+                    ws_hash_dir = os.path.join(ws_dir, ws_hash)
+                    ts = int(os.path.getmtime(ws_hash_dir))
+
+                    existing_actions.add(action)
+                    tags = [editor_name, 'workspace', project_name]
+                    if is_remote:
+                        tags.append('remote')
+
+                    batch.append(DevEvent(
+                        timestamp=ts, source='vscode_cursor',
+                        action=action[:500],
+                        directory=local_path if not is_remote else '',
+                        project=project_name, branch='',
+                        exit_code=0, duration_ms=0,
+                        semantic=f'{editor_name.title()} 工作区: {project_name}',
+                        tags=json.dumps(tags, ensure_ascii=False),
+                    ))
+                    _update_skill(db, f'code {editor_name}', ts)
+                    result.inserted += 1
+
+                    if len(batch) >= 100:
+                        db.add_all(batch)
+                        db.flush()
+                        batch = []
+
+            # 5b. 采集 AI 代码追踪（Cursor 独有）
+            if editor_name == 'cursor':
+                state_db_path = os.path.join(user_dir, 'globalStorage', 'state.vscdb')
+                if os.path.isfile(state_db_path):
+                    try:
+                        import sqlite3 as sqlite3_mod
+                        conn = sqlite3_mod.connect(f'file:{state_db_path}?mode=ro', uri=True)
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT value FROM ItemTable WHERE key = 'aiCodeTracking.recentCommit'")
+                        row = cursor.fetchone()
+                        if row:
+                            ai_data = json.loads(row[0])
+                            commit_msg = ai_data.get('commitMessage', '')
+                            ai_pct = ai_data.get('aiPercentage', '0')
+                            action = f'cursor-ai: {commit_msg} (AI {ai_pct}%)'
+                            if action not in existing_actions:
+                                ts = int(ai_data.get('timestamp', 0)) // 1000
+                                if ts:
+                                    existing_actions.add(action)
+                                    batch.append(DevEvent(
+                                        timestamp=ts, source='vscode_cursor',
+                                        action=action[:500],
+                                        directory='', project=ai_data.get('repoName', 'unknown'),
+                                        branch=ai_data.get('branchName', ''),
+                                        exit_code=0, duration_ms=0,
+                                        semantic=f'Cursor AI 协作: {ai_pct}% AI 贡献, +{ai_data.get("linesAdded", 0)}/-{ai_data.get("linesDeleted", 0)}',
+                                        tags=json.dumps(['cursor', 'ai_tracking', 'commit', ai_data.get('repoName', '')], ensure_ascii=False),
+                                    ))
+                                    result.inserted += 1
+                        conn.close()
+                    except Exception:
+                        pass
+
+            # 5c. 采集扩展列表
+            ext_dir = os.path.join(HOME, f'.{editor_name}', 'extensions')
+            if os.path.isdir(ext_dir):
+                for ext_name in os.listdir(ext_dir):
+                    if ext_name.startswith('.') or ext_name == 'extensions.json':
+                        continue
+                    action = f'{editor_name}: extension {ext_name}'
+                    if action in existing_actions:
+                        result.skipped += 1
+                        continue
+
+                    ext_path = os.path.join(ext_dir, ext_name)
+                    ts = int(os.path.getmtime(ext_path))
+                    existing_actions.add(action)
+
+                    # 解析扩展名为可读格式
+                    ext_parts = ext_name.rsplit('-', 1)
+                    ext_display = ext_parts[0] if len(ext_parts) >= 2 else ext_name
+
+                    batch.append(DevEvent(
+                        timestamp=ts, source='vscode_cursor',
+                        action=action[:500],
+                        directory='', project=editor_name, branch='',
+                        exit_code=0, duration_ms=0,
+                        semantic=f'{editor_name.title()} 扩展: {ext_display}',
+                        tags=json.dumps([editor_name, 'extension', ext_display], ensure_ascii=False),
+                    ))
+                    result.inserted += 1
+
+                    if len(batch) >= 100:
+                        db.add_all(batch)
+                        db.flush()
+                        batch = []
+
+            # 5d. 采集文件编辑历史（History 目录）
+            history_dir = os.path.join(user_dir, 'History')
+            if os.path.isdir(history_dir):
+                for hist_hash in os.listdir(history_dir):
+                    entries_json = os.path.join(history_dir, hist_hash, 'entries.json')
+                    if not os.path.isfile(entries_json):
+                        continue
+                    try:
+                        with open(entries_json, 'r', errors='replace') as f:
+                            entries_data = json.loads(f.read())
+                    except (json.JSONDecodeError, OSError):
+                        continue
+
+                    resource = entries_data.get('resource', '')
+                    entries = entries_data.get('entries', [])
+                    if not resource or not entries:
+                        continue
+
+                    from urllib.parse import unquote
+                    file_path = unquote(resource).replace('file://', '')
+                    file_name = os.path.basename(file_path)
+
+                    # 每个文件只记录一次（最后修改时间）
+                    action = f'{editor_name}: edited {file_path}'
+                    if action in existing_actions:
+                        result.skipped += 1
+                        continue
+
+                    # 取最近一次编辑时间
+                    latest_ts = max((e.get('timestamp', 0) for e in entries), default=0)
+                    ts = latest_ts // 1000 if latest_ts > 1e12 else latest_ts
+                    if not ts:
+                        continue
+
+                    existing_actions.add(action)
+                    project_name = _guess_project_from_path(file_path)
+
+                    batch.append(DevEvent(
+                        timestamp=ts, source='vscode_cursor',
+                        action=action[:500],
+                        directory=os.path.dirname(file_path),
+                        project=project_name, branch='',
+                        exit_code=0, duration_ms=0,
+                        semantic=f'{editor_name.title()} 编辑: {file_name} ({len(entries)} 次修改)',
+                        tags=json.dumps([editor_name, 'file_edit', project_name, file_name], ensure_ascii=False),
+                    ))
+                    result.inserted += 1
+
+                    if len(batch) >= 100:
+                        db.add_all(batch)
+                        db.flush()
+                        batch = []
+
+        if batch:
+            db.add_all(batch)
+        db.commit()
+    except Exception as e:
+        result.errors.append(str(e)[:200])
+        db.rollback()
+
+    return result
+
+
+def _guess_project_from_path(file_path):
+    # 从文件路径推断项目名（查找 .git 所在目录或取上两级目录名）
+    parts = file_path.split('/')
+    for i in range(len(parts) - 1, 0, -1):
+        candidate = '/'.join(parts[:i])
+        if os.path.isdir(os.path.join(candidate, '.git')):
+            return parts[i - 1]
+    # 取 Desktop 下第一级子目录名
+    for i, p in enumerate(parts):
+        if p == 'Desktop' and i + 1 < len(parts):
+            return parts[i + 1]
+    return os.path.basename(os.path.dirname(file_path))
+
+
 # 一键采集所有
 def collect_all(db):
     results = []
@@ -674,4 +896,5 @@ def collect_all(db):
     results.append(collect_codex_sessions(db))
     results.append(collect_clawd_docs(db))
     results.append(collect_git_history(db))
+    results.append(collect_vscode_cursor(db))
     return [r.to_dict() for r in results]

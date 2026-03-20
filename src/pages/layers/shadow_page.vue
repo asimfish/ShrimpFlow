@@ -11,6 +11,8 @@ const sourceNames: Record<string, string> = {
   git: 'Git',
   claude_code: 'Claude Code',
   codex: 'Codex',
+  cursor: 'Cursor',
+  vscode: 'VS Code',
   env: '环境',
 }
 
@@ -20,6 +22,8 @@ const sourceColors: Record<string, string> = {
   git: '#f97316',
   claude_code: '#818cf8',
   codex: '#67e8f9',
+  cursor: '#34d399',
+  vscode: '#38bdf8',
   env: '#6b7280',
 }
 
@@ -29,6 +33,8 @@ const sourceBgClass: Record<string, string> = {
   git: 'bg-[#f97316]',
   claude_code: 'bg-[#818cf8]',
   codex: 'bg-[#67e8f9]',
+  cursor: 'bg-[#34d399]',
+  vscode: 'bg-[#38bdf8]',
   env: 'bg-[#6b7280]',
 }
 
@@ -38,14 +44,16 @@ const sourceTextClass: Record<string, string> = {
   git: 'text-[#f97316]',
   claude_code: 'text-[#818cf8]',
   codex: 'text-[#67e8f9]',
+  cursor: 'text-[#34d399]',
+  vscode: 'text-[#38bdf8]',
   env: 'text-[#6b7280]',
 }
 
-const sources = ['openclaw', 'terminal', 'git', 'claude_code', 'codex', 'env'] as const
+const sources = ['openclaw', 'terminal', 'git', 'claude_code', 'codex', 'cursor', 'vscode', 'env'] as const
 
 // 每个来源的事件统计
 const sourceCounts = computed(() => {
-  const counts: Record<string, number> = { openclaw: 0, terminal: 0, git: 0, claude_code: 0, codex: 0, env: 0 }
+  const counts: Record<string, number> = { openclaw: 0, terminal: 0, git: 0, claude_code: 0, codex: 0, cursor: 0, vscode: 0, env: 0 }
   for (const e of eventsStore.events) {
     counts[e.source]++
   }

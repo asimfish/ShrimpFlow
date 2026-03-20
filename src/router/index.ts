@@ -9,26 +9,38 @@ export const router = createRouter({
     },
     {
       path: '/dashboard',
+      name: 'dashboard',
+      meta: { keepAlive: true },
       component: () => import('@/pages/dashboard/dashboard_page.vue'),
     },
     {
       path: '/openclaw',
+      name: 'openclaw',
+      meta: { keepAlive: true },
       component: () => import('@/pages/openclaw/openclaw_page.vue'),
     },
     {
       path: '/timeline',
+      name: 'timeline',
+      meta: { keepAlive: true },
       component: () => import('@/pages/timeline/timeline_page.vue'),
     },
     {
       path: '/digest',
+      name: 'digest',
+      meta: { keepAlive: true },
       component: () => import('@/pages/digest/digest_page.vue'),
     },
     {
       path: '/skills',
+      name: 'skills',
+      meta: { keepAlive: true },
       component: () => import('@/pages/skills/skill_tree_page.vue'),
     },
     {
       path: '/patterns',
+      name: 'patterns',
+      meta: { keepAlive: true },
       component: () => import('@/pages/patterns/patterns_page.vue'),
     },
     {
@@ -41,6 +53,8 @@ export const router = createRouter({
     },
     {
       path: '/community',
+      name: 'community',
+      meta: { keepAlive: true },
       component: () => import('@/pages/community/community_page.vue'),
     },
     {
@@ -61,6 +75,8 @@ export const router = createRouter({
     },
     {
       path: '/profile',
+      name: 'profile',
+      meta: { keepAlive: true },
       component: () => import('@/pages/profile/profile_page.vue'),
     },
     {

@@ -7,6 +7,8 @@ FRONTEND_DIR="$SCRIPT_DIR"
 BACKEND_PORT=7891
 FRONTEND_PORT=5173
 PID_FILE="$SCRIPT_DIR/.shrimpflow-dev.pids"
+BACKEND_LOG="$SCRIPT_DIR/.shrimpflow-backend.log"
+FRONTEND_LOG="$SCRIPT_DIR/.shrimpflow-frontend.log"
 
 stop_pid() {
   local pid="$1"
@@ -97,9 +99,15 @@ wait_for_http_ready() {
 }
 
 cleanup_children() {
+  [[ -n "${BACKEND_WRAPPER_PID:-}" ]] && stop_pid "$BACKEND_WRAPPER_PID"
   [[ -n "${BACKEND_PID:-}" ]] && stop_pid "$BACKEND_PID"
   [[ -n "${FRONTEND_PID:-}" ]] && stop_pid "$FRONTEND_PID"
   rm -f "$PID_FILE"
+}
+
+resolve_listener_pid() {
+  local port="$1"
+  lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null | head -n 1
 }
 
 handle_signal() {
@@ -146,21 +154,31 @@ trap cleanup_on_exit EXIT
 echo "[1/2] 启动后端 (port $BACKEND_PORT)..."
 cd "$SERVER_DIR"
 uv sync --quiet 2>/dev/null
-uv run python main.py &
-BACKEND_PID=$!
-echo "  Backend PID: $BACKEND_PID"
+: > "$BACKEND_LOG"
+SHRIMPFLOW_RELOAD=0 uv run python main.py >> "$BACKEND_LOG" 2>&1 &
+BACKEND_WRAPPER_PID=$!
+echo "  Backend wrapper PID: $BACKEND_WRAPPER_PID"
 
 # 等待后端就绪
 echo "  等待后端启动..."
 wait_for_http_ready "http://localhost:$BACKEND_PORT/api/stats" "后端"
+BACKEND_PID="$(resolve_listener_pid "$BACKEND_PORT")"
+if [[ -z "$BACKEND_PID" ]]; then
+  echo "[ERROR] 后端端口已响应，但无法解析监听进程 PID"
+  echo "  最近后端日志:"
+  tail -n 40 "$BACKEND_LOG"
+  exit 1
+fi
+echo "  Backend PID: $BACKEND_PID"
 
 # 启动前端
 echo "[2/2] 启动前端 (port $FRONTEND_PORT)..."
 cd "$FRONTEND_DIR"
-pnpm dev &
+: > "$FRONTEND_LOG"
+pnpm dev >> "$FRONTEND_LOG" 2>&1 &
 FRONTEND_PID=$!
 echo "  Frontend PID: $FRONTEND_PID"
-printf "%s\n%s\n" "$BACKEND_PID" "$FRONTEND_PID" > "$PID_FILE"
+printf "%s\n%s\n%s\n" "$BACKEND_WRAPPER_PID" "$BACKEND_PID" "$FRONTEND_PID" > "$PID_FILE"
 echo "  等待前端启动..."
 wait_for_http_ready "http://localhost:$FRONTEND_PORT" "前端"
 
@@ -169,6 +187,8 @@ echo "=== ShrimpFlow 已启动 ==="
 echo "  前端: http://localhost:$FRONTEND_PORT"
 echo "  后端: http://localhost:$BACKEND_PORT"
 echo "  API 文档: http://localhost:$BACKEND_PORT/docs"
+echo "  后端日志: $BACKEND_LOG"
+echo "  前端日志: $FRONTEND_LOG"
 echo ""
 echo "按 Ctrl+C 停止所有服务"
 

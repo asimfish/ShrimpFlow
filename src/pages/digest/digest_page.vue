@@ -2,12 +2,11 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
-import type { BehaviorPattern } from '@/types'
 import { useEventsStore } from '@/stores/events'
 import { useDigestStore } from '@/stores/digest'
 import { useOpenClawStore } from '@/stores/openclaw'
 import { useSkillsStore } from '@/stores/skills'
-import { getPatternsApi } from '@/http_api/patterns'
+import { usePatternsStore } from '@/stores/patterns'
 import { dayjs } from '@/libs/dayjs'
 
 const router = useRouter()
@@ -15,13 +14,18 @@ const eventsStore = useEventsStore()
 const digestStore = useDigestStore()
 const openclawStore = useOpenClawStore()
 const skillsStore = useSkillsStore()
+const patternsStore = usePatternsStore()
 
-const patterns = ref<BehaviorPattern[]>([])
 let digestRefreshTimer: ReturnType<typeof setTimeout> | null = null
 
 onMounted(async () => {
-  const pRes = await getPatternsApi()
-  if (pRes.data) patterns.value = pRes.data
+  await Promise.all([
+    eventsStore.ensureLoaded(),
+    digestStore.ensureLoaded(),
+    openclawStore.ensureSessionsLoaded(),
+    skillsStore.ensureLoaded(),
+    patternsStore.ensurePatternsLoaded(),
+  ])
 })
 
 onUnmounted(() => {
@@ -32,7 +36,7 @@ const scheduleDigestRefresh = (delayMs = 900) => {
   if (digestRefreshTimer) clearTimeout(digestRefreshTimer)
   digestRefreshTimer = setTimeout(() => {
     digestRefreshTimer = null
-    void digestStore.fetchSummaries()
+    void digestStore.fetchSummaries(true)
   }, delayMs)
 }
 
@@ -112,8 +116,8 @@ const selectedSourceCounts = computed(() => {
   return Object.entries(counts).sort((a, b) => b[1] - a[1])
 })
 
-const sourceColorMap: Record<string, string> = { openclaw: 'bg-openclaw', terminal: 'bg-terminal', git: 'bg-git', claude_code: 'bg-claude', codex: 'bg-cyan-300', env: 'bg-env' }
-const sourceNameMap: Record<string, string> = { openclaw: 'OpenClaw', terminal: '终端', git: 'Git', claude_code: 'Claude Code', codex: 'Codex', env: '环境' }
+const sourceColorMap: Record<string, string> = { openclaw: 'bg-openclaw', terminal: 'bg-terminal', git: 'bg-git', claude_code: 'bg-claude', codex: 'bg-cyan-300', cursor: 'bg-emerald-400', vscode: 'bg-sky-400', env: 'bg-env' }
+const sourceNameMap: Record<string, string> = { openclaw: 'OpenClaw', terminal: '终端', git: 'Git', claude_code: 'Claude Code', codex: 'Codex', cursor: 'Cursor', vscode: 'VS Code', env: '环境' }
 const weekDays = ['日', '一', '二', '三', '四', '五', '六']
 
 const selectedDayOpenClawSessions = computed(() => {
@@ -131,7 +135,7 @@ const selectedDayOpenClawSessions = computed(() => {
 
 const dailyPatternProgress = computed(() => {
   if (!selectedDate.value) return []
-  return patterns.value.filter(p => p.evolution.some(e => e.date === `${selectedDate.value.slice(5, 7)}-${selectedDate.value.slice(8, 10)}`))
+  return patternsStore.patterns.filter(p => p.evolution.some(e => e.date === `${selectedDate.value.slice(5, 7)}-${selectedDate.value.slice(8, 10)}`))
     .map(p => {
       const key = `${selectedDate.value.slice(5, 7)}-${selectedDate.value.slice(8, 10)}`
       const snap = p.evolution.find(e => e.date === key)!
@@ -187,8 +191,8 @@ const weekDailyTrend = computed(() => {
 
 // 周来源分布
 const weekSourceDist = computed(() => {
-  const counts: Record<string, number> = { openclaw: 0, terminal: 0, git: 0, claude_code: 0, codex: 0, env: 0 }
-  weekEvents.value.forEach(e => { counts[e.source]++ })
+  const counts: Record<string, number> = { openclaw: 0, terminal: 0, git: 0, claude_code: 0, codex: 0, cursor: 0, vscode: 0, env: 0 }
+  weekEvents.value.forEach(e => { counts[e.source] = (counts[e.source] ?? 0) + 1 })
   return counts
 })
 
@@ -226,7 +230,7 @@ const monthWeeklyTrend = computed(() => {
 // 月来源趋势（按周）
 const monthSourceTrend = computed(() => {
   const start = currentMonth.value.startOf('month')
-  const sources = ['openclaw', 'terminal', 'git', 'claude_code', 'codex', 'env'] as const
+  const sources = ['openclaw', 'terminal', 'git', 'claude_code', 'codex', 'cursor', 'vscode', 'env'] as const
   return sources.map(s => {
     const weeks = Array.from({ length: 5 }, (_, w) => {
       const wStart = start.add(w * 7, 'day').unix()

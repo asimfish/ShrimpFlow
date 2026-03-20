@@ -26,7 +26,7 @@ const searchQuery = ref('')
 const showWorkflowDemo = ref(false)
 
 onMounted(async () => {
-  await Promise.all([store.fetchPatterns(), store.fetchWorkflows()])
+  await Promise.all([store.ensurePatternsLoaded(), store.ensureWorkflowsLoaded()])
 })
 
 const toggleExpand = (id: number) => {
@@ -81,7 +81,7 @@ const handleImportFile = async (e: Event) => {
   importing.value = false
   if (res.data) {
     importMsg.value = `成功导入 ${res.data.imported} 个模式，${res.data.workflows} 个工作流`
-    await Promise.all([store.fetchPatterns(), store.fetchWorkflows()])
+    await Promise.all([store.fetchPatterns(undefined, true), store.fetchWorkflows(true)])
     setTimeout(() => { importMsg.value = '' }, 4000)
   } else {
     importError.value = res.error ?? 'ClawProfile 导入失败'

@@ -11,16 +11,13 @@ from models.invocation import OpenClawInvocationLog
 from models.openclaw import OpenClawSession
 from models.pattern import BehaviorPattern
 from models.profile import ClawProfile
+from services.ai_provider import chat as ai_chat, get_last_invocation_meta, get_selector_model, has_available_client
 
 load_dotenv()
 
 
 def _get_anthropic_client():
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not api_key:
-        return None
-    import anthropic
-    return anthropic.Anthropic(api_key=api_key)
+    return has_available_client()
 
 
 def _active_profile(db: Session) -> ClawProfile | None:
@@ -137,11 +134,10 @@ def _heuristic_analysis(profile: ClawProfile, session: OpenClawSession, patterns
 
 
 def _claude_analysis(profile: ClawProfile, session: OpenClawSession, patterns: list[BehaviorPattern]) -> dict | None:
-    client = _get_anthropic_client()
-    if client is None or not patterns:
+    if not _get_anthropic_client() or not patterns:
         return None
 
-    model = os.getenv("ANTHROPIC_SELECTOR_MODEL", "claude-3-5-haiku-latest")
+    model = get_selector_model()
     session_text = _session_text(session)
     pattern_payload = [
         {
@@ -165,17 +161,12 @@ def _claude_analysis(profile: ClawProfile, session: OpenClawSession, patterns: l
     )
 
     try:
-        response = client.messages.create(
-            model=model,
-            max_tokens=400,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        text = "".join(
-            block.text for block in response.content
-            if getattr(block, "type", None) == "text"
-        ).strip()
+        text = ai_chat([{"role": "user", "content": prompt}], max_tokens=400, model=model)
+        if not text:
+            return None
         data = json.loads(text)
         slugs = [slug for slug in data.get("selected_pattern_slugs", []) if isinstance(slug, str)]
+        invocation_meta = get_last_invocation_meta()
         return {
             "profile_id": profile.id,
             "profile_name": profile.display,
@@ -194,8 +185,8 @@ def _claude_analysis(profile: ClawProfile, session: OpenClawSession, patterns: l
             "summary": data.get("summary", f"Claude selector chose {len(slugs)} patterns."),
             "status": "claude_selector",
             "injected_pattern_slugs": slugs,
-            "provider": "anthropic",
-            "model": model,
+            "provider": invocation_meta.get("provider") or "ai_provider",
+            "model": invocation_meta.get("model") or model,
             "prompt_excerpt": prompt[:500],
         }
     except Exception:

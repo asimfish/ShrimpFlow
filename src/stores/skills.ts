@@ -7,13 +7,32 @@ import { getSkillsApi } from '@/http_api/skills'
 export const useSkillsStore = defineStore('skills', () => {
   const skills = ref<Skill[]>([])
   const loading = ref(false)
+  const loaded = ref(false)
+  let fetchPromise: Promise<{ data: Skill[] | null; error: string | null }> | null = null
 
-  const fetchSkills = async () => {
+  const fetchSkills = async (force = false) => {
+    if (!force && fetchPromise) return fetchPromise
+    if (!force && loaded.value) return { data: skills.value, error: null }
+
     loading.value = true
-    const { data } = await getSkillsApi()
-    if (data) skills.value = data
-    loading.value = false
+    fetchPromise = (async () => {
+      const result = await getSkillsApi()
+      if (result.data) {
+        skills.value = result.data
+        loaded.value = true
+      }
+      return result
+    })()
+
+    try {
+      return await fetchPromise
+    } finally {
+      fetchPromise = null
+      loading.value = false
+    }
   }
 
-  return { skills, loading, fetchSkills }
+  const ensureLoaded = () => fetchSkills(false)
+
+  return { skills, loading, loaded, fetchSkills, ensureLoaded }
 })

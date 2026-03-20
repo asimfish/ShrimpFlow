@@ -10,31 +10,54 @@ export const usePatternsStore = defineStore('patterns', () => {
   const loading = ref(false)
   const patternsError = ref<string | null>(null)
   const workflowsError = ref<string | null>(null)
+  const patternsLoaded = ref(false)
+  const workflowsLoaded = ref(false)
+  let patternsPromise: Promise<{ data: BehaviorPattern[] | null; error: string | null }> | null = null
+  let workflowsPromise: Promise<{ data: TeamWorkflow[] | null; error: string | null }> | null = null
 
-  const fetchPatterns = async (params?: { category?: string; status?: string }) => {
+  const fetchPatterns = async (params?: { category?: string; status?: string }, force = false) => {
+    const canUseCache = !params?.category && !params?.status
+    if (!force && canUseCache && patternsPromise) return patternsPromise
+    if (!force && canUseCache && patternsLoaded.value) return { data: patterns.value, error: null }
+
     loading.value = true
     patternsError.value = null
 
-    try {
+    patternsPromise = (async () => {
       const result = await patternsApi.getPatternsApi(params)
       if (result.data) patterns.value = result.data
       else patternsError.value = result.error ?? '行为模式加载失败'
+      if (result.data && canUseCache) patternsLoaded.value = true
       return result
+    })()
+
+    try {
+      return await patternsPromise
     } finally {
+      patternsPromise = null
       loading.value = false
     }
   }
 
-  const fetchWorkflows = async () => {
+  const fetchWorkflows = async (force = false) => {
+    if (!force && workflowsPromise) return workflowsPromise
+    if (!force && workflowsLoaded.value) return { data: workflows.value, error: null }
+
     loading.value = true
     workflowsError.value = null
 
-    try {
+    workflowsPromise = (async () => {
       const result = await patternsApi.getWorkflowsApi()
       if (result.data) workflows.value = result.data
       else workflowsError.value = result.error ?? '工作流加载失败'
+      if (result.data) workflowsLoaded.value = true
       return result
+    })()
+
+    try {
+      return await workflowsPromise
     } finally {
+      workflowsPromise = null
       loading.value = false
     }
   }
@@ -57,14 +80,21 @@ export const usePatternsStore = defineStore('patterns', () => {
     return !error
   }
 
+  const ensurePatternsLoaded = () => fetchPatterns(undefined, false)
+  const ensureWorkflowsLoaded = () => fetchWorkflows(false)
+
   return {
     patterns,
     workflows,
     loading,
     patternsError,
     workflowsError,
+    patternsLoaded,
+    workflowsLoaded,
     fetchPatterns,
     fetchWorkflows,
+    ensurePatternsLoaded,
+    ensureWorkflowsLoaded,
     createPattern,
     updatePattern,
     deletePattern,

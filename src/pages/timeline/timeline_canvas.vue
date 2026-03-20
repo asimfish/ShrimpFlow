@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 
 import type { DevEvent } from '@/types'
 import * as d3 from '@/libs/d3'
@@ -14,6 +14,7 @@ const emit = defineEmits<{
 
 const svgRef = ref<SVGSVGElement>()
 const tooltip = ref({ visible: false, x: 0, y: 0, event: null as DevEvent | null })
+let drawFrame = 0
 
 const sourceColor: Record<string, string> = {
   openclaw: '#f59e0b',
@@ -21,6 +22,8 @@ const sourceColor: Record<string, string> = {
   git: '#34d399',
   claude_code: '#a78bfa',
   codex: '#67e8f9',
+  cursor: '#10b981',
+  vscode: '#60a5fa',
   env: '#f87171',
 }
 
@@ -30,6 +33,8 @@ const sourceLabel: Record<string, string> = {
   git: 'Git',
   claude_code: 'Claude',
   codex: 'Codex',
+  cursor: 'Cursor',
+  vscode: 'VS Code',
   env: '环境',
 }
 
@@ -47,6 +52,8 @@ const sourceShape: Record<string, (x: number, y: number, r: number) => string> =
   git: (x, y, r) => `${x - r},${y - r} ${x + r},${y - r} ${x + r},${y + r} ${x - r},${y + r}`, // 方形
   claude_code: (x, y, r) => `${x},${y - r * 1.2} ${x + r},${y + r * 0.6} ${x - r},${y + r * 0.6}`, // 三角
   codex: (x, y, r) => `${x - r},${y} ${x},${y - r} ${x + r},${y} ${x},${y + r}`, // 菱形
+  cursor: (x, y, r) => `${x - r},${y - r} ${x + r},${y - r} ${x + r * 1.2},${y} ${x + r},${y + r} ${x - r},${y + r} ${x - r * 1.2},${y}`, // 六边形拉长
+  vscode: (x, y, r) => `${x},${y - r * 1.3} ${x + r * 1.1},${y} ${x},${y + r * 1.3} ${x - r * 1.1},${y}`, // 菱形
   env: (x, y, r) => `${x},${y - r} ${x + r},${y} ${x},${y + r} ${x - r},${y}`, // 菱形
 }
 
@@ -70,6 +77,7 @@ const drawTimeline = () => {
 
   const data = props.events
   if (data.length === 0) return
+  const enableAnimation = data.length <= 600
 
   // scales
   const timeExtent = d3.extent(data, d => d.timestamp) as [number, number]
@@ -77,7 +85,7 @@ const drawTimeline = () => {
     .domain([new Date(timeExtent[0] * 1000), new Date(timeExtent[1] * 1000)])
     .range([margin.left, width - margin.right])
 
-  const sources = ['openclaw', 'terminal', 'git', 'claude_code', 'codex', 'env']
+  const sources = ['openclaw', 'terminal', 'git', 'claude_code', 'codex', 'cursor', 'vscode', 'env']
   const yScale = d3.scaleBand<string>()
     .domain(sources)
     .range([margin.top, height - margin.bottom])
@@ -201,19 +209,28 @@ const drawTimeline = () => {
   })
 
   // 分层入场动画 - 按来源分组波浪展开
-  const sourceOrder = ['terminal', 'git', 'env', 'claude_code', 'codex', 'openclaw']
-  shapes.transition()
-    .duration(600)
-    .delay((d: DevEvent) => {
-      const layerIdx = sourceOrder.indexOf(d.source)
-      return layerIdx * 200 + Math.random() * 100
-    })
-    .attr('points', (d: DevEvent) => {
+  const sourceOrder = ['terminal', 'git', 'env', 'claude_code', 'codex', 'cursor', 'vscode', 'openclaw']
+  if (enableAnimation) {
+    shapes.transition()
+      .duration(600)
+      .delay((d: DevEvent) => {
+        const layerIdx = sourceOrder.indexOf(d.source)
+        return layerIdx * 120 + Math.random() * 60
+      })
+      .attr('points', (d: DevEvent) => {
+        const cx = xScale(new Date(d.timestamp * 1000))
+        const cy = calcCy(d)
+        const r = d.source === 'openclaw' ? 5 : 3.5
+        return sourceShape[d.source](cx, cy, r)
+      })
+  } else {
+    shapes.attr('points', (d: DevEvent) => {
       const cx = xScale(new Date(d.timestamp * 1000))
       const cy = calcCy(d)
       const r = d.source === 'openclaw' ? 5 : 3.5
       return sourceShape[d.source](cx, cy, r)
     })
+  }
 
   // 同一 AI 会话的事件用虚线连接
   const openclawEvents = data.filter(d =>
@@ -233,11 +250,13 @@ const drawTimeline = () => {
       const y1 = calcCy(sorted[i])
       const x2 = xScale(new Date(sorted[i + 1].timestamp * 1000))
       const y2 = calcCy(sorted[i + 1])
-      dotsG.append('line')
+      const linkLine = dotsG.append('line')
         .attr('x1', x1).attr('y1', y1).attr('x2', x2).attr('y2', y2)
         .attr('stroke', sourceColor.openclaw).attr('stroke-width', 1)
-        .attr('stroke-dasharray', '3,3').attr('opacity', 0)
-        .transition().delay(1200).duration(600).attr('opacity', 0.3)
+        .attr('stroke-dasharray', '3,3').attr('opacity', enableAnimation ? 0 : 0.3)
+      if (enableAnimation) {
+        linkLine.transition().delay(900).duration(300).attr('opacity', 0.3)
+      }
     }
   })
 
@@ -299,8 +318,19 @@ const drawTimeline = () => {
   svg.call(zoomBehavior as any)
 }
 
-onMounted(drawTimeline)
-watch(() => props.events, drawTimeline)
+const scheduleDraw = () => {
+  if (drawFrame) cancelAnimationFrame(drawFrame)
+  drawFrame = requestAnimationFrame(() => {
+    drawFrame = 0
+    drawTimeline()
+  })
+}
+
+onMounted(scheduleDraw)
+onUnmounted(() => {
+  if (drawFrame) cancelAnimationFrame(drawFrame)
+})
+watch(() => props.events, scheduleDraw)
 </script>
 
 <template>

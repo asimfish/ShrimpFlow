@@ -16,14 +16,27 @@ def _profile_to_dict(row: SharedProfile) -> dict:
     }
 
 
-def _pack_to_dict(row: SharedPatternPack, db: Session) -> dict:
-    author = db.query(SharedProfile).filter(SharedProfile.id == row.author_id).first()
-    author_dict = _profile_to_dict(author) if author else {
-        'id': 0, 'username': 'Unknown', 'avatar': '', 'title': '', 'bio': '', 'followers': 0, 'patterns_count': 0
+def _normalize_workflow(raw: dict, fallback_id: int) -> dict:
+    frontmatter = raw.get('frontmatter', {}) if isinstance(raw, dict) else {}
+    steps = frontmatter.get('steps') if isinstance(frontmatter, dict) else raw.get('steps', [])
+    name = ''
+    if isinstance(frontmatter, dict):
+        name = str(frontmatter.get('name', '')).strip()
+    if not name and isinstance(raw, dict):
+        name = str(raw.get('name') or raw.get('slug') or f'workflow-{fallback_id}').strip()
+    description = ''
+    if isinstance(raw, dict):
+        description = str(raw.get('body') or raw.get('description') or '').strip()
+    return {
+        'id': raw.get('id', fallback_id) if isinstance(raw, dict) else fallback_id,
+        'slug': raw.get('slug') if isinstance(raw, dict) else None,
+        'name': name or f'workflow-{fallback_id}',
+        'description': description,
+        'steps': steps if isinstance(steps, list) else [],
     }
 
 
-def _shared_claw_profile_to_dict(row: SharedClawProfile, db: Session) -> dict:
+def _pack_to_dict(row: SharedPatternPack, db: Session) -> dict:
     author = db.query(SharedProfile).filter(SharedProfile.id == row.author_id).first()
     author_dict = _profile_to_dict(author) if author else {
         'id': 0, 'username': 'Unknown', 'avatar': '', 'title': '', 'bio': '', 'followers': 0, 'patterns_count': 0
@@ -32,21 +45,33 @@ def _shared_claw_profile_to_dict(row: SharedClawProfile, db: Session) -> dict:
         'id': row.id,
         'author': author_dict,
         'name': row.name,
-        'display': row.display or row.name,
         'description': row.description,
-        'profile': json.loads(row.profile) if row.profile else {},
+        'category': row.category,
         'patterns': json.loads(row.patterns) if row.patterns else [],
-        'workflows': json.loads(row.workflows) if row.workflows else [],
         'downloads': row.downloads,
         'stars': row.stars,
         'tags': json.loads(row.tags) if row.tags else [],
         'created_at': row.created_at,
     }
+
+
+def _shared_claw_profile_to_dict(row: SharedClawProfile, db: Session) -> dict:
+    author = db.query(SharedProfile).filter(SharedProfile.id == row.author_id).first()
+    author_dict = _profile_to_dict(author) if author else {
+        'id': 0, 'username': 'Unknown', 'avatar': '', 'title': '', 'bio': '', 'followers': 0, 'patterns_count': 0
+    }
+    workflows = json.loads(row.workflows) if row.workflows else []
     return {
-        'id': row.id, 'author': author_dict, 'name': row.name,
-        'description': row.description, 'category': row.category,
+        'id': row.id,
+        'author': author_dict,
+        'name': row.name,
+        'display': row.display or row.name,
+        'description': row.description,
+        'profile': json.loads(row.profile) if row.profile else {},
         'patterns': json.loads(row.patterns) if row.patterns else [],
-        'downloads': row.downloads, 'stars': row.stars,
+        'workflows': [_normalize_workflow(workflow, index + 1) for index, workflow in enumerate(workflows)],
+        'downloads': row.downloads,
+        'stars': row.stars,
         'tags': json.loads(row.tags) if row.tags else [],
         'created_at': row.created_at,
     }

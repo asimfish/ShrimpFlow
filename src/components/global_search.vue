@@ -33,7 +33,7 @@ watch(query, async (q) => {
 
   for (const s of data.sessions) {
     out.push({
-      type: 'session', label: s.title, description: `OpenClaw · ${s.category}`,
+      type: 'session', label: s.title, description: `${s.origin ?? 'session'} · ${s.category}`,
       color: 'text-openclaw',
       action: () => { router.push('/openclaw'); close() },
     })
@@ -61,7 +61,7 @@ watch(query, async (q) => {
   }
 
   for (const e of data.events) {
-    const sourceColors: Record<string, string> = { openclaw: 'text-openclaw', terminal: 'text-terminal', git: 'text-git', claude_code: 'text-claude', codex: 'text-cyan-300', env: 'text-env' }
+    const sourceColors: Record<string, string> = { openclaw: 'text-openclaw', terminal: 'text-terminal', git: 'text-git', claude_code: 'text-claude', codex: 'text-cyan-300', cursor: 'text-emerald-400', vscode: 'text-sky-400', env: 'text-env' }
     out.push({
       type: 'event', label: e.action.slice(0, 60), description: `${e.project} · ${e.source}`,
       color: sourceColors[e.source] ?? 'text-gray-400',

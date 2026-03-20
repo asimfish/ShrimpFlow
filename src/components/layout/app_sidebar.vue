@@ -27,6 +27,8 @@ const sourceColorMap: Record<string, string> = {
   git: 'text-git',
   claude_code: 'text-claude',
   codex: 'text-cyan-300',
+  cursor: 'text-emerald-400',
+  vscode: 'text-sky-400',
   env: 'text-env',
 }
 
@@ -36,6 +38,8 @@ const sourceLabelMap: Record<string, string> = {
   git: 'Git',
   claude_code: 'Claude',
   codex: 'Codex',
+  cursor: 'Cursor',
+  vscode: 'VS Code',
   env: '环境',
 }
 

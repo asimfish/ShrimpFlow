@@ -1,18 +1,18 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 
-import type { StatsOverview, BehaviorPattern, ClawProfile } from '@/types'
+import type { StatsOverview, ClawProfile } from '@/types'
 import { useEventsStore } from '@/stores/events'
 import { useSkillsStore } from '@/stores/skills'
+import { usePatternsStore } from '@/stores/patterns'
 import { getStatsApi } from '@/http_api/stats'
-import { getPatternsApi } from '@/http_api/patterns'
 import { activateProfileApi, getActiveProfileApi, getProfilesApi } from '@/http_api/profiles'
 
 const eventsStore = useEventsStore()
 const skillsStore = useSkillsStore()
+const patternsStore = usePatternsStore()
 
 const stats = ref<StatsOverview | null>(null)
-const patterns = ref<BehaviorPattern[]>([])
 const profiles = ref<ClawProfile[]>([])
 const activeProfile = ref<ClawProfile | null>(null)
 const profilesLoading = ref(false)
@@ -20,11 +20,13 @@ const profilesError = ref<string | null>(null)
 const activatingProfileId = ref<number | null>(null)
 
 onMounted(async () => {
-  const [sRes, pRes] = await Promise.all([getStatsApi(), getPatternsApi()])
+  await Promise.all([eventsStore.ensureLoaded(), skillsStore.ensureLoaded(), patternsStore.ensurePatternsLoaded()])
+  const sRes = await getStatsApi()
   if (sRes.data) stats.value = sRes.data
-  if (pRes.data) patterns.value = pRes.data
   await loadProfiles()
 })
+
+const patterns = computed(() => patternsStore.patterns)
 
 const loadProfiles = async () => {
   profilesLoading.value = true
@@ -60,7 +62,7 @@ const devType = computed(() => {
   const counts = { research: 0, engineering: 0, ops: 0 }
   for (const e of eventsStore.events) {
     if (e.source === 'openclaw' || e.tags.some(t => ['paper', 'experiment', 'learning'].includes(t))) counts.research++
-    else if (e.source === 'git' || e.source === 'claude_code' || e.source === 'codex' || e.tags.some(t => ['feature', 'bugfix', 'refactor'].includes(t))) counts.engineering++
+    else if (e.source === 'git' || e.source === 'claude_code' || e.source === 'codex' || e.source === 'cursor' || e.source === 'vscode' || e.tags.some(t => ['feature', 'bugfix', 'refactor'].includes(t))) counts.engineering++
     else counts.ops++
   }
   const total = counts.research + counts.engineering + counts.ops

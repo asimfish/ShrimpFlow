@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import { useOpenClawStore } from '@/stores/openclaw'
 import { dayjs } from '@/libs/dayjs'
@@ -8,12 +8,12 @@ import { getSessionInvocationsApi } from '@/http_api/openclaw'
 
 const store = useOpenClawStore()
 
-// 默认选中第一个会话
-if (!store.selectedSessionId && store.sessions.length > 0) {
-  store.selectSession(store.sessions[0].id)
-}
+onMounted(async () => {
+  await Promise.all([store.ensureSessionsLoaded(), store.ensureDocumentsLoaded()])
+})
 
 const categories = ['', 'paper', 'debug', 'review', 'experiment', 'architecture', 'learning']
+const origins = ['all', 'openclaw', 'claude_code', 'codex', 'cursor', 'vscode'] as const
 const categoryLabels: Record<string, string> = {
   '': '全部',
   paper: '论文分析',
@@ -22,6 +22,24 @@ const categoryLabels: Record<string, string> = {
   experiment: '实验总结',
   architecture: '方案设计',
   learning: '学习探索',
+}
+
+const originLabels: Record<typeof origins[number], string> = {
+  all: '全部来源',
+  openclaw: 'OpenClaw',
+  claude_code: 'Claude Code',
+  codex: 'Codex',
+  cursor: 'Cursor',
+  vscode: 'VS Code',
+}
+
+const originColors: Record<string, string> = {
+  openclaw: 'bg-openclaw/20 text-openclaw',
+  claude_code: 'bg-claude/20 text-claude',
+  codex: 'bg-cyan-300/20 text-cyan-300',
+  cursor: 'bg-emerald-500/20 text-emerald-400',
+  vscode: 'bg-sky-500/20 text-sky-400',
+  unknown: 'bg-surface-3 text-gray-400',
 }
 
 const categoryColors: Record<string, string> = {
@@ -62,7 +80,6 @@ const docTypeColors: Record<string, string> = {
 }
 
 const formatTime = (ts: number) => dayjs(ts * 1000).format('MM-DD HH:mm')
-const sessionAgent = (tags: string[]) => tags.includes('codex') ? 'codex' : tags.includes('claude_code') ? 'claude_code' : 'openclaw'
 const analysisError = ref<string | null>(null)
 const invocationLogs = ref<OpenClawInvocationLog[]>([])
 
@@ -85,11 +102,11 @@ const loadInvocationLogs = async () => {
 const selectedDocId = ref<number | null>(null)
 
 const selectedDocument = computed(() =>
-  store.documents.find(doc => doc.id === selectedDocId.value) ?? null
+  store.filteredDocuments.find(doc => doc.id === selectedDocId.value) ?? null
 )
 
 const filteredSessionIds = computed(() => store.filteredSessions.map(session => session.id))
-const documentIds = computed(() => store.documents.map(doc => doc.id))
+const documentIds = computed(() => store.filteredDocuments.map(doc => doc.id))
 
 const syncSelections = () => {
   if (store.activeTab === 'sessions') {
@@ -135,7 +152,7 @@ watch(() => store.selectedSessionId, () => {
 <template>
   <div class="flex h-full">
     <!-- 左侧面板 -->
-    <div class="w-72 shrink-0 bg-surface-1 border-r border-surface-3 flex flex-col">
+    <div class="w-80 shrink-0 bg-surface-1 border-r border-surface-3 flex flex-col">
       <!-- Tab 切换 -->
       <div class="flex border-b border-surface-3">
         <button
@@ -156,8 +173,22 @@ watch(() => store.selectedSessionId, () => {
 
       <!-- 会话列表 -->
       <template v-if="store.activeTab === 'sessions'">
-        <!-- 类别筛选 -->
-        <div class="p-2 flex flex-wrap gap-1 border-b border-surface-3">
+        <div class="px-3 py-2 border-b border-surface-3">
+          <div class="text-[10px] uppercase tracking-[0.18em] text-gray-600 mb-2">来源</div>
+          <div class="flex flex-wrap gap-1.5">
+            <button
+              v-for="origin in origins"
+              :key="origin"
+              class="text-[10px] px-2.5 py-1 rounded-full transition-colors"
+              :class="store.originFilter === origin ? 'bg-openclaw/20 text-openclaw' : 'bg-surface-2 text-gray-500 hover:text-gray-300'"
+              @click="store.originFilter = origin"
+            >
+              {{ originLabels[origin] }}
+            </button>
+          </div>
+        </div>
+
+        <div class="px-3 py-2 flex flex-wrap gap-1.5 border-b border-surface-3">
           <button
             v-for="cat in categories"
             :key="cat"
@@ -178,38 +209,74 @@ watch(() => store.selectedSessionId, () => {
             :class="store.selectedSessionId === session.id ? 'bg-surface-2' : 'hover:bg-surface-2/50'"
             @click="store.selectSession(session.id)"
           >
-            <div class="flex items-center gap-2 mb-1">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-[10px] font-mono text-gray-500">{{ session.index_label ?? `S-${String(session.id).padStart(4, '0')}` }}</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded" :class="originColors[session.origin ?? 'unknown'] ?? originColors.unknown">
+                {{ session.origin_label ?? originLabels[(session.origin ?? 'unknown') as keyof typeof originLabels] ?? '未知来源' }}
+              </span>
               <span class="text-[10px] px-1.5 py-0.5 rounded" :class="categoryColors[session.category]">
                 {{ categoryLabels[session.category] }}
               </span>
             </div>
-            <div class="text-xs text-gray-200 line-clamp-2">{{ session.title }}</div>
-            <div class="flex items-center gap-2 mt-1.5">
+            <div class="text-sm text-gray-100 leading-snug">{{ session.display_title ?? session.title }}</div>
+            <div class="text-[11px] text-gray-500 line-clamp-2 mt-1">{{ session.display_summary ?? session.summary }}</div>
+            <div class="flex items-center gap-2 mt-2">
               <span class="text-[10px] text-gray-500">{{ session.project }}</span>
               <span class="text-[10px] text-gray-600">{{ formatTime(session.created_at) }}</span>
             </div>
           </button>
+          <div v-if="store.filteredSessions.length === 0" class="p-6 text-center text-xs text-gray-500">
+            当前筛选下没有会话
+          </div>
         </div>
       </template>
 
       <!-- 知识库文档列表 -->
       <template v-else>
+        <div class="px-3 py-2 border-b border-surface-3 flex items-center gap-2">
+          <select
+            v-model="store.documentOriginFilter"
+            class="flex-1 bg-surface-2 border border-surface-3 rounded-lg px-2.5 py-1.5 text-[11px] text-gray-300"
+          >
+            <option value="all">全部来源</option>
+            <option value="openclaw">OpenClaw</option>
+            <option value="claude_code">Claude Code</option>
+            <option value="codex">Codex</option>
+            <option value="cursor">Cursor</option>
+            <option value="vscode">VS Code</option>
+          </select>
+          <select
+            v-model="store.documentTypeFilter"
+            class="flex-1 bg-surface-2 border border-surface-3 rounded-lg px-2.5 py-1.5 text-[11px] text-gray-300"
+          >
+            <option value="all">全部类型</option>
+            <option v-for="(label, type) in docTypeLabels" :key="type" :value="type">{{ label }}</option>
+          </select>
+        </div>
         <div class="flex-1 overflow-y-auto">
           <button
-            v-for="doc in store.documents"
+            v-for="doc in store.filteredDocuments"
             :key="doc.id"
             class="w-full text-left p-3 border-b border-surface-3/50 transition-colors"
             :class="selectedDocId === doc.id ? 'bg-surface-2' : 'hover:bg-surface-2/50'"
             @click="selectedDocId = doc.id"
           >
             <div class="flex items-center gap-2 mb-1">
+              <span class="text-[10px] font-mono text-gray-500">{{ doc.index_label ?? `K-${String(doc.id).padStart(4, '0')}` }}</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded" :class="originColors[doc.origin ?? 'unknown'] ?? originColors.unknown">
+                {{ doc.origin_label ?? originLabels[(doc.origin ?? 'unknown') as keyof typeof originLabels] ?? '未知来源' }}
+              </span>
               <span class="text-[10px] px-1.5 py-0.5 rounded" :class="docTypeColors[doc.type]">
                 {{ docTypeLabels[doc.type] }}
               </span>
             </div>
-            <div class="text-xs text-gray-200 line-clamp-2">{{ doc.title }}</div>
-            <div class="text-[10px] text-gray-500 mt-1">{{ formatTime(doc.created_at) }}</div>
+            <div class="text-sm text-gray-100 leading-snug">{{ doc.display_title ?? doc.title }}</div>
+            <div class="text-[11px] text-gray-500 line-clamp-2 mt-1">{{ doc.preview_excerpt ?? doc.title }}</div>
+            <div class="text-[10px] text-gray-500 mt-2">{{ formatTime(doc.created_at) }}</div>
           </button>
+          <div v-if="store.filteredDocuments.length === 0" class="p-6 text-center text-xs text-gray-500">
+            当前筛选下没有文档
+          </div>
         </div>
       </template>
     </div>
@@ -222,10 +289,14 @@ watch(() => store.selectedSessionId, () => {
         <div class="p-4 border-b border-surface-3">
           <div class="flex items-center justify-between gap-3 mb-1">
             <div class="flex items-center gap-2">
-            <span class="text-[10px] px-1.5 py-0.5 rounded" :class="categoryColors[store.selectedSession.category]">
-              {{ categoryLabels[store.selectedSession.category] }}
-            </span>
-            <span class="text-xs text-gray-500">{{ store.selectedSession.project }}</span>
+              <span class="text-[10px] font-mono text-gray-500">{{ store.selectedSession.index_label ?? `S-${String(store.selectedSession.id).padStart(4, '0')}` }}</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded" :class="originColors[store.selectedSession.origin ?? 'unknown'] ?? originColors.unknown">
+                {{ store.selectedSession.origin_label ?? originLabels[(store.selectedSession.origin ?? 'unknown') as keyof typeof originLabels] ?? '未知来源' }}
+              </span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded" :class="categoryColors[store.selectedSession.category]">
+                {{ categoryLabels[store.selectedSession.category] }}
+              </span>
+              <span class="text-xs text-gray-500">{{ store.selectedSession.project }}</span>
               <span v-if="store.selectedSession.analysis_status" class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400">
                 {{ store.selectedSession.analysis_status }}
               </span>
@@ -239,8 +310,8 @@ watch(() => store.selectedSessionId, () => {
               {{ store.analyzing ? '分析中...' : '按 Active Profile 分析' }}
             </button>
           </div>
-          <h2 class="text-base font-medium text-gray-200">{{ store.selectedSession.title }}</h2>
-          <p class="text-xs text-gray-500 mt-1">{{ store.selectedSession.summary }}</p>
+          <h2 class="text-base font-medium text-gray-200">{{ store.selectedSession.display_title ?? store.selectedSession.title }}</h2>
+          <p class="text-xs text-gray-500 mt-1">{{ store.selectedSession.display_summary ?? store.selectedSession.summary }}</p>
           <div class="flex flex-wrap gap-1 mt-2">
             <span v-for="tag in store.selectedSession.tags" :key="tag" class="text-[10px] px-1.5 py-0.5 rounded-full bg-surface-3 text-gray-400">
               {{ tag }}
@@ -291,14 +362,14 @@ watch(() => store.selectedSessionId, () => {
                 <div
                   v-if="msg.role === 'assistant'"
                   class="w-4 h-4 rounded-full flex items-center justify-center"
-                  :class="sessionAgent(store.selectedSession.tags) === 'claude_code' ? 'bg-claude/30' : sessionAgent(store.selectedSession.tags) === 'codex' ? 'bg-cyan-300/20' : 'bg-openclaw/30'"
+                  :class="(store.selectedSession.origin ?? 'openclaw') === 'claude_code' ? 'bg-claude/30' : (store.selectedSession.origin ?? 'openclaw') === 'codex' ? 'bg-cyan-300/20' : (store.selectedSession.origin ?? 'openclaw') === 'cursor' ? 'bg-emerald-500/20' : (store.selectedSession.origin ?? 'openclaw') === 'vscode' ? 'bg-sky-500/20' : 'bg-openclaw/30'"
                 >
-                  <span class="text-[8px] font-bold" :class="sessionAgent(store.selectedSession.tags) === 'claude_code' ? 'text-claude' : sessionAgent(store.selectedSession.tags) === 'codex' ? 'text-cyan-300' : 'text-openclaw'">
-                    {{ sessionAgent(store.selectedSession.tags) === 'claude_code' ? 'CC' : sessionAgent(store.selectedSession.tags) === 'codex' ? 'CX' : 'OC' }}
+                  <span class="text-[8px] font-bold" :class="(store.selectedSession.origin ?? 'openclaw') === 'claude_code' ? 'text-claude' : (store.selectedSession.origin ?? 'openclaw') === 'codex' ? 'text-cyan-300' : (store.selectedSession.origin ?? 'openclaw') === 'cursor' ? 'text-emerald-400' : (store.selectedSession.origin ?? 'openclaw') === 'vscode' ? 'text-sky-400' : 'text-openclaw'">
+                    {{ (store.selectedSession.origin ?? 'openclaw') === 'claude_code' ? 'CC' : (store.selectedSession.origin ?? 'openclaw') === 'codex' ? 'CX' : (store.selectedSession.origin ?? 'openclaw') === 'cursor' ? 'CU' : (store.selectedSession.origin ?? 'openclaw') === 'vscode' ? 'VS' : 'OC' }}
                   </span>
                 </div>
-                <span class="text-[10px]" :class="msg.role === 'user' ? 'text-accent' : (sessionAgent(store.selectedSession.tags) === 'claude_code' ? 'text-claude' : sessionAgent(store.selectedSession.tags) === 'codex' ? 'text-cyan-300' : 'text-openclaw')">
-                  {{ msg.role === 'user' ? '你' : (sessionAgent(store.selectedSession.tags) === 'claude_code' ? 'Claude Code' : sessionAgent(store.selectedSession.tags) === 'codex' ? 'Codex' : 'OpenClaw') }}
+                <span class="text-[10px]" :class="msg.role === 'user' ? 'text-accent' : ((store.selectedSession.origin ?? 'openclaw') === 'claude_code' ? 'text-claude' : (store.selectedSession.origin ?? 'openclaw') === 'codex' ? 'text-cyan-300' : (store.selectedSession.origin ?? 'openclaw') === 'cursor' ? 'text-emerald-400' : (store.selectedSession.origin ?? 'openclaw') === 'vscode' ? 'text-sky-400' : 'text-openclaw')">
+                  {{ msg.role === 'user' ? '你' : ((store.selectedSession.origin ?? 'openclaw') === 'claude_code' ? 'Claude Code' : (store.selectedSession.origin ?? 'openclaw') === 'codex' ? 'Codex' : (store.selectedSession.origin ?? 'openclaw') === 'cursor' ? 'Cursor' : (store.selectedSession.origin ?? 'openclaw') === 'vscode' ? 'VS Code' : 'OpenClaw') }}
                 </span>
                 <span class="text-[10px] text-gray-600">{{ formatTime(msg.timestamp) }}</span>
               </div>
@@ -314,12 +385,17 @@ watch(() => store.selectedSessionId, () => {
         <div class="flex-1 overflow-y-auto p-6">
           <div class="bg-surface-1 rounded-xl border border-surface-3 p-5">
             <div class="flex items-center gap-2 mb-2">
+              <span class="text-[10px] font-mono text-gray-500">{{ selectedDocument.index_label ?? `K-${String(selectedDocument.id).padStart(4, '0')}` }}</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded" :class="originColors[selectedDocument.origin ?? 'unknown'] ?? originColors.unknown">
+                {{ selectedDocument.origin_label ?? originLabels[(selectedDocument.origin ?? 'unknown') as keyof typeof originLabels] ?? '未知来源' }}
+              </span>
               <span class="text-[10px] px-1.5 py-0.5 rounded" :class="docTypeColors[selectedDocument.type]">
                 {{ docTypeLabels[selectedDocument.type] }}
               </span>
               <span class="text-[10px] text-gray-500">{{ formatTime(selectedDocument.created_at) }}</span>
             </div>
-            <h3 class="text-sm font-medium text-gray-200 mb-3">{{ selectedDocument.title }}</h3>
+            <h3 class="text-sm font-medium text-gray-200 mb-2">{{ selectedDocument.display_title ?? selectedDocument.title }}</h3>
+            <p class="text-[11px] text-gray-500 mb-3">{{ selectedDocument.preview_excerpt ?? selectedDocument.title }}</p>
             <div class="text-xs text-gray-400 leading-relaxed whitespace-pre-wrap">{{ selectedDocument.content }}</div>
             <div class="flex flex-wrap gap-1 mt-3">
               <span v-for="tag in selectedDocument.tags" :key="tag" class="text-[10px] px-1.5 py-0.5 rounded-full bg-surface-3 text-gray-500">

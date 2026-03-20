@@ -337,6 +337,15 @@ def create_pattern(req: PatternCreateRequest, db: Session = Depends(get_db)):
     return _row_to_dict(pattern)
 
 
+@router.get("/patterns/pending")
+def get_pending_patterns(db: Session = Depends(get_db)):
+    rows = db.query(BehaviorPattern).filter(
+        BehaviorPattern.confidence >= 70,
+        BehaviorPattern.status == 'learning',
+    ).all()
+    return [_row_to_dict(r) for r in rows]
+
+
 @router.get("/patterns/{pattern_id}")
 def get_pattern(pattern_id: int, db: Session = Depends(get_db)):
     row = db.query(BehaviorPattern).filter(BehaviorPattern.id == pattern_id).first()
@@ -485,9 +494,20 @@ def delete_workflow(workflow_id: int, db: Session = Depends(get_db)):
 
 
 from services.pattern_mining import run_mining
+from services.pattern_confirm import confirm_pattern, reject_pattern
 
 
 @router.post("/patterns/mine")
 def mine_patterns(db: Session = Depends(get_db)):
     results = run_mining(db)
     return {'patterns': results, 'count': len(results)}
+
+
+@router.post("/patterns/{pattern_id}/confirm")
+def confirm_pattern_api(pattern_id: int, db: Session = Depends(get_db)):
+    return confirm_pattern(db, pattern_id)
+
+
+@router.post("/patterns/{pattern_id}/reject")
+def reject_pattern_api(pattern_id: int, db: Session = Depends(get_db)):
+    return reject_pattern(db, pattern_id)

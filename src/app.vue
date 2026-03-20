@@ -1,25 +1,19 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
+import { KeepAlive, onMounted, onUnmounted } from 'vue'
 
 import AppSidebar from '@/components/layout/app_sidebar.vue'
 import GlobalSearch from '@/components/global_search.vue'
+import PatternConfirmToast from '@/components/pattern_confirm_toast.vue'
 import { useEventsStore } from '@/stores/events'
 import { useSkillsStore } from '@/stores/skills'
-import { useOpenClawStore } from '@/stores/openclaw'
-import { useDigestStore } from '@/stores/digest'
 
 const eventsStore = useEventsStore()
 const skillsStore = useSkillsStore()
-const openclawStore = useOpenClawStore()
-const digestStore = useDigestStore()
 
 onMounted(() => {
-  eventsStore.fetchEvents()
+  void eventsStore.ensureLoaded()
   eventsStore.startRealtime()
-  skillsStore.fetchSkills()
-  openclawStore.fetchSessions()
-  openclawStore.fetchDocuments()
-  digestStore.fetchSummaries()
+  void skillsStore.ensureLoaded()
 })
 
 onUnmounted(() => {
@@ -32,12 +26,20 @@ onUnmounted(() => {
     <AppSidebar />
     <main class="flex-1 overflow-auto">
       <router-view v-slot="{ Component, route }">
-        <transition name="page-fade" mode="out-in">
+        <KeepAlive :max="8">
+          <component
+            v-if="route.meta.keepAlive"
+            :is="Component"
+            :key="String(route.name || route.path)"
+          />
+        </KeepAlive>
+        <transition v-if="!route.meta.keepAlive" name="page-fade" mode="out-in">
           <component :is="Component" :key="route.path" />
         </transition>
       </router-view>
     </main>
     <GlobalSearch />
+    <PatternConfirmToast />
   </div>
 </template>
 

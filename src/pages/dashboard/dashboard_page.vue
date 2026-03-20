@@ -2,25 +2,62 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
-import type { StatsOverview, BehaviorPattern } from '@/types'
+import type { AIProviderStrategy, StatsOverview } from '@/types'
 import { useEventsStore } from '@/stores/events'
 import { useSkillsStore } from '@/stores/skills'
 import { useOpenClawStore } from '@/stores/openclaw'
 import { useDigestStore } from '@/stores/digest'
+import { usePatternsStore } from '@/stores/patterns'
 import { getStatsApi } from '@/http_api/stats'
-import { getPatternsApi } from '@/http_api/patterns'
 import { collectAllAndAnalyzeApi } from '@/http_api/collect'
+import { getAISettingsApi, getScheduleApi, updateAISettingsApi, updateScheduleApi } from '@/http_api/settings'
 
 const router = useRouter()
 const eventsStore = useEventsStore()
 const skillsStore = useSkillsStore()
 const openclawStore = useOpenClawStore()
 const digestStore = useDigestStore()
+const patternsStore = usePatternsStore()
 
 const stats = ref<StatsOverview | null>(null)
-const patterns = ref<BehaviorPattern[]>([])
 const collecting = ref(false)
 const collectResult = ref('')
+const scheduleEnabled = ref(true)
+const scheduleInterval = ref(3)
+const scheduleLoading = ref(false)
+const aiProviderStrategy = ref<AIProviderStrategy>('heuristic_only')
+const aiDefaultModel = ref('')
+const aiSelectorModel = ref('')
+const aiLoading = ref(false)
+const aiConfigMsg = ref('')
+const aiProviders = ref<{ key: string; label: string; configured?: boolean; active?: boolean; preferred?: boolean; models?: { id: string; name: string }[] }[]>([])
+const aiModels = ref<{ id: string; name: string }[]>([])
+
+const selectedAIProvider = computed(() =>
+  aiProviders.value.find(provider => provider.key === aiProviderStrategy.value) ?? null,
+)
+
+watch(selectedAIProvider, provider => {
+  const models = provider?.models ?? []
+  aiModels.value = models
+  if (!models.length) return
+  const modelIds = new Set(models.map(model => model.id))
+  if (!modelIds.has(aiDefaultModel.value)) {
+    aiDefaultModel.value = models[0].id
+  }
+  if (!modelIds.has(aiSelectorModel.value)) {
+    aiSelectorModel.value = models[Math.min(1, models.length - 1)].id
+  }
+})
+
+const intervalOptions = [
+  { label: '1 小时', value: 1 },
+  { label: '2 小时', value: 2 },
+  { label: '3 小时', value: 3 },
+  { label: '6 小时', value: 6 },
+  { label: '12 小时', value: 12 },
+  { label: '24 小时', value: 24 },
+]
 
 const animatedValues = ref({
   total_events: 0,
@@ -70,12 +107,15 @@ const scheduleStatsRefresh = (delayMs = 600) => {
 }
 
 onMounted(async () => {
-  const [, pRes] = await Promise.all([loadStats(), getPatternsApi()])
-  if (pRes.data) patterns.value = pRes.data
   await Promise.all([
-    eventsStore.fetchEvents(),
-    skillsStore.fetchSkills(),
-    openclawStore.fetchSessions(),
+    loadStats(),
+    loadSchedule(),
+    loadAISettings(),
+    eventsStore.ensureLoaded(),
+    skillsStore.ensureLoaded(),
+    openclawStore.ensureSessionsLoaded(),
+    digestStore.ensureLoaded(),
+    patternsStore.ensurePatternsLoaded(),
   ])
 })
 
@@ -89,9 +129,18 @@ watch(() => eventsStore.lastRealtimeEventAt, timestamp => {
 })
 
 const sourceDistribution = computed(() => {
-  const counts = { openclaw: 0, terminal: 0, git: 0, claude_code: 0, codex: 0, env: 0 }
+  const counts: Record<string, number> = {
+    openclaw: 0,
+    terminal: 0,
+    git: 0,
+    claude_code: 0,
+    codex: 0,
+    cursor: 0,
+    vscode: 0,
+    env: 0,
+  }
   for (const e of eventsStore.events) {
-    counts[e.source]++
+    counts[e.source] = (counts[e.source] ?? 0) + 1
   }
   return counts
 })
@@ -105,7 +154,7 @@ const recentEvents = computed(() =>
 )
 
 const topPatterns = computed(() =>
-  [...patterns.value].sort((a, b) => b.confidence - a.confidence).slice(0, 3)
+  [...patternsStore.patterns].sort((a, b) => b.confidence - a.confidence).slice(0, 3)
 )
 
 // AI 对话：OpenClaw + Claude Code sessions 合并，按时间排序取最近 3 条
@@ -113,15 +162,14 @@ const recentAiSessions = computed(() =>
   [...openclawStore.sessions].sort((a, b) => b.created_at - a.created_at).slice(0, 3)
 )
 
-const sessionAgent = (session: { tags: string[] }) =>
-  session.tags.includes('codex') ? 'codex' : session.tags.includes('claude_code') ? 'claude_code' : 'openclaw'
-
 const sourceColor: Record<string, string> = {
   openclaw: 'text-openclaw',
   terminal: 'text-terminal',
   git: 'text-git',
   claude_code: 'text-claude',
   codex: 'text-cyan-300',
+  cursor: 'text-emerald-400',
+  vscode: 'text-sky-400',
   env: 'text-env',
 }
 
@@ -131,6 +179,8 @@ const sourceNameMap: Record<string, string> = {
   git: 'Git',
   claude_code: 'Claude Code',
   codex: 'Codex',
+  cursor: 'Cursor',
+  vscode: 'VS Code',
   env: '环境',
 }
 
@@ -156,19 +206,82 @@ const handleCollectAll = async () => {
     const d = res.data as any
     const total = d.results ? d.results.reduce((s: number, r: any) => s + r.inserted, 0) : 0
     const mined = d.mining_count ?? 0
-    collectResult.value = `采集完成: 新增 ${total} 条数据，挖掘 ${mined} 个模式${d.digest_updated ? '，已更新今日摘要' : ''}`
+    const pushed = d.patterns_pushed ?? 0
+    collectResult.value = `采集完成: 新增 ${total} 条数据，挖掘 ${mined} 个模式${pushed > 0 ? `，${pushed} 个模式待确认` : ''}${d.digest_updated ? '，已更新今日摘要' : ''}`
     // 刷新所有模块
     await Promise.all([
       loadStats(),
-      eventsStore.fetchEvents(),
-      skillsStore.fetchSkills(),
-      openclawStore.fetchSessions(),
-      digestStore.fetchSummaries(),
+      eventsStore.fetchEvents(true),
+      skillsStore.fetchSkills(true),
+      openclawStore.fetchSessions(true),
+      digestStore.fetchSummaries(true),
+      patternsStore.fetchPatterns(undefined, true),
     ])
-    const pRes = await getPatternsApi()
-    if (pRes.data) patterns.value = pRes.data
     setTimeout(() => { collectResult.value = '' }, 6000)
   }
+}
+
+const loadSchedule = async () => {
+  const res = await getScheduleApi()
+  if (res.data) {
+    scheduleEnabled.value = res.data.enabled
+    scheduleInterval.value = res.data.interval_hours
+  }
+}
+
+const loadAISettings = async () => {
+  const res = await getAISettingsApi()
+  if (res.data) {
+    aiProviderStrategy.value = res.data.selected_provider
+    aiDefaultModel.value = res.data.default_model
+    aiSelectorModel.value = res.data.selector_model
+    aiProviders.value = res.data.providers
+    aiModels.value = res.data.models
+  }
+}
+
+const handleScheduleToggle = async () => {
+  scheduleLoading.value = true
+  const next = !scheduleEnabled.value
+  const res = await updateScheduleApi({ enabled: next })
+  if (res.data) {
+    scheduleEnabled.value = res.data.enabled
+    scheduleInterval.value = res.data.interval_hours
+  }
+  scheduleLoading.value = false
+}
+
+const handleIntervalChange = async (e: Event) => {
+  const val = Number((e.target as HTMLSelectElement).value)
+  scheduleLoading.value = true
+  const res = await updateScheduleApi({ interval_hours: val })
+  if (res.data) {
+    scheduleEnabled.value = res.data.enabled
+    scheduleInterval.value = res.data.interval_hours
+  }
+  scheduleLoading.value = false
+}
+
+const saveAISettings = async () => {
+  aiLoading.value = true
+  aiConfigMsg.value = ''
+  const res = await updateAISettingsApi({
+    selected_provider: aiProviderStrategy.value,
+    default_model: aiDefaultModel.value,
+    selector_model: aiSelectorModel.value,
+  })
+  if (res.data) {
+    aiProviderStrategy.value = res.data.selected_provider
+    aiDefaultModel.value = res.data.default_model
+    aiSelectorModel.value = res.data.selector_model
+    aiProviders.value = res.data.providers
+    aiModels.value = res.data.models
+    aiConfigMsg.value = 'AI 分析配置已保存'
+    setTimeout(() => { aiConfigMsg.value = '' }, 2500)
+  } else {
+    aiConfigMsg.value = res.error ?? 'AI 分析配置保存失败'
+  }
+  aiLoading.value = false
 }
 </script>
 
@@ -185,6 +298,30 @@ const handleCollectAll = async () => {
           <div class="w-1.5 h-1.5 rounded-full bg-emerald-400" />
           <span class="text-[10px] text-emerald-400">本地模式 · 已脱敏</span>
         </div>
+        <!-- 定时采集配置 -->
+        <div class="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface-2 border border-surface-3">
+          <button
+            class="w-7 h-4 rounded-full transition-colors relative"
+            :class="scheduleEnabled ? 'bg-cyan-500' : 'bg-surface-3'"
+            :disabled="scheduleLoading"
+            @click="handleScheduleToggle"
+          >
+            <div
+              class="absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform"
+              :class="scheduleEnabled ? 'translate-x-3.5' : 'translate-x-0.5'"
+            />
+          </button>
+          <select
+            class="bg-transparent text-[10px] text-gray-400 outline-none cursor-pointer appearance-none pr-3"
+            :value="scheduleInterval"
+            :disabled="scheduleLoading"
+            @change="handleIntervalChange"
+          >
+            <option v-for="opt in intervalOptions" :key="opt.value" :value="opt.value" class="bg-surface-2">
+              {{ opt.label }}
+            </option>
+          </select>
+        </div>
         <button
           class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
           :class="collecting ? 'bg-surface-3 text-gray-500 cursor-wait' : 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 cursor-pointer'"
@@ -197,6 +334,77 @@ const handleCollectAll = async () => {
     </div>
     <div v-if="collectResult" class="text-xs text-cyan-400 bg-cyan-500/10 rounded-lg px-3 py-1.5 -mt-4">
       {{ collectResult }}
+    </div>
+    <div class="grid grid-cols-[1.4fr_1fr] gap-4">
+      <div class="bg-surface-1 rounded-xl border border-surface-3 p-4">
+        <div class="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <div class="text-sm font-medium text-gray-200">AI 分析配置</div>
+            <div class="text-xs text-gray-500 mt-1">控制会话分析、摘要生成和语义聚合的供应商与模型</div>
+          </div>
+          <div v-if="aiConfigMsg" class="text-[11px] text-cyan-400">{{ aiConfigMsg }}</div>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <label class="space-y-1">
+            <div class="text-[11px] text-gray-500">分析供应商</div>
+            <select v-model="aiProviderStrategy" class="w-full bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 text-sm text-gray-200">
+              <option v-for="provider in aiProviders" :key="provider.key" :value="provider.key">
+                {{ provider.label }}
+              </option>
+            </select>
+          </label>
+          <label class="space-y-1">
+            <div class="text-[11px] text-gray-500">默认模型</div>
+            <select
+              v-model="aiDefaultModel"
+              class="w-full bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 text-sm text-gray-200"
+              :disabled="!aiModels.length"
+            >
+              <option v-if="!aiModels.length" value="">当前供应商无模型候选</option>
+              <option v-for="model in aiModels" :key="model.id" :value="model.id">{{ model.name }}</option>
+            </select>
+          </label>
+          <label class="space-y-1">
+            <div class="text-[11px] text-gray-500">分析模型</div>
+            <select
+              v-model="aiSelectorModel"
+              class="w-full bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 text-sm text-gray-200"
+              :disabled="!aiModels.length"
+            >
+              <option v-if="!aiModels.length" value="">当前供应商无模型候选</option>
+              <option v-for="model in aiModels" :key="`selector-${model.id}`" :value="model.id">{{ model.name }}</option>
+            </select>
+          </label>
+        </div>
+        <div class="flex items-center justify-between gap-3 mt-3">
+          <div class="flex flex-wrap gap-1.5">
+            <span
+              v-for="provider in aiProviders"
+              :key="provider.key"
+              class="text-[10px] px-2 py-0.5 rounded-full"
+              :class="provider.key === aiProviderStrategy ? 'bg-openclaw/15 text-openclaw' : provider.active ? 'bg-emerald-500/10 text-emerald-400' : provider.preferred ? 'bg-cyan-500/10 text-cyan-400' : 'bg-surface-2 text-gray-500'"
+            >
+              {{ provider.label }}
+            </span>
+          </div>
+          <button
+            class="px-3 py-1.5 rounded-lg text-xs font-medium"
+            :class="aiLoading ? 'bg-surface-3 text-gray-500' : 'bg-openclaw/15 text-openclaw hover:bg-openclaw/25'"
+            :disabled="aiLoading"
+            @click="saveAISettings"
+          >
+            {{ aiLoading ? '保存中...' : '保存 AI 配置' }}
+          </button>
+        </div>
+      </div>
+      <div class="bg-surface-1 rounded-xl border border-surface-3 p-4">
+        <div class="text-sm font-medium text-gray-200 mb-2">本轮采集策略</div>
+        <div class="space-y-2 text-xs text-gray-400 leading-relaxed">
+          <div>统计挖掘先生成候选模式，再交给 AI 做语义聚合和过滤。</div>
+          <div>如果选择 `仅本地启发式`，会退回规则聚合，不会调用外部模型。</div>
+          <div>会话分析按钮和日报摘要会统一走这里的 provider/model 配置。</div>
+        </div>
+      </div>
     </div>
 
     <!-- 四层架构步骤条 -->
@@ -306,7 +514,7 @@ const handleCollectAll = async () => {
             <div class="flex-1 h-2 bg-surface-3 rounded-full overflow-hidden">
               <div
                 class="h-full rounded-full transition-all"
-                :class="source === 'openclaw' ? 'bg-openclaw' : source === 'terminal' ? 'bg-terminal' : source === 'git' ? 'bg-git' : source === 'claude_code' ? 'bg-claude' : source === 'codex' ? 'bg-cyan-300' : 'bg-env'"
+                :class="source === 'openclaw' ? 'bg-openclaw' : source === 'terminal' ? 'bg-terminal' : source === 'git' ? 'bg-git' : source === 'claude_code' ? 'bg-claude' : source === 'codex' ? 'bg-cyan-300' : source === 'cursor' ? 'bg-emerald-400' : source === 'vscode' ? 'bg-sky-400' : 'bg-env'"
                 :style="{ width: `${(count / (stats?.total_events ?? 1)) * 100}%` }"
               />
             </div>
@@ -357,7 +565,7 @@ const handleCollectAll = async () => {
         <div class="space-y-2">
           <div v-for="event in recentEvents" :key="event.id" class="flex items-start gap-2">
             <div class="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
-              :class="event.source === 'openclaw' ? 'bg-openclaw' : event.source === 'terminal' ? 'bg-terminal' : event.source === 'git' ? 'bg-git' : event.source === 'claude_code' ? 'bg-claude' : event.source === 'codex' ? 'bg-cyan-300' : 'bg-env'"
+              :class="event.source === 'openclaw' ? 'bg-openclaw' : event.source === 'terminal' ? 'bg-terminal' : event.source === 'git' ? 'bg-git' : event.source === 'claude_code' ? 'bg-claude' : event.source === 'codex' ? 'bg-cyan-300' : event.source === 'cursor' ? 'bg-emerald-400' : event.source === 'vscode' ? 'bg-sky-400' : 'bg-env'"
             />
             <div class="min-w-0 flex-1">
               <div class="text-xs font-mono truncate text-gray-300">{{ event.action }}</div>
@@ -383,18 +591,18 @@ const handleCollectAll = async () => {
             <div class="flex items-center gap-2 mb-1">
               <div
                 class="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
-                :class="sessionAgent(session) === 'claude_code' ? 'bg-blue-500/20' : sessionAgent(session) === 'codex' ? 'bg-cyan-300/20' : 'bg-openclaw/20'"
+                :class="(session.origin ?? 'openclaw') === 'claude_code' ? 'bg-blue-500/20' : (session.origin ?? 'openclaw') === 'codex' ? 'bg-cyan-300/20' : (session.origin ?? 'openclaw') === 'cursor' ? 'bg-emerald-500/20' : (session.origin ?? 'openclaw') === 'vscode' ? 'bg-sky-500/20' : 'bg-openclaw/20'"
               >
                 <span
                   class="text-[8px] font-bold"
-                  :class="sessionAgent(session) === 'claude_code' ? 'text-blue-400' : sessionAgent(session) === 'codex' ? 'text-cyan-300' : 'text-openclaw'"
+                  :class="(session.origin ?? 'openclaw') === 'claude_code' ? 'text-blue-400' : (session.origin ?? 'openclaw') === 'codex' ? 'text-cyan-300' : (session.origin ?? 'openclaw') === 'cursor' ? 'text-emerald-400' : (session.origin ?? 'openclaw') === 'vscode' ? 'text-sky-400' : 'text-openclaw'"
                 >
-                  {{ sessionAgent(session) === 'claude_code' ? 'CC' : sessionAgent(session) === 'codex' ? 'CX' : 'OC' }}
+                  {{ (session.origin ?? 'openclaw') === 'claude_code' ? 'CC' : (session.origin ?? 'openclaw') === 'codex' ? 'CX' : (session.origin ?? 'openclaw') === 'cursor' ? 'CU' : (session.origin ?? 'openclaw') === 'vscode' ? 'VS' : 'OC' }}
                 </span>
               </div>
-              <span class="text-xs text-gray-200 truncate">{{ session.title }}</span>
+              <span class="text-xs text-gray-200 truncate">{{ session.display_title ?? session.title }}</span>
             </div>
-            <div class="text-[10px] text-gray-500 line-clamp-2">{{ session.summary }}</div>
+            <div class="text-[10px] text-gray-500 line-clamp-2">{{ session.display_summary ?? session.summary }}</div>
             <div class="flex items-center gap-2 mt-1.5">
               <span class="text-[10px] text-gray-600">{{ session.project }}</span>
               <span class="text-[10px] text-gray-600">{{ session.messages.length }} 条消息</span>

@@ -3,7 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 
 import type { SharedClawProfile, BehaviorPattern, ClawProfile } from '@/types'
 import type { ClawProfileExchangeWorkflow } from '@/http_api/patterns'
-import { createSharedClawProfileApi, getSharedClawProfilesApi } from '@/http_api/community'
+import { createSharedClawProfileApi, downloadSharedClawProfileApi, getSharedClawProfileApi, getSharedClawProfilesApi, starSharedClawProfileApi } from '@/http_api/community'
 import { importPatternsApi } from '@/http_api/patterns'
 import { usePatternsStore } from '@/stores/patterns'
 import { getActiveProfileApi } from '@/http_api/profiles'
@@ -25,6 +25,11 @@ const publishTags = ref('')
 const selectedPatternIds = ref<Set<number>>(new Set())
 const publishing = ref(false)
 const publishSuccess = ref(false)
+const selectedPack = ref<SharedClawProfile | null>(null)
+const previewPack = computed(() => selectedPack.value as SharedClawProfile)
+const previewLoading = ref(false)
+const starringPackId = ref<number | null>(null)
+const downloadingPackId = ref<number | null>(null)
 
 const packs = ref<SharedClawProfile[]>([])
 const patternsStore = usePatternsStore()
@@ -39,8 +44,8 @@ const loadCommunityData = async () => {
 
   const [packRes, patternRes, workflowRes, activeProfileRes] = await Promise.all([
     getSharedClawProfilesApi(),
-    patternsStore.fetchPatterns(),
-    patternsStore.fetchWorkflows(),
+    patternsStore.ensurePatternsLoaded(),
+    patternsStore.ensureWorkflowsLoaded(),
     getActiveProfileApi(),
   ])
 
@@ -105,6 +110,37 @@ const filteredPacks = computed(() => {
   return result
 })
 
+const communityStats = computed(() => ({
+  profiles: filteredPacks.value.length,
+  patterns: filteredPacks.value.reduce((sum, pack) => sum + pack.patterns.length, 0),
+  workflows: filteredPacks.value.reduce((sum, pack) => sum + pack.workflows.length, 0),
+  creators: new Set(filteredPacks.value.map(pack => pack.author.username)).size,
+}))
+
+const highlightedAuthors = computed(() =>
+  [...filteredPacks.value]
+    .sort((a, b) => b.stars + b.downloads - (a.stars + a.downloads))
+    .slice(0, 5),
+)
+
+const communityTracks = computed(() => [
+  {
+    name: '具身与机器人',
+    tone: 'from-cyan-500/20 to-sky-500/5 border-cyan-500/20',
+    match: (pack: SharedClawProfile) => pack.tags.some(tag => ['embodied', 'robot', 'motionplan', 'ros', 'softrobot'].includes(tag.toLowerCase())),
+  },
+  {
+    name: '长程与记忆',
+    tone: 'from-purple-500/20 to-fuchsia-500/5 border-purple-500/20',
+    match: (pack: SharedClawProfile) => pack.tags.some(tag => ['memory', 'longhorizon', 'vla', 'planning', 'structure'].includes(tag.toLowerCase())),
+  },
+  {
+    name: '开源与交付',
+    tone: 'from-emerald-500/20 to-lime-500/5 border-emerald-500/20',
+    match: (pack: SharedClawProfile) => pack.tags.some(tag => ['opensource', 'operations', 'release', 'deployment', 'community'].includes(tag.toLowerCase())),
+  },
+])
+
 // 只显示已确认或可导出的模式供发布选择
 const publishablePatterns = computed(() =>
   myPatterns.value.filter(p => p.status === 'confirmed' || p.status === 'exportable')
@@ -124,6 +160,20 @@ watch(publishablePatterns, patterns => {
 
 const toggleExpand = (id: number) => {
   expandedPackId.value = expandedPackId.value === id ? null : id
+}
+
+const openPackPreview = async (pack: SharedClawProfile) => {
+  previewLoading.value = true
+  const res = await getSharedClawProfileApi(pack.id)
+  selectedPack.value = res.data ?? pack
+  if (!res.data && res.error) {
+    actionError.value = res.error
+  }
+  previewLoading.value = false
+}
+
+const closePackPreview = () => {
+  selectedPack.value = null
 }
 
 const togglePatternSelect = (id: number) => {
@@ -165,8 +215,8 @@ const handleImport = async (pack: SharedClawProfile) => {
 
   if (res.data) {
     const [refreshPatterns, refreshWorkflows] = await Promise.all([
-      patternsStore.fetchPatterns(),
-      patternsStore.fetchWorkflows(),
+      patternsStore.fetchPatterns(undefined, true),
+      patternsStore.fetchWorkflows(true),
     ])
     if (!refreshPatterns.data) patternsError.value = refreshPatterns.error ?? '本地模式刷新失败'
     if (!refreshWorkflows.data && !patternsError.value) patternsError.value = refreshWorkflows.error ?? '本地工作流刷新失败'
@@ -177,6 +227,50 @@ const handleImport = async (pack: SharedClawProfile) => {
   }
 
   importingPackId.value = null
+}
+
+const handleStar = async (pack: SharedClawProfile) => {
+  starringPackId.value = pack.id
+  const res = await starSharedClawProfileApi(pack.id)
+  starringPackId.value = null
+  if (res.data) {
+    packs.value = packs.value.map(item => item.id === pack.id ? { ...item, stars: res.data!.stars } : item)
+    if (selectedPack.value?.id === pack.id) {
+      selectedPack.value = { ...selectedPack.value, stars: res.data.stars }
+    }
+  } else {
+    actionError.value = res.error ?? '点赞失败，请稍后重试'
+  }
+}
+
+const handleDownload = async (pack: SharedClawProfile) => {
+  downloadingPackId.value = pack.id
+  const res = await downloadSharedClawProfileApi(pack.id)
+  downloadingPackId.value = null
+  const payload = res.data ?? pack
+  if (!payload) {
+    actionError.value = res.error ?? '下载失败，请稍后重试'
+    return
+  }
+
+  packs.value = packs.value.map(item => item.id === pack.id ? { ...item, downloads: payload.downloads } : item)
+  if (selectedPack.value?.id === pack.id) {
+    selectedPack.value = payload
+  }
+
+  const blob = new Blob([JSON.stringify({
+    schema: 'clawprofile/v1',
+    profile: payload.profile,
+    patterns: payload.patterns,
+    workflows: payload.workflows,
+    exported_at: Math.floor(Date.now() / 1000),
+  }, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = `${payload.name || 'shared-clawprofile'}.json`
+  anchor.click()
+  URL.revokeObjectURL(url)
 }
 
 const formatCount = (n: number) => {
@@ -257,6 +351,56 @@ const handlePublish = async () => {
       <p class="text-sm text-gray-400 mt-1">发现和导入社区中优秀开发者的 Shared ClawProfile</p>
     </div>
 
+    <div class="grid grid-cols-[1.2fr_0.8fr] gap-4">
+      <div class="relative overflow-hidden rounded-2xl border border-openclaw/20 bg-surface-1 p-5">
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.14),transparent_45%),radial-gradient(circle_at_bottom_right,rgba(124,92,252,0.14),transparent_40%)]" />
+        <div class="relative">
+          <div class="text-xs uppercase tracking-[0.2em] text-openclaw/80">Featured ClawProfiles</div>
+          <div class="text-xl font-semibold text-gray-100 mt-2">把顶级工程习惯直接导入你的本地行为系统</div>
+          <div class="text-sm text-gray-400 mt-2 leading-relaxed">这里不只是模式包，而是带工作流、场景和风格的 Shared ClawProfile。你可以按研究、机器人、长程记忆、开源交付等主题筛选导入。</div>
+          <div class="grid grid-cols-4 gap-3 mt-5">
+            <div class="rounded-xl bg-surface-2/80 border border-surface-3 p-3">
+              <div class="text-[11px] text-gray-500">ClawProfile</div>
+              <div class="text-2xl font-semibold text-gray-100 mt-1">{{ communityStats.profiles }}</div>
+            </div>
+            <div class="rounded-xl bg-surface-2/80 border border-surface-3 p-3">
+              <div class="text-[11px] text-gray-500">行为准则</div>
+              <div class="text-2xl font-semibold text-cyan-300 mt-1">{{ communityStats.patterns }}</div>
+            </div>
+            <div class="rounded-xl bg-surface-2/80 border border-surface-3 p-3">
+              <div class="text-[11px] text-gray-500">工作流</div>
+              <div class="text-2xl font-semibold text-emerald-400 mt-1">{{ communityStats.workflows }}</div>
+            </div>
+            <div class="rounded-xl bg-surface-2/80 border border-surface-3 p-3">
+              <div class="text-[11px] text-gray-500">创作者</div>
+              <div class="text-2xl font-semibold text-purple-400 mt-1">{{ communityStats.creators }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-surface-1 rounded-2xl border border-surface-3 p-5">
+        <div class="text-xs uppercase tracking-[0.2em] text-gray-500">Top Creators</div>
+        <div class="space-y-2.5 mt-4">
+          <div
+            v-for="pack in highlightedAuthors"
+            :key="`author-${pack.id}`"
+            class="flex items-center gap-3 rounded-xl bg-surface-2/80 border border-surface-3 px-3 py-2.5"
+          >
+            <div class="w-9 h-9 rounded-full bg-accent/15 text-accent flex items-center justify-center text-xs font-bold shrink-0">{{ pack.author.avatar }}</div>
+            <div class="min-w-0 flex-1">
+              <div class="text-sm text-gray-200 truncate">{{ pack.author.username }}</div>
+              <div class="text-[10px] text-gray-500 truncate">{{ pack.author.title }}</div>
+            </div>
+            <div class="text-right shrink-0">
+              <div class="text-[10px] text-amber-300">{{ formatCount(pack.stars) }} stars</div>
+              <div class="text-[10px] text-gray-500">{{ formatCount(pack.downloads) }} downloads</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 搜索栏 -->
     <div class="relative">
       <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -288,6 +432,27 @@ const handlePublish = async () => {
     <!-- 统计信息 -->
     <div class="text-sm text-gray-400">
       共 {{ filteredPacks.length }} 个 Shared ClawProfile
+    </div>
+
+    <div class="grid grid-cols-3 gap-4">
+      <div
+        v-for="track in communityTracks"
+        :key="track.name"
+        class="rounded-2xl border p-4 bg-gradient-to-br"
+        :class="track.tone"
+      >
+        <div class="text-sm font-medium text-gray-100">{{ track.name }}</div>
+        <div class="text-[11px] text-gray-400 mt-1">{{ filteredPacks.filter(track.match).length }} 个可导入 profile</div>
+        <div class="flex flex-wrap gap-1.5 mt-3">
+          <span
+            v-for="pack in filteredPacks.filter(track.match).slice(0, 3)"
+            :key="`${track.name}-${pack.id}`"
+            class="text-[10px] px-2 py-0.5 rounded-full bg-surface-1/70 text-gray-300 border border-surface-3"
+          >
+            {{ pack.author.username }}
+          </span>
+        </div>
+      </div>
     </div>
 
     <div v-if="actionError" class="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-sm text-red-300">
@@ -376,20 +541,40 @@ const handlePublish = async () => {
           </span>
         </div>
 
-        <!-- 导入按钮 -->
-        <div class="pt-1">
+        <div class="grid grid-cols-4 gap-2 pt-1">
+          <button
+            class="py-1.5 rounded-lg text-[11px] font-medium bg-surface-2 text-gray-300 hover:bg-surface-3 transition-colors"
+            :class="previewLoading && selectedPack?.id === pack.id ? 'opacity-70 cursor-wait' : ''"
+            @click.stop="openPackPreview(pack)"
+          >
+            查看详情
+          </button>
+          <button
+            class="py-1.5 rounded-lg text-[11px] font-medium bg-surface-2 text-amber-300 hover:bg-surface-3 transition-colors"
+            :class="starringPackId === pack.id ? 'opacity-70 cursor-wait' : ''"
+            @click.stop="handleStar(pack)"
+          >
+            {{ starringPackId === pack.id ? '处理中...' : '点赞' }}
+          </button>
+          <button
+            class="py-1.5 rounded-lg text-[11px] font-medium bg-surface-2 text-cyan-300 hover:bg-surface-3 transition-colors"
+            :class="downloadingPackId === pack.id ? 'opacity-70 cursor-wait' : ''"
+            @click.stop="handleDownload(pack)"
+          >
+            {{ downloadingPackId === pack.id ? '导出中...' : '下载' }}
+          </button>
           <button
             v-if="importSuccess !== pack.id"
-            class="w-full py-1.5 rounded-lg text-xs font-medium bg-accent/15 text-accent hover:bg-accent/25 transition-colors"
+            class="py-1.5 rounded-lg text-[11px] font-medium bg-accent/15 text-accent hover:bg-accent/25 transition-colors"
             :class="importingPackId === pack.id ? 'cursor-wait opacity-70' : ''"
             :disabled="importingPackId === pack.id"
             @click.stop="handleImport(pack)"
           >
-            {{ importingPackId === pack.id ? '导入到我的本地 ClawProfile 中...' : '导入到我的本地 ClawProfile' }}
+            {{ importingPackId === pack.id ? '导入中...' : '导入' }}
           </button>
           <div
             v-else
-            class="w-full py-1.5 rounded-lg text-xs font-medium bg-emerald-500/15 text-emerald-400 text-center"
+            class="py-1.5 rounded-lg text-[11px] font-medium bg-emerald-500/15 text-emerald-400 text-center"
           >
             导入成功
           </div>
@@ -422,6 +607,101 @@ const handlePublish = async () => {
         </div>
       </div>
     </div>
+
+    <Teleport to="body">
+      <div v-if="selectedPack" class="fixed inset-0 z-[120] flex items-center justify-center px-6" @click.self="closePackPreview">
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+        <div class="relative w-full max-w-5xl max-h-[88vh] overflow-hidden rounded-2xl border border-surface-3 bg-surface-1 shadow-2xl">
+          <div class="flex items-start justify-between gap-4 px-6 py-5 border-b border-surface-3">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-semibold text-gray-100">{{ previewPack.display }}</span>
+                <span class="text-[10px] px-2 py-0.5 rounded border" :class="categoryColorMap[getPrimaryCategory(previewPack.tags)]">
+                  {{ categories.find(c => c.key === getPrimaryCategory(previewPack.tags))?.label }}
+                </span>
+              </div>
+              <div class="text-xs text-gray-500 mt-1">{{ previewPack.author.username }} · {{ previewPack.author.title }}</div>
+              <div class="text-sm text-gray-400 mt-3 max-w-3xl leading-relaxed">{{ previewPack.description }}</div>
+            </div>
+            <button class="text-gray-500 hover:text-gray-300 text-xl leading-none" @click="closePackPreview">x</button>
+          </div>
+
+          <div class="grid grid-cols-[1.2fr_0.8fr] gap-0 max-h-[calc(88vh-92px)]">
+            <div class="overflow-y-auto p-6 space-y-4 border-r border-surface-3">
+              <div>
+                <div class="text-xs uppercase tracking-[0.18em] text-gray-500 mb-3">行为准则</div>
+                <div class="space-y-3">
+                  <div v-for="pattern in previewPack.patterns" :key="pattern.id" class="bg-surface-2 rounded-xl p-4 border border-surface-3">
+                    <div class="flex items-center justify-between gap-3">
+                      <div class="text-sm font-medium text-gray-100">{{ pattern.name }}</div>
+                      <span class="text-[10px] px-2 py-0.5 rounded border" :class="categoryColorMap[pattern.category]">{{ pattern.confidence }}%</span>
+                    </div>
+                    <div class="text-xs text-gray-400 mt-2 leading-relaxed">{{ pattern.description }}</div>
+                    <div class="text-[10px] text-gray-500 mt-3 font-mono">{{ pattern.rule }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="overflow-y-auto p-6 space-y-4">
+              <div class="grid grid-cols-2 gap-3">
+                <div class="bg-surface-2 rounded-xl p-3">
+                  <div class="text-[11px] text-gray-500">下载量</div>
+                  <div class="text-xl font-semibold text-cyan-300 mt-1">{{ formatCount(previewPack.downloads) }}</div>
+                </div>
+                <div class="bg-surface-2 rounded-xl p-3">
+                  <div class="text-[11px] text-gray-500">点赞</div>
+                  <div class="text-xl font-semibold text-amber-300 mt-1">{{ formatCount(previewPack.stars) }}</div>
+                </div>
+                <div class="bg-surface-2 rounded-xl p-3">
+                  <div class="text-[11px] text-gray-500">模式</div>
+                  <div class="text-xl font-semibold text-gray-100 mt-1">{{ previewPack.patterns.length }}</div>
+                </div>
+                <div class="bg-surface-2 rounded-xl p-3">
+                  <div class="text-[11px] text-gray-500">工作流</div>
+                  <div class="text-xl font-semibold text-emerald-400 mt-1">{{ previewPack.workflows.length }}</div>
+                </div>
+              </div>
+
+              <div class="bg-surface-2 rounded-xl p-4">
+                <div class="text-xs uppercase tracking-[0.18em] text-gray-500 mb-3">工作流</div>
+                <div class="space-y-3">
+                  <div v-for="workflow in previewPack.workflows" :key="workflow.id" class="border border-surface-3 rounded-xl p-3">
+                    <div class="text-sm text-gray-100">{{ workflow.name }}</div>
+                    <div class="text-[11px] text-gray-500 mt-1">{{ workflow.description }}</div>
+                    <div class="mt-3 space-y-2">
+                      <div v-for="(step, index) in workflow.steps" :key="`${workflow.id}-${index}`" class="flex items-start gap-2 text-[11px] text-gray-300">
+                        <span class="mt-1 w-1.5 h-1.5 rounded-full bg-openclaw shrink-0" />
+                        <span>{{ step.pattern || step.inline || step.when || step.gate || '步骤' }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="bg-surface-2 rounded-xl p-4">
+                <div class="text-xs uppercase tracking-[0.18em] text-gray-500 mb-3">标签</div>
+                <div class="flex flex-wrap gap-2">
+                  <span v-for="tag in previewPack.tags" :key="tag" class="text-[10px] px-2 py-0.5 rounded-full bg-surface-3 text-gray-300">{{ tag }}</span>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-3 gap-2">
+                <button class="py-2 rounded-lg text-xs font-medium bg-accent/15 text-accent hover:bg-accent/25" @click="handleImport(previewPack)">
+                  {{ importingPackId === previewPack.id ? '导入中...' : '导入到本地' }}
+                </button>
+                <button class="py-2 rounded-lg text-xs font-medium bg-surface-2 text-amber-300 hover:bg-surface-3" @click="handleStar(previewPack)">
+                  {{ starringPackId === previewPack.id ? '处理中...' : '点赞支持' }}
+                </button>
+                <button class="py-2 rounded-lg text-xs font-medium bg-surface-2 text-cyan-300 hover:bg-surface-3" @click="handleDownload(previewPack)">
+                  {{ downloadingPackId === previewPack.id ? '导出中...' : '下载 JSON' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- 发布我的模式 -->
     <div class="bg-surface-1 rounded-xl border border-accent/30 p-5 space-y-4">

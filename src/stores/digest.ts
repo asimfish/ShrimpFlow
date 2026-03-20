@@ -8,15 +8,34 @@ export const useDigestStore = defineStore('digest', () => {
   const summaries = ref<DailySummary[]>([])
   const selectedDate = ref('')
   const loading = ref(false)
+  const loaded = ref(false)
+  let fetchPromise: Promise<{ data: DailySummary[] | null; error: string | null }> | null = null
 
-  const fetchSummaries = async () => {
+  const fetchSummaries = async (force = false) => {
+    if (!force && fetchPromise) return fetchPromise
+    if (!force && loaded.value) return { data: summaries.value, error: null }
+
     loading.value = true
-    const { data } = await getDigestsApi()
-    if (data) summaries.value = data
-    loading.value = false
+    fetchPromise = (async () => {
+      const result = await getDigestsApi()
+      if (result.data) {
+        summaries.value = result.data
+        loaded.value = true
+      }
+      return result
+    })()
+
+    try {
+      return await fetchPromise
+    } finally {
+      fetchPromise = null
+      loading.value = false
+    }
   }
 
   const getSummary = (date: string) => summaries.value.find(s => s.date === date)
 
-  return { summaries, selectedDate, getSummary, loading, fetchSummaries }
+  const ensureLoaded = () => fetchSummaries(false)
+
+  return { summaries, selectedDate, getSummary, loading, loaded, fetchSummaries, ensureLoaded }
 })

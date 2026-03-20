@@ -21,6 +21,9 @@ export const createPackApi = (data: {
 }) => post<SharedPatternPack>('/community/packs', data)
 
 export const getSharedClawProfilesApi = () => get<SharedClawProfile[]>('/community/claw-profiles')
+export const getSharedClawProfileApi = (id: number) => get<SharedClawProfile>(`/community/claw-profiles/${id}`)
+export const starSharedClawProfileApi = (id: number) => post<{ stars: number }>(`/community/claw-profiles/${id}/star`, {})
+export const downloadSharedClawProfileApi = (id: number) => post<SharedClawProfile>(`/community/claw-profiles/${id}/download`, {})
 
 export const createSharedClawProfileApi = (data: {
   name: string

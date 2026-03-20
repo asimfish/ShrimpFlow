@@ -3,7 +3,7 @@ import { useEventsStore } from '@/stores/events'
 
 const store = useEventsStore()
 
-const sources = ['', 'openclaw', 'terminal', 'git', 'claude_code', 'codex', 'env']
+const sources = ['', 'openclaw', 'terminal', 'git', 'claude_code', 'codex', 'cursor', 'vscode', 'env']
 const sourceLabels: Record<string, string> = {
   '': '全部来源',
   openclaw: 'OpenClaw',
@@ -11,6 +11,8 @@ const sourceLabels: Record<string, string> = {
   git: 'Git',
   claude_code: 'Claude Code',
   codex: 'Codex',
+  cursor: 'Cursor',
+  vscode: 'VS Code',
   env: '环境',
 }
 

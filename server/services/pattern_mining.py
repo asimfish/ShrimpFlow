@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from models.event import DevEvent
 from models.pattern import BehaviorPattern
+from services.ai_provider import chat as ai_chat
 
 
 def _confidence_to_level(score: int) -> str:
@@ -41,6 +42,225 @@ class MinedPattern:
             'type': self.type, 'confidence': self.confidence,
             'occurrences': self.occurrences, 'examples': self.examples,
         }
+
+
+ACTION_LABELS = {
+    'openclaw-chat': 'OpenClaw 协作',
+    'env-check': '环境检查',
+    'git-commit': '提交代码',
+    'git-merge': '合并分支',
+    'git-op': 'Git 操作',
+    'claude-edit': 'Claude Code 协作',
+    'codex-edit': 'Codex 协作',
+    'python-run': '运行脚本',
+    'test-run': '执行测试',
+    'build': '执行构建',
+    'ssh-connect': '连接远程环境',
+    'monitor': '监控训练或服务',
+    'pkg-install': '安装依赖',
+    'terminal-cmd': '终端操作',
+}
+
+CATEGORY_MAP = {'sequence': 'coding', 'time': 'devops', 'correlation': 'collaboration'}
+
+
+def _humanize_action(action_key: str) -> str:
+    return ACTION_LABELS.get(action_key, action_key)
+
+
+def _candidate_trigger(candidate: dict):
+    if candidate['type'] == 'sequence':
+        steps = [part.strip() for part in candidate['raw_name'].split('->')]
+        first = steps[0] if steps else candidate['raw_name']
+        next_steps = [_humanize_action(part) for part in steps[1:]]
+        return {
+            'when': f'检测到{_humanize_action(first)}',
+            'event': first,
+            'context': [f'后续常见动作: {" -> ".join(next_steps)}'] if next_steps else [],
+        }
+    if candidate['type'] == 'correlation':
+        steps = [part.strip() for part in candidate['raw_name'].split('->')]
+        first = steps[0] if steps else candidate['raw_name']
+        next_step = _humanize_action(steps[1]) if len(steps) > 1 else candidate['name']
+        return {
+            'when': f'{_humanize_action(first)}后',
+            'event': first,
+            'context': [f'高频联动: {next_step}'],
+        }
+    return f'时间模式: {candidate["name"]}'
+
+
+def _candidate_body(candidate: dict) -> str:
+    lines = [
+        f"## {candidate['name']}",
+        "",
+        candidate['description'],
+        "",
+        "### 应用建议",
+    ]
+    if candidate['type'] == 'sequence':
+        lines.append("- 在该流程起点提前准备测试、构建或提交流程，减少上下文切换。")
+    elif candidate['type'] == 'correlation':
+        lines.append("- 将这组高频联动动作收敛为固定 checklist 或自动化步骤。")
+    else:
+        lines.append("- 将该时间规律用于安排批量任务、定时采集或集中验证窗口。")
+    if candidate['examples']:
+        lines.extend(["", "### 证据样例"])
+        lines.extend(f"- {example}" for example in candidate['examples'][:3])
+    return "\n".join(lines)
+
+
+def _build_candidate_record(pattern: MinedPattern) -> dict:
+    raw_name = pattern.name.replace(' -> ', '->')
+    humanized = ' -> '.join(_humanize_action(part.strip()) for part in raw_name.split('->'))
+    if pattern.type == 'sequence':
+        name = f'工程序列: {humanized}'
+    elif pattern.type == 'correlation':
+        name = f'联动习惯: {humanized}'
+    elif pattern.id == 'time-weekday':
+        name = '工作日集中推进'
+    else:
+        name = pattern.name
+
+    description = pattern.description
+    if pattern.type == 'time' and pattern.id != 'time-weekday':
+        description = f'调度规律: {pattern.description}'
+
+    candidate = {
+        'raw_name': raw_name,
+        'name': name,
+        'description': description,
+        'type': pattern.type,
+        'category': CATEGORY_MAP.get(pattern.type, 'coding'),
+        'confidence': pattern.confidence,
+        'occurrences': pattern.occurrences,
+        'examples': pattern.examples,
+        'learned_from_data': [
+            {
+                'context': f'auto_mining_{pattern.type}',
+                'insight': description,
+                'confidence': pattern.confidence,
+            },
+            *[
+                {
+                    'context': example[:80],
+                    'insight': '来自统计挖掘的行为证据',
+                    'confidence': pattern.confidence,
+                }
+                for example in pattern.examples[:2]
+            ],
+        ],
+    }
+    candidate['trigger'] = _candidate_trigger(candidate)
+    candidate['body'] = _candidate_body(candidate)
+    return candidate
+
+
+def _is_shallow_candidate(candidate: dict) -> bool:
+    if candidate['type'] != 'time':
+        return False
+    return candidate['raw_name'].startswith('高峰时段') or '偏好' in candidate['raw_name']
+
+
+def _normalize_candidate_key(candidate: dict) -> str:
+    return f"{candidate['type']}::{candidate['name'].lower()}"
+
+
+def _merge_candidates(left: dict, right: dict) -> dict:
+    merged = dict(left)
+    merged['confidence'] = max(left['confidence'], right['confidence'])
+    merged['occurrences'] = left['occurrences'] + right['occurrences']
+    merged['examples'] = list(dict.fromkeys([*left['examples'], *right['examples']]))[:4]
+    merged['learned_from_data'] = [*left['learned_from_data'], *right['learned_from_data']][:5]
+    merged['body'] = _candidate_body(merged)
+    return merged
+
+
+def _strip_json_fence(text: str) -> str:
+    stripped = text.strip()
+    if stripped.startswith('```'):
+        stripped = re.sub(r'^```(?:json)?', '', stripped).strip()
+        stripped = re.sub(r'```$', '', stripped).strip()
+    return stripped
+
+
+def _heuristic_semantic_refine(candidates: list[dict]) -> list[dict]:
+    refined: dict[str, dict] = {}
+    for candidate in candidates:
+        if candidate['confidence'] < 45:
+            continue
+        if _is_shallow_candidate(candidate):
+            continue
+        key = _normalize_candidate_key(candidate)
+        if key in refined:
+            refined[key] = _merge_candidates(refined[key], candidate)
+        else:
+            refined[key] = candidate
+    results = sorted(
+        refined.values(),
+        key=lambda item: (item['confidence'], item['occurrences']),
+        reverse=True,
+    )
+    return results[:8]
+
+
+def _ai_semantic_refine(candidates: list[dict]) -> list[dict] | None:
+    if not candidates:
+        return []
+
+    prompt = (
+        "你是资深工程行为模式提炼器。输入是统计挖掘出的候选模式，其中有重复、浅层时间规律和噪声。"
+        "请过滤浅层模式，聚合重复候选，只保留真正对 AI 自动开发有操作价值的模式。"
+        "返回严格 JSON，格式为 "
+        '{"patterns":[{"name":"","description":"","category":"coding|review|git|devops|collaboration","confidence":80,'
+        '"occurrences":6,"examples":["..."],"trigger":"..."或{"when":"","event":"","context":["..."]},'
+        '"body":"markdown","learned_from_data":[{"context":"","insight":"","confidence":80}]}]}。\n\n'
+        f"候选模式:\n{json.dumps(candidates, ensure_ascii=False)}"
+    )
+
+    try:
+        text = ai_chat([{'role': 'user', 'content': prompt}], max_tokens=1200)
+        if not text:
+            return None
+        data = json.loads(_strip_json_fence(text))
+        raw_patterns = data.get('patterns', [])
+        refined = []
+        for index, item in enumerate(raw_patterns):
+            if not isinstance(item, dict):
+                continue
+            name = str(item.get('name', '')).strip()
+            description = str(item.get('description', '')).strip()
+            category = str(item.get('category', 'coding')).strip() or 'coding'
+            if not name or not description:
+                continue
+            refined.append({
+                'raw_name': name,
+                'name': name,
+                'description': description,
+                'type': 'semantic',
+                'category': category if category in ('coding', 'review', 'git', 'devops', 'collaboration') else 'coding',
+                'confidence': max(1, min(99, int(item.get('confidence', 70)))),
+                'occurrences': max(1, int(item.get('occurrences', 1))),
+                'examples': [str(example) for example in item.get('examples', []) if isinstance(example, str)][:4],
+                'trigger': item.get('trigger'),
+                'body': str(item.get('body', '')).strip() or f'## {name}\n\n{description}',
+                'learned_from_data': [
+                    evidence for evidence in item.get('learned_from_data', [])
+                    if isinstance(evidence, dict)
+                ][:5] or [{
+                    'context': f'ai_semantic_refine_{index}',
+                    'insight': description,
+                    'confidence': max(1, min(99, int(item.get('confidence', 70)))),
+                }],
+            })
+        return refined[:8]
+    except Exception:
+        return None
+
+
+def semantic_refine_patterns(patterns: list[MinedPattern]) -> list[dict]:
+    candidates = [_build_candidate_record(pattern) for pattern in patterns]
+    return _ai_semantic_refine(candidates) or _heuristic_semantic_refine(candidates)
 
 
 # 简化 action 为类别标签
@@ -240,105 +460,72 @@ def run_mining(db: Session):
     if not events:
         return []
 
-    mined = mine_all_patterns(events)
+    mined = semantic_refine_patterns(mine_all_patterns(events))
 
     # 将挖掘结果写入数据库
     import time
     saved = []
     for p in mined:
         # 检查是否已存在同名模式
-        existing = db.query(BehaviorPattern).filter(BehaviorPattern.name == p.name).first()
+        existing = db.query(BehaviorPattern).filter(BehaviorPattern.name == p['name']).first()
         if existing:
             # 更新置信度
             new_conf = int(bayesian_update(existing.confidence / 100, 0.1) * 100)
             existing.confidence = new_conf
             existing.confidence_level = _confidence_to_level(new_conf)
-            existing.evidence_count += p.occurrences
+            existing.evidence_count += p['occurrences']
+            existing.category = p['category']
+            existing.trigger = json.dumps(p['trigger'], ensure_ascii=False) if isinstance(p['trigger'], dict) else p['trigger']
+            existing.body = p['body']
+            existing.description = p['description']
             # 追加演化记录
             evolution = json.loads(existing.evolution) if existing.evolution else []
             evolution.append({
                 'date': datetime.now().strftime('%m-%d'),
                 'confidence': new_conf,
-                'event_description': f'挖掘更新: {p.occurrences} 次观察',
+                'event_description': f'语义聚合更新: {p["occurrences"]} 次观察',
             })
             existing.evolution = json.dumps(evolution)
-            # 追加 learned_from_data
             lfd = json.loads(existing.learned_from_data) if existing.learned_from_data else []
-            lfd.append({
-                'context': f'auto_mining_{datetime.now().strftime("%m%d")}',
-                'insight': f'{p.type} 模式再次确认，{p.occurrences} 次新观察',
-                'confidence': new_conf,
-            })
+            lfd.extend(p['learned_from_data'][:2])
             existing.learned_from_data = json.dumps(lfd)
-            saved.append(p.to_dict())
+            saved.append({
+                'name': p['name'],
+                'description': p['description'],
+                'confidence': new_conf,
+                'occurrences': p['occurrences'],
+                'category': p['category'],
+            })
         else:
-            # 新建模式 — ClawProfile v1 compliant
-            category_map = {'sequence': 'coding', 'time': 'devops', 'correlation': 'collaboration'}
-            slug = _name_to_slug(p.name)
-            conf_level = _confidence_to_level(p.confidence)
-
-            # 根据类型生成 trigger
-            trigger = None
-            if p.type == 'sequence':
-                steps = p.name.split(' -> ')
-                trigger = json.dumps({
-                    'when': f'检测到 {steps[0]} 动作',
-                    'event': steps[0],
-                    'context': [f'后续预期: {" → ".join(steps[1:])}'],
-                })
-            elif p.type == 'time':
-                trigger = f'时间模式: {p.name}'
-            elif p.type == 'correlation':
-                parts = p.name.split(' -> ')
-                trigger = json.dumps({
-                    'when': f'{parts[0]} 完成后',
-                    'event': parts[0] if len(parts) > 0 else p.name,
-                    'context': [f'关联动作: {parts[-1]}'] if len(parts) > 1 else [],
-                })
-
-            # 生成 body (prompt 正文)
-            body = f'## {p.name}\n\n{p.description}\n\n'
-            if p.examples:
-                body += '### 观察到的实例\n\n'
-                for ex in p.examples:
-                    body += f'- {ex}\n'
-
-            # 生成 learned_from_data
-            learned_from_data = [{
-                'context': f'auto_mining_{p.type}',
-                'insight': p.description,
-                'confidence': p.confidence,
-            }]
-            for ex in p.examples[:2]:
-                learned_from_data.append({
-                    'context': ex[:80],
-                    'insight': f'来自 {p.type} 挖掘的实例证据',
-                    'confidence': p.confidence,
-                })
-
             pattern = BehaviorPattern(
-                name=p.name, category=category_map.get(p.type, 'coding'),
-                description=p.description, confidence=p.confidence,
-                evidence_count=p.occurrences, learned_from='auto_mining',
-                rule=f'自动挖掘: {p.type}', created_at=int(time.time()),
+                name=p['name'], category=p['category'],
+                description=p['description'], confidence=p['confidence'],
+                evidence_count=p['occurrences'], learned_from='semantic_auto_mining',
+                rule='自动挖掘 + 语义聚合', created_at=int(time.time()),
                 status='learning',
                 evolution=json.dumps([{
                     'date': datetime.now().strftime('%m-%d'),
-                    'confidence': p.confidence,
-                    'event_description': f'首次发现: {p.occurrences} 次观察',
+                    'confidence': p['confidence'],
+                    'event_description': f'首次发现: {p["occurrences"]} 次观察',
                 }]),
                 rules=json.dumps([]),
                 executions=json.dumps([]),
-                applicable_scenarios=json.dumps(p.examples),
-                slug=slug,
-                trigger=trigger,
-                body=body,
+                applicable_scenarios=json.dumps(p['examples']),
+                slug=_name_to_slug(p['name']),
+                trigger=json.dumps(p['trigger'], ensure_ascii=False) if isinstance(p['trigger'], dict) else p['trigger'],
+                body=p['body'],
                 source='auto',
-                confidence_level=conf_level,
-                learned_from_data=json.dumps(learned_from_data),
+                confidence_level=_confidence_to_level(p['confidence']),
+                learned_from_data=json.dumps(p['learned_from_data'], ensure_ascii=False),
             )
             db.add(pattern)
-            saved.append(p.to_dict())
+            saved.append({
+                'name': p['name'],
+                'description': p['description'],
+                'confidence': p['confidence'],
+                'occurrences': p['occurrences'],
+                'category': p['category'],
+            })
 
     db.commit()
     return saved

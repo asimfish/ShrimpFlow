@@ -10,12 +10,24 @@ from schemas.event import DevEventResponse
 router = APIRouter(tags=["events"])
 
 
+def _normalized_source(row: DevEvent, tags: list[str]) -> str:
+    if row.source != 'vscode_cursor':
+        return row.source
+    tag_set = {tag.lower() for tag in tags}
+    if 'cursor' in tag_set:
+        return 'cursor'
+    if 'vscode' in tag_set or 'code' in tag_set:
+        return 'vscode'
+    return 'vscode'
+
+
 def _row_to_dict(row: DevEvent) -> dict:
+    tags = json.loads(row.tags) if row.tags else []
     return {
-        'id': row.id, 'timestamp': row.timestamp, 'source': row.source,
+        'id': row.id, 'timestamp': row.timestamp, 'source': _normalized_source(row, tags),
         'action': row.action, 'directory': row.directory, 'project': row.project,
         'branch': row.branch, 'exit_code': row.exit_code, 'duration_ms': row.duration_ms,
-        'semantic': row.semantic, 'tags': json.loads(row.tags) if row.tags else [],
+        'semantic': row.semantic, 'tags': tags,
         'openclaw_session_id': row.openclaw_session_id,
     }
 
@@ -50,15 +62,6 @@ def get_events(
     return [_row_to_dict(r) for r in rows]
 
 
-@router.get("/events/{event_id}", response_model=DevEventResponse)
-def get_event(event_id: int, db: Session = Depends(get_db)):
-    from fastapi import HTTPException
-    row = db.query(DevEvent).filter(DevEvent.id == event_id).first()
-    if not row:
-        raise HTTPException(status_code=404, detail="Event not found")
-    return _row_to_dict(row)
-
-
 import asyncio
 from fastapi.responses import StreamingResponse
 
@@ -67,8 +70,11 @@ _event_subscribers: list = []
 
 
 def notify_new_event(event_data: dict):
-    for q in _event_subscribers:
-        q.put_nowait(event_data)
+    for q in list(_event_subscribers):
+        try:
+            q.put_nowait(event_data)
+        except Exception:
+            pass
 
 
 async def _event_generator():
@@ -76,16 +82,35 @@ async def _event_generator():
     _event_subscribers.append(q)
     try:
         while True:
-            data = await asyncio.wait_for(q.get(), timeout=30)
-            yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
-    except asyncio.TimeoutError:
-        yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
+            try:
+                data = await asyncio.wait_for(q.get(), timeout=30)
+                yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+            except asyncio.TimeoutError:
+                yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
     except asyncio.CancelledError:
         pass
     finally:
-        _event_subscribers.remove(q)
+        if q in _event_subscribers:
+            _event_subscribers.remove(q)
 
 
 @router.get("/events/stream")
 async def stream_events():
-    return StreamingResponse(_event_generator(), media_type="text/event-stream")
+    return StreamingResponse(
+        _event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@router.get("/events/{event_id}", response_model=DevEventResponse)
+def get_event(event_id: int, db: Session = Depends(get_db)):
+    from fastapi import HTTPException
+    row = db.query(DevEvent).filter(DevEvent.id == event_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return _row_to_dict(row)

@@ -3,1575 +3,319 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ShrimpFlow — Developer Behavior Digital Twin</title>
-<meta name="description" content="ShrimpFlow: 开发者行为数字孪生平台。Record · Visualize · Learn · Become You. Powered by OpenClaw. AudaxLab Team.">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='13' cy='16' r='9' fill='none' stroke='%237c5cfc' stroke-width='1.5'/><circle cx='19' cy='16' r='9' fill='none' stroke='%23f59e0b' stroke-width='1.5'/><circle cx='16' cy='16' r='4' fill='%237c5cfc'/></svg>">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>DevTwin — 让 AI 认识你这个人</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{
-  --void:#0a0a0f;--s1:#12121a;--s2:#1a1a2e;--s3:#242438;
-  --accent:#7c5cfc;--accent-g:#9b82ff;--accent-dim:rgba(124,92,252,0.12);
-  --oc:#f59e0b;--oc-dim:rgba(245,158,11,0.12);
-  --term:#38bdf8;--git:#34d399;--claude:#a78bfa;--env:#f87171;--success:#10b981;
-}
-html{scroll-behavior:smooth}
-body{font-family:'Inter',-apple-system,sans-serif;background:var(--void);color:#c8c8d0;line-height:1.6;overflow-x:hidden}
-::-webkit-scrollbar{width:6px}
-::-webkit-scrollbar-track{background:var(--s1)}
-::-webkit-scrollbar-thumb{background:var(--s3);border-radius:3px}
-::-webkit-scrollbar-thumb:hover{background:var(--accent)}
-canvas#particles{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none}
-section{position:relative;z-index:1}
-.container{max-width:1200px;margin:0 auto;padding:0 32px}
-a{color:var(--accent-g);text-decoration:none;transition:color .2s}
-a:hover{color:#fff}
-.mono{font-family:'JetBrains Mono',monospace}
-
-/* Top nav */
-.top-nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:12px 32px;
-  background:rgba(10,10,15,.7);backdrop-filter:blur(16px);border-bottom:1px solid rgba(36,36,56,.5);
-  display:flex;align-items:center;justify-content:space-between;transition:all .3s}
-.top-nav.scrolled{background:rgba(10,10,15,.92);box-shadow:0 4px 24px rgba(0,0,0,.4)}
-.nav-left{display:flex;align-items:center;gap:12px}
-.nav-logo{height:32px;filter:drop-shadow(0 0 8px rgba(60,130,246,.3))}
-.nav-brand{font-size:17px;font-weight:800;color:#fff;
-  background:linear-gradient(135deg,#fff,var(--accent-g));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.nav-links{display:flex;gap:24px}
-.nav-links a{font-size:14px;color:#888;font-weight:500;transition:color .2s}
-.nav-links a:hover{color:var(--accent-g)}
-.nav-links a.active{color:var(--accent-g)}
-.nav-github{display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;
-  background:var(--accent-dim);border:1px solid rgba(124,92,252,.3);font-size:14px;color:var(--accent-g);font-weight:500;transition:all .3s}
-.nav-github:hover{background:rgba(124,92,252,.2);transform:translateY(-1px)}
+:root{--bg:#0a0a0f;--surface:#12121a;--surface2:#1a1a26;--surface3:#252535;--violet:#8b5cf6;--violet-dim:rgba(139,92,246,0.15);--emerald:#10b981;--amber:#f59e0b;--cyan:#06b6d4;--pink:#ec4899;--text:#e5e5e5;--text2:#9ca3af;--text3:#6b7280}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;overflow-x:hidden}
+.container{max-width:1100px;margin:0 auto;padding:0 24px}
 
 /* Hero */
-.hero{min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:100px 32px 60px;
-  background:radial-gradient(ellipse at 50% 30%,rgba(60,130,246,.06) 0%,transparent 60%),radial-gradient(ellipse at 50% 70%,rgba(60,180,248,.04) 0%,transparent 50%)}
-.hero-content{position:relative;z-index:2;max-width:720px}
-.hero-logo-main{margin-bottom:32px}
-.hero-shrimp-logo{height:160px;filter:drop-shadow(0 0 48px rgba(60,130,246,.2)) drop-shadow(0 0 96px rgba(60,180,248,.1));
-  animation:logoFloat 4s ease-in-out infinite}
-@keyframes logoFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
-.hero-subtitle{font-size:clamp(18px,3vw,24px);font-weight:600;color:#ccc;margin-bottom:28px;letter-spacing:1px}
-.hero-message{max-width:600px;margin:0 auto 28px;text-align:left;padding:24px 28px;
-  background:linear-gradient(145deg,var(--s2),var(--s1));border:1px solid var(--s3);border-radius:16px;
-  border-left:3px solid var(--accent)}
-.hero-message p{font-size:15px;color:#bbb;line-height:1.8;margin-bottom:12px}
-.hero-message p:last-child{margin-bottom:0}
-.hero-msg-dim{font-size:14px;color:#666}
-.hero-msg-highlight{font-size:16px;font-weight:600;color:var(--accent-g)}
-.hero-slogan{font-size:clamp(20px,3.5vw,28px);font-weight:800;margin-bottom:6px;
-  background:linear-gradient(135deg,#fff 0%,var(--accent-g) 50%,var(--oc) 100%);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.hero-slogan-sub{font-size:14px;color:#666;margin-bottom:36px;letter-spacing:1px}
-.cta-row{margin-bottom:48px;display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
-.hero-identity{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap;
-  padding:16px 24px;background:var(--s1);border:1px solid var(--s3);border-radius:12px}
-.hi-row{display:flex;align-items:center;gap:10px;padding:0 20px}
-.hi-team span{font-size:14px;font-weight:600;color:#ddd}
-.hi-academy span{font-size:13px;color:#888}
-.hi-event span{font-size:12px;color:#555}
-.hi-logo-team{height:32px;filter:drop-shadow(0 0 8px rgba(245,100,20,.2))}
-.hi-logo-academy{height:24px;filter:brightness(0) invert(1);opacity:.5}
-.hi-divider{width:1px;height:24px;background:var(--s3);flex-shrink:0}
-.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:10px;font-size:15px;font-weight:600;
-  border:1px solid var(--s3);transition:all .3s;cursor:pointer;font-family:inherit}
-.btn-primary{background:linear-gradient(135deg,var(--accent),#6a4ae0);border-color:var(--accent);color:#fff}
-.btn-primary:hover{background:linear-gradient(135deg,#6a4ae0,#5535c9);transform:translateY(-2px);box-shadow:0 8px 32px rgba(124,92,252,.4)}
-.btn-ghost{background:transparent;color:var(--accent-g)}
-.btn-ghost:hover{background:var(--accent-dim);transform:translateY(-2px)}
-.btn-oc{background:var(--oc-dim);border-color:rgba(245,158,11,.3);color:var(--oc)}
-.btn-oc:hover{background:rgba(245,158,11,.2);transform:translateY(-2px)}
-.scroll-hint{position:absolute;bottom:32px;left:50%;transform:translateX(-50%);color:#444;font-size:13px;animation:bounce 2s infinite}
-@keyframes bounce{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(8px)}}
+.hero{padding:80px 0 60px;text-align:center;position:relative}
+.hero::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:600px;height:600px;background:radial-gradient(circle,rgba(139,92,246,0.08) 0%,transparent 70%);pointer-events:none}
+.hero h1{font-size:3.2rem;font-weight:700;letter-spacing:-0.02em;background:linear-gradient(135deg,#fff 0%,#8b5cf6 50%,#06b6d4 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:16px}
+.hero .tagline{font-size:1.25rem;color:var(--text2);max-width:600px;margin:0 auto 32px}
+.hero .sub{font-size:0.9rem;color:var(--text3);max-width:500px;margin:0 auto}
+.badge{display:inline-block;padding:4px 14px;border-radius:20px;font-size:0.75rem;font-weight:500;border:1px solid var(--surface3);color:var(--text2);margin-bottom:20px}
 
-/* Section common */
-.sec{padding:100px 0}
-.sec-title{font-size:clamp(28px,4vw,42px);font-weight:800;text-align:center;margin-bottom:12px;
-  background:linear-gradient(135deg,#fff 30%,var(--accent-g));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.sec-sub{text-align:center;color:#666;font-size:16px;margin-bottom:56px;max-width:640px;margin-left:auto;margin-right:auto}
-.reveal{opacity:0;transform:translateY(32px);transition:opacity .7s ease,transform .7s ease}
-.reveal.revealed{opacity:1;transform:translateY(0)}
-.reveal-d1{transition-delay:.1s}.reveal-d2{transition-delay:.2s}.reveal-d3{transition-delay:.3s}.reveal-d4{transition-delay:.4s}
+/* Section */
+.section{padding:48px 0}
+.section-title{font-size:1.5rem;font-weight:600;margin-bottom:8px}
+.section-desc{color:var(--text2);font-size:0.9rem;margin-bottom:32px}
 
-/* Stats bar */
-.stats-bar{display:flex;justify-content:center;gap:48px;padding:48px 0;flex-wrap:wrap}
-.stat-item{text-align:center}
-.stat-num{font-size:clamp(36px,5vw,56px);font-weight:900;
-  background:linear-gradient(135deg,var(--accent-g),var(--oc));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.stat-label{font-size:14px;color:#666;margin-top:4px}
+/* Cards */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.card{background:var(--surface);border:1px solid var(--surface3);border-radius:16px;padding:24px;transition:border-color 0.2s}
+.card:hover{border-color:rgba(139,92,246,0.3)}
+.card-label{font-size:0.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px}
+.card-value{font-size:2rem;font-weight:700}
+.card-sub{font-size:0.8rem;color:var(--text2);margin-top:4px}
 
-/* Pipeline */
-.pipeline-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;position:relative}
-.pipe-card{background:linear-gradient(145deg,var(--s2),var(--s1));border:1px solid var(--s3);border-radius:16px;padding:28px 24px;position:relative;transition:all .3s;cursor:pointer}
-.pipe-card:hover{transform:translateY(-6px);box-shadow:0 16px 48px rgba(0,0,0,.5);border-color:rgba(124,92,252,.3)}
-.pipe-card.active{border-color:var(--accent);box-shadow:0 0 24px rgba(124,92,252,.15)}
-.pipe-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:22px}
-.pipe-card h3{font-size:20px;font-weight:700;margin-bottom:4px}
-.pipe-card .pipe-sub{font-size:13px;color:#666;margin-bottom:14px}
-.pipe-card ul{list-style:none;font-size:14px;color:#999;line-height:2}
-.pipe-arrow{position:absolute;top:50%;right:-14px;transform:translateY(-50%);color:#333;font-size:18px;z-index:2}
-.pipe-detail{margin-top:24px;background:var(--s2);border:1px solid var(--s3);border-radius:16px;padding:28px;
-  display:none;animation:slideDown .3s ease}
-.pipe-detail.show{display:block}
-@keyframes slideDown{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
+/* Radar */
+.radar-wrap{display:flex;align-items:center;gap:32px;justify-content:center}
+.radar-legend{display:flex;flex-direction:column;gap:12px}
+.legend-item{display:flex;align-items:center;gap:10px}
+.legend-dot{width:10px;height:10px;border-radius:50%}
+.legend-label{font-size:0.85rem;color:var(--text2)}
+.legend-score{font-size:0.85rem;font-weight:600;margin-left:auto;min-width:36px;text-align:right}
 
-/* Interactive demo */
-.demo-container{background:var(--s1);border:1px solid var(--s3);border-radius:20px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.5),0 0 0 1px rgba(124,92,252,.05)}
-.demo-toolbar{display:flex;align-items:center;gap:8px;padding:12px 20px;background:var(--s2);border-bottom:1px solid var(--s3)}
-.demo-dot{width:10px;height:10px;border-radius:50%}
-.demo-tabs{display:flex;gap:4px;margin-left:16px}
-.demo-tab{padding:6px 16px;border-radius:6px;font-size:13px;color:#888;cursor:pointer;transition:all .2s;border:none;background:none;font-family:inherit}
-.demo-tab:hover{color:#ccc;background:var(--s3)}
-.demo-tab.active{color:var(--accent-g);background:var(--accent-dim)}
-.demo-body{min-height:480px;position:relative}
-.demo-panel{display:none;padding:24px;animation:fadeIn .3s ease}
-.demo-panel.active{display:block}
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+/* Progress */
+.progress-bar{height:8px;background:var(--surface3);border-radius:4px;overflow:hidden;margin:8px 0}
+.progress-fill{height:100%;border-radius:4px;transition:width 1.5s ease}
 
-/* Event stream */
-.event-stream{display:flex;flex-direction:column;gap:6px;max-height:400px;overflow-y:auto;padding-right:8px}
-.event-item{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--s2);border:1px solid var(--s3);
-  border-radius:10px;font-size:13px;transition:all .3s;cursor:pointer;animation:eventIn .4s ease}
-.event-item:hover{border-color:var(--accent);background:rgba(124,92,252,.05)}
-.event-item .ev-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.event-item .ev-time{color:#555;font-family:'JetBrains Mono',monospace;font-size:11px;width:56px;flex-shrink:0}
-.event-item .ev-source{font-size:11px;padding:2px 8px;border-radius:4px;font-weight:500;flex-shrink:0}
-.event-item .ev-text{color:#aaa;flex:1}
-@keyframes eventIn{from{opacity:0;transform:translateX(-16px)}to{opacity:1;transform:translateX(0)}}
+/* Comparison */
+.compare-table{width:100%;border-collapse:collapse;font-size:0.85rem}
+.compare-table th{text-align:left;padding:12px 16px;color:var(--text3);font-weight:500;border-bottom:1px solid var(--surface3)}
+.compare-table td{padding:12px 16px;border-bottom:1px solid rgba(37,37,53,0.5)}
+.compare-table tr:hover td{background:rgba(139,92,246,0.03)}
+.check{color:var(--emerald)}
+.cross{color:var(--text3)}
+.star{color:var(--violet)}
 
-/* Pattern cards in demo */
-.pattern-result{background:var(--s2);border:1px solid var(--s3);border-radius:12px;padding:20px;margin-bottom:12px;transition:all .3s}
-.pattern-result:hover{border-color:var(--accent)}
-.pattern-bar{height:6px;border-radius:3px;background:var(--s3);margin-top:8px;overflow:hidden}
-.pattern-bar-fill{height:100%;border-radius:3px;transition:width 1.5s ease}
-.pattern-sequence{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap}
-.pattern-step{padding:4px 10px;border-radius:6px;font-size:12px;font-weight:500}
-.pattern-arrow-sm{color:#444;font-size:14px}
+/* Timeline */
+.timeline{position:relative;padding-left:24px}
+.timeline::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:2px;background:linear-gradient(180deg,var(--violet),var(--cyan))}
+.tl-item{position:relative;padding:12px 0 12px 20px}
+.tl-item::before{content:'';position:absolute;left:-20px;top:18px;width:10px;height:10px;border-radius:50%;background:var(--violet);border:2px solid var(--bg)}
+.tl-title{font-size:0.9rem;font-weight:500}
+.tl-desc{font-size:0.8rem;color:var(--text2);margin-top:2px}
 
-/* Screenshot gallery */
-.gallery{position:relative;overflow:hidden;border-radius:20px;border:1px solid var(--s3);background:var(--s1);box-shadow:0 24px 64px rgba(0,0,0,.4)}
-.gallery-track{display:flex;transition:transform .5s cubic-bezier(.4,0,.2,1)}
-.gallery-slide{min-width:100%;position:relative}
-.gallery-slide img{width:100%;display:block;border-radius:0}
-.gallery-slide .slide-caption{position:absolute;bottom:0;left:0;right:0;padding:24px 32px;
-  background:linear-gradient(transparent,rgba(10,10,15,.9));color:#fff}
-.gallery-slide .slide-caption h3{font-size:20px;font-weight:700;margin-bottom:4px}
-.gallery-slide .slide-caption p{font-size:14px;color:#aaa}
-.gallery-nav{display:flex;justify-content:center;gap:8px;margin-top:16px}
-.gallery-dot{width:8px;height:8px;border-radius:50%;background:var(--s3);cursor:pointer;transition:all .3s;border:none}
-.gallery-dot.active{background:var(--accent);width:24px;border-radius:4px}
-.gallery-btn{position:absolute;top:50%;transform:translateY(-50%);width:40px;height:40px;border-radius:50%;
-  background:rgba(10,10,15,.7);border:1px solid var(--s3);color:#fff;cursor:pointer;display:flex;align-items:center;
-  justify-content:center;z-index:5;transition:all .3s;backdrop-filter:blur(8px)}
-.gallery-btn:hover{background:var(--accent-dim);border-color:var(--accent)}
-.gallery-btn.prev{left:16px}
-.gallery-btn.next{right:16px}
+/* CTA */
+.cta{text-align:center;padding:60px 0 80px}
+.cta-btn{display:inline-block;padding:14px 36px;background:linear-gradient(135deg,var(--violet),#6d28d9);color:#fff;border-radius:12px;font-size:1rem;font-weight:500;text-decoration:none;transition:transform 0.2s,box-shadow 0.2s}
+.cta-btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(139,92,246,0.3)}
 
-/* Algo */
-.algo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
-.algo-card{background:linear-gradient(145deg,var(--s2),var(--s1));border:1px solid var(--s3);border-radius:16px;padding:28px;transition:all .3s}
-.algo-card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.4);border-color:rgba(124,92,252,.25)}
-.algo-card h3{font-size:18px;font-weight:700;margin-bottom:4px}
-.algo-card .algo-en{font-size:12px;color:#555;margin-bottom:14px;font-family:'JetBrains Mono',monospace}
-.algo-card p{font-size:14px;color:#888;line-height:1.7}
-.algo-example{margin-top:12px;padding:12px 14px;background:var(--s1);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#aaa;line-height:1.7}
+/* Before/After */
+.ba-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border-radius:12px;overflow:hidden;border:1px solid var(--surface3)}
+.ba-col{padding:24px}
+.ba-col.without{background:rgba(239,68,68,0.04)}
+.ba-col.with{background:rgba(16,185,129,0.04)}
+.ba-label{font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px}
 
-/* Compare */
-.compare-wrap{display:grid;grid-template-columns:1fr auto 1fr;max-width:960px;margin:0 auto;
-  background:linear-gradient(145deg,var(--s2),var(--s1));border:1px solid var(--s3);border-radius:16px;overflow:hidden}
-.compare-col{padding:32px}
-.compare-col h3{font-size:18px;font-weight:700;margin-bottom:16px}
-.compare-col ul{list-style:none;font-size:14px;color:#999;line-height:2.2}
-.compare-col ul li::before{content:'·';margin-right:8px;font-weight:700}
-.compare-vs{display:flex;align-items:center;justify-content:center;padding:0 24px;
-  font-size:28px;font-weight:900;color:#333;border-left:1px solid var(--s3);border-right:1px solid var(--s3)}
+/* Flywheel */
+.flywheel{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;padding:20px 0}
+.fw-step{background:var(--surface2);border:1px solid var(--surface3);border-radius:12px;padding:12px 18px;font-size:0.8rem;text-align:center}
+.fw-arrow{color:var(--violet);font-size:1.2rem}
 
-/* Tech */
-.tech-grid{display:flex;flex-wrap:wrap;gap:16px;justify-content:center}
-.tech-chip{display:flex;align-items:center;gap:10px;padding:14px 24px;background:linear-gradient(145deg,var(--s2),var(--s1));border:1px solid var(--s3);
-  border-radius:12px;font-size:15px;font-weight:500;color:#ccc;transition:all .3s}
-.tech-chip:hover{border-color:var(--accent);transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.3),0 0 16px rgba(124,92,252,.1)}
-.tech-chip .tc-icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700}
-
-/* Data flow animation */
-.dataflow{display:flex;align-items:center;gap:0;overflow-x:auto;padding:20px 0}
-.df-node{padding:14px 20px;border-radius:12px;background:linear-gradient(145deg,var(--s2),var(--s1));border:1px solid var(--s3);text-align:center;
-  min-width:120px;flex-shrink:0;transition:all .3s}
-.df-node:hover{transform:scale(1.08);border-color:var(--accent);box-shadow:0 4px 16px rgba(0,0,0,.3)}
-.df-node h4{font-size:14px;font-weight:600;margin-bottom:2px}
-.df-node p{font-size:11px;color:#666}
-.df-arrow{padding:0 8px;color:#444;font-size:20px;flex-shrink:0;animation:arrowPulse 2s infinite}
-@keyframes arrowPulse{0%,100%{opacity:.4}50%{opacity:1;color:var(--accent-g)}}
-
-/* Footer */
-.footer{border-top:1px solid var(--s3);padding:64px 0;text-align:center;
-  background:linear-gradient(180deg,transparent,rgba(124,92,252,.02))}
-.footer-identity{display:flex;flex-direction:column;align-items:center;gap:16px;margin-bottom:32px}
-.fi-project{margin-bottom:4px}
-.fi-team{display:flex;align-items:center;gap:12px}
-.fi-academy{display:flex;align-items:center;gap:10px}
-.footer p{font-size:14px;color:#555}
-.footer-links{display:flex;gap:24px;justify-content:center;margin-bottom:16px}
-.footer-links a{font-size:14px;color:#666}
-
-/* Showcase: Video + Interactive */
-.showcase-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:48px}
-
-/* ClawProfile */
-.cp-flow{display:flex;align-items:stretch;gap:0;margin-bottom:48px}
-.cp-flow-step{flex:1;text-align:center;padding:20px 16px;background:linear-gradient(145deg,var(--s2),var(--s1));border:1px solid var(--s3);position:relative;transition:all .3s;cursor:pointer}
-.cp-flow-step:first-child{border-radius:16px 0 0 16px}
-.cp-flow-step:last-child{border-radius:0 16px 16px 0}
-.cp-flow-step:hover,.cp-flow-step.active{z-index:2;transform:translateY(-4px);box-shadow:0 8px 24px rgba(0,0,0,.4)}
-.cp-flow-step.active{border-color:var(--accent)}
-.cp-flow-num{width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;margin-bottom:8px}
-.cp-flow-step h4{font-size:14px;font-weight:700;color:#fff;margin-bottom:4px}
-.cp-flow-step p{font-size:11px;color:#666;line-height:1.4}
-.cp-flow-arrow{position:absolute;right:-10px;top:50%;transform:translateY(-50%);z-index:3;color:#444;font-size:16px}
-.cp-viewer{background:linear-gradient(145deg,var(--s2),var(--s1));border:1px solid var(--s3);border-radius:16px;overflow:hidden;min-height:420px}
-.cp-viewer-header{padding:16px 24px;border-bottom:1px solid var(--s3);display:flex;align-items:center;justify-content:space-between}
-.cp-viewer-header h3{font-size:16px;font-weight:700;color:#fff}
-.cp-viewer-body{padding:24px;animation:fadeIn .3s ease}
-.cp-profile-bar{display:flex;align-items:center;gap:20px;padding:20px 24px;background:var(--s1);border:1px solid var(--s3);border-radius:12px;margin-bottom:24px}
-.cp-avatar{width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,var(--accent),var(--oc));display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#fff;flex-shrink:0}
-.cp-meta{flex:1}
-.cp-meta h4{font-size:16px;font-weight:700;color:#fff}
-.cp-meta p{font-size:13px;color:#666}
-.cp-stats-row{display:flex;gap:16px}
-.cp-stat{text-align:center;padding:8px 16px;background:var(--s2);border-radius:8px;border:1px solid var(--s3)}
-.cp-stat .num{font-size:18px;font-weight:800}
-.cp-stat .lbl{font-size:10px;color:#555;margin-top:2px}
-@media(max-width:900px){
-  .cp-flow{flex-direction:column;gap:8px}
-  .cp-flow-step{border-radius:12px}
-  .cp-flow-arrow{display:none}
-  .cp-profile-bar{flex-direction:column;text-align:center}
-  .cp-stats-row{flex-wrap:wrap;justify-content:center}
-}
-.showcase-card{background:linear-gradient(145deg,var(--s2),var(--s1));border:1px solid var(--s3);border-radius:16px;overflow:hidden;transition:all .3s}
-.showcase-card:hover{border-color:rgba(124,92,252,.3);box-shadow:0 12px 40px rgba(0,0,0,.4);transform:translateY(-4px)}
-.showcase-card-full{grid-column:1/-1}
-.showcase-header{padding:20px 24px 0;display:flex;align-items:center;gap:12px}
-.showcase-header .sh-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px}
-.showcase-header h3{font-size:16px;font-weight:700;color:#fff}
-.showcase-header p{font-size:13px;color:#666;margin-top:2px}
-.showcase-body{padding:16px 24px 24px}
-.showcase-video{width:100%;border-radius:12px;background:#000;aspect-ratio:16/9}
-.showcase-iframe{width:100%;height:480px;border:none;border-radius:12px;background:var(--void)}
-@media(max-width:900px){
-  .showcase-grid{grid-template-columns:1fr}
-  .showcase-iframe{height:360px}
-}
-
-/* Responsive */
-@media(max-width:900px){
-  .pipeline-grid{grid-template-columns:1fr 1fr;gap:16px}
-  .pipe-arrow{display:none}
-  .algo-grid{grid-template-columns:1fr}
-  .compare-wrap{grid-template-columns:1fr}
-  .compare-vs{border-left:none;border-right:none;border-top:1px solid var(--s3);border-bottom:1px solid var(--s3);padding:12px}
-  .stats-bar{gap:24px}
-  .nav-links{display:none}
-  .top-nav{padding:10px 16px}
-}
-@media(max-width:480px){
-  .pipeline-grid{grid-template-columns:1fr}
-  .cta-row{flex-direction:column;align-items:center}
-  .container{padding:0 16px}
-  .sec{padding:64px 0}
-  .hero-shrimp-logo{height:100px}
-  .hero-identity{flex-direction:column;gap:12px}
-  .hi-divider{width:40px;height:1px}
-  .fi-team{flex-direction:column;gap:8px}
+@media(max-width:768px){
+  .grid2,.grid3{grid-template-columns:1fr}
+  .hero h1{font-size:2rem}
+  .radar-wrap{flex-direction:column}
+  .ba-grid{grid-template-columns:1fr}
 }
 </style>
 </head>
 <body>
 
-<canvas id="particles"></canvas>
-
-<!-- Top Navigation -->
-<nav class="top-nav" id="topNav">
-  <div class="nav-left">
-    <img src="assets/shrimpflow_logo_new.png" alt="ShrimpFlow" class="nav-logo">
-    <span class="nav-brand">ShrimpFlow</span>
-  </div>
-  <div class="nav-links" id="navLinks">
-    <a href="#architecture">Architecture</a>
-    <a href="#demo">Live Demo</a>
-    <a href="#features">Features</a>
-    <a href="#algorithms">Algorithms</a>
-    <a href="#clawprofile">ClawProfile</a>
-    <a href="#showcase">Showcase</a>
-    <a href="#team">Team</a>
-  </div>
-  <a class="nav-github" href="https://github.com/ChangWinde/ShrimpFlow/tree/main" target="_blank">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
-    GitHub
-  </a>
-</nav>
-
 <!-- Hero -->
-<section class="hero" id="hero">
-  <div class="hero-content">
-    <!-- Project Logo (主角) -->
-    <div class="hero-logo-main">
-      <img src="assets/shrimpflow_logo_new.png" alt="ShrimpFlow" class="hero-shrimp-logo">
-    </div>
-
-    <!-- Subtitle -->
-    <p class="hero-subtitle">程序员的行为记忆与协作驱动系统</p>
-
-    <!-- Core message -->
-    <div class="hero-message">
-      <p>AI 编程助手最大的问题不是不够聪明，而是不够了解你。每次对话结束，上下文随即消失 —— 它不记得你昨天解决过什么问题，不了解你偏好的代码风格，也不知道你积累了哪些技术判断。</p>
-      <p class="hero-msg-dim">ShrimpFlow 记录你在终端、Git、OpenClaw、Claude Code 中的每一次操作和对话 session，将其可视化为日报、周报和完整的开发生涯画像。然后通过模式挖掘，将碎片化的行为数据归纳为你的 lifelong 行为模式数字孪生。</p>
-      <p class="hero-msg-highlight">最终，这些行为模式被打包为 ClawProfile，一键下发给 Team Flow 驱动个性化项目开发 —— 你也可以在社区分享自己的虾行为模式，或导入其他大佬的 ClawProfile 来接管你的开发 workflow。</p>
-    </div>
-
-    <!-- Slogan -->
-    <p class="hero-slogan">让每一只虾都可以成为澳洲大龙虾</p>
-    <p class="hero-slogan-sub">Make Hinton in Your Compute —— 导入顶级程序员的行为模式，从小虾直接进化成滔天大虾</p>
-
-    <div class="cta-row">
-      <a class="btn btn-primary" href="#demo">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        Interactive Demo
-      </a>
-      <a class="btn btn-ghost" href="https://github.com/ChangWinde/ShrimpFlow/tree/main" target="_blank">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
-        View Source
-      </a>
-      <a class="btn btn-oc" href="#showcase">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        Watch Demo
-      </a>
-      <a class="btn btn-ghost" href="https://github.com/ChangWinde/ShrimpFlow/blob/main/ShrimpFlow.pdf" target="_blank">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-        Technical Report
-      </a>
-    </div>
-
-    <!-- 三级标识: 项目 → 团队 → 学院 (有层次) -->
-    <div class="hero-identity">
-      <div class="hi-row hi-team">
-        <img src="assets/audaxlab_logo.png" alt="AudaxLab" class="hi-logo-team">
-        <span>AudaxLab Team</span>
-      </div>
-      <div class="hi-divider"></div>
-      <div class="hi-row hi-academy">
-        <img src="assets/academy_logo.png" alt="Academy" class="hi-logo-academy">
-        <span>北京中关村学院</span>
-      </div>
-      <div class="hi-divider"></div>
-      <div class="hi-row hi-event">
-        <span>Powered by OpenClaw · Hackathon 2025</span>
-      </div>
-    </div>
-  </div>
-  <div class="scroll-hint">scroll to explore ↓</div>
+<section class="hero">
+<div class="container">
+  <div class="badge">ShrimpFlow / DevTwin</div>
+  <h1>让 AI 认识你这个人</h1>
+  <p class="tagline">不是记住你做过什么，而是知道你怎么思考。<br>第一个将用户认知风格编码为可执行 AI 规范的系统。</p>
+  <p class="sub">从 51 次真实 AI 对话中，DevTwin 已自动提炼出你的研究品味、工作习惯和认知偏好。</p>
+</div>
 </section>
 
-<!-- Stats -->
-<section style="position:relative;z-index:1;border-bottom:1px solid var(--s3)">
-  <div class="container">
-    <div class="stats-bar reveal">
-      <div class="stat-item"><div class="stat-num" data-count="5">0</div><div class="stat-label">Data Sources</div></div>
-      <div class="stat-item"><div class="stat-num" data-count="4">0</div><div class="stat-label">Pipeline Layers</div></div>
-      <div class="stat-item"><div class="stat-num" data-count="3">0</div><div class="stat-label">Mining Algorithms</div></div>
-      <div class="stat-item"><div class="stat-num" data-count="1247">0</div><div class="stat-label">Events Tracked</div></div>
-      <div class="stat-item"><div class="stat-num" data-count="6">0</div><div class="stat-label">Patterns Learned</div></div>
+<!-- 核心数据 -->
+<section class="section">
+<div class="container">
+  <div class="section-title">真实数据，不是 Mock</div>
+  <p class="section-desc">以下所有数据来自一位真实开发者 409 天的工作轨迹</p>
+  <div class="grid3">
+    <div class="card">
+      <div class="card-label">行为事件</div>
+      <div class="card-value">3,784</div>
+      <div class="card-sub">跨 253 个项目 · 409 天</div>
+    </div>
+    <div class="card">
+      <div class="card-label">AI 对话分析</div>
+      <div class="card-value">51</div>
+      <div class="card-sub">OpenClaw + Claude Code + Codex</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Twin 成熟度</div>
+      <div class="card-value" style="color:var(--violet)">71%</div>
+      <div class="card-sub">成长期 — 核心偏好已建立</div>
     </div>
   </div>
+</div>
 </section>
 
-<!-- Architecture Pipeline -->
-<section class="sec" id="architecture">
-  <div class="container">
-    <h2 class="sec-title reveal">Four-Layer Pipeline</h2>
-    <p class="sec-sub reveal">5 种异构数据源 → 统一 DevEvent → 四层处理管线 → 团队工作流</p>
-
-    <!-- Data flow animation -->
-    <div class="dataflow reveal" style="margin-bottom:40px">
-      <div class="df-node" style="border-color:var(--term)"><h4 style="color:var(--term)">Terminal</h4><p>Shell 命令</p></div>
-      <div class="df-node" style="border-color:var(--git)"><h4 style="color:var(--git)">Git</h4><p>版本控制</p></div>
-      <div class="df-node" style="border-color:var(--oc)"><h4 style="color:var(--oc)">OpenClaw</h4><p>AI 对话</p></div>
-      <div class="df-node" style="border-color:var(--claude)"><h4 style="color:var(--claude)">Claude</h4><p>代码编辑</p></div>
-      <div class="df-node" style="border-color:var(--env)"><h4 style="color:var(--env)">Env</h4><p>系统环境</p></div>
-      <div class="df-arrow">→</div>
-      <div class="df-node" style="border-color:var(--accent);background:var(--accent-dim)"><h4 style="color:var(--accent-g)">DevEvent</h4><p>统一结构</p></div>
-      <div class="df-arrow">→</div>
-      <div class="df-node" style="border-color:var(--accent)"><h4 style="color:var(--accent-g)">Shadow</h4><p>采集</p></div>
-      <div class="df-arrow">→</div>
-      <div class="df-node" style="border-color:var(--oc)"><h4 style="color:var(--oc)">Mirror</h4><p>可视化</p></div>
-      <div class="df-arrow">→</div>
-      <div class="df-node" style="border-color:var(--claude)"><h4 style="color:var(--claude)">Brain</h4><p>模式学习</p></div>
-      <div class="df-arrow">→</div>
-      <div class="df-node" style="border-color:var(--success)"><h4 style="color:var(--success)">Autopilot</h4><p>团队下发</p></div>
+<!-- 研究品味雷达 -->
+<section class="section" style="background:var(--surface)">
+<div class="container">
+  <div class="section-title">研究品味雷达</div>
+  <p class="section-desc">从 AI 对话的推理结构中提炼出的 5 维度认知画像</p>
+  <div class="radar-wrap">
+    <svg viewBox="0 0 300 300" width="280" height="280">
+      <!-- Grid -->
+      <polygon points="150,40 254,110 214,230 86,230 46,110" fill="none" stroke="#252535" stroke-width="1"/>
+      <polygon points="150,67.5 227,120 195,210 105,210 73,120" fill="none" stroke="#252535" stroke-width="1"/>
+      <polygon points="150,95 200,130 176,190 124,190 100,130" fill="none" stroke="#252535" stroke-width="1"/>
+      <polygon points="150,122.5 173,140 162,170 138,170 127,140" fill="none" stroke="#252535" stroke-width="1"/>
+      <!-- Axes -->
+      <line x1="150" y1="150" x2="150" y2="40" stroke="#252535"/>
+      <line x1="150" y1="150" x2="254" y2="110" stroke="#252535"/>
+      <line x1="150" y1="150" x2="214" y2="230" stroke="#252535"/>
+      <line x1="150" y1="150" x2="86" y2="230" stroke="#252535"/>
+      <line x1="150" y1="150" x2="46" y2="110" stroke="#252535"/>
+      <!-- Data: rigor=38 elegance=20 novelty=60 simplicity=73 reproducibility=89 -->
+      <polygon points="150,108.2 170.8,134 188.4,198 93.4,208.6 57.2,114.8"
+        fill="rgba(139,92,246,0.2)" stroke="#8b5cf6" stroke-width="2"/>
+      <!-- Dots -->
+      <circle cx="150" cy="108.2" r="4" fill="#6366f1"/>
+      <circle cx="170.8" cy="134" r="4" fill="#ec4899"/>
+      <circle cx="188.4" cy="198" r="4" fill="#f59e0b"/>
+      <circle cx="93.4" cy="208.6" r="4" fill="#10b981"/>
+      <circle cx="57.2" cy="114.8" r="4" fill="#06b6d4"/>
+      <!-- Labels -->
+      <text x="150" y="30" text-anchor="middle" fill="#9ca3af" font-size="11">理论严谨 38</text>
+      <text x="268" y="112" text-anchor="start" fill="#9ca3af" font-size="11">解法优雅 20</text>
+      <text x="224" y="245" text-anchor="start" fill="#9ca3af" font-size="11">创新导向 60</text>
+      <text x="76" y="245" text-anchor="end" fill="#9ca3af" font-size="11">极简主义 73</text>
+      <text x="32" y="112" text-anchor="end" fill="#9ca3af" font-size="11">可复现性 89</text>
+    </svg>
+    <div class="radar-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#06b6d4"></div><span class="legend-label">可复现性</span><span class="legend-score" style="color:#06b6d4">89</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div><span class="legend-label">极简主义</span><span class="legend-score" style="color:#10b981">73</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div><span class="legend-label">创新导向</span><span class="legend-score" style="color:#f59e0b">60</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:#6366f1"></div><span class="legend-label">理论严谨</span><span class="legend-score" style="color:#6366f1">38</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ec4899"></div><span class="legend-label">解法优雅</span><span class="legend-score" style="color:#ec4899">20</span></div>
     </div>
-
-    <div class="pipeline-grid">
-      <div class="pipe-card reveal" style="border-top:3px solid var(--accent)" onclick="togglePipe(0)">
-        <div class="pipe-icon" style="background:var(--accent-dim)">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-g)" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-        </div>
-        <h3 style="color:var(--accent-g)">Shadow</h3>
-        <p class="pipe-sub">Collect Layer</p>
-        <ul><li>Shell / Git Hook 采集</li><li>OpenClaw API 监听</li><li>统一 DevEvent 结构</li><li>本地 SQLite 加密存储</li></ul>
-        <div class="pipe-arrow">→</div>
-      </div>
-      <div class="pipe-card reveal reveal-d1" style="border-top:3px solid var(--oc)" onclick="togglePipe(1)">
-        <div class="pipe-icon" style="background:var(--oc-dim)">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--oc)" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-        </div>
-        <h3 style="color:var(--oc)">Mirror</h3>
-        <p class="pipe-sub">Visualize Layer</p>
-        <ul><li>D3 力导向技能图谱</li><li>Canvas 多泳道时间线</li><li>日历热力图</li><li>实时事件流</li></ul>
-        <div class="pipe-arrow">→</div>
-      </div>
-      <div class="pipe-card reveal reveal-d2" style="border-top:3px solid var(--claude)" onclick="togglePipe(2)">
-        <div class="pipe-icon" style="background:rgba(167,139,250,.12)">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--claude)" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/></svg>
-        </div>
-        <h3 style="color:var(--claude)">Brain</h3>
-        <p class="pipe-sub">Pattern Mining</p>
-        <ul><li>频繁序列挖掘</li><li>时间模式检测</li><li>关联规则挖掘</li><li>贝叶斯置信度更新</li></ul>
-        <div class="pipe-arrow">→</div>
-      </div>
-      <div class="pipe-card reveal reveal-d3" style="border-top:3px solid var(--success)" onclick="togglePipe(3)">
-        <div class="pipe-icon" style="background:rgba(16,185,129,.12)">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/></svg>
-        </div>
-        <h3 style="color:var(--success)">Autopilot</h3>
-        <p class="pipe-sub">Distribute Layer</p>
-        <ul><li>Workflow 组合</li><li>团队一键下发</li><li>社区模式市场</li><li>反馈闭环优化</li></ul>
-      </div>
-    </div>
-    <!-- Pipe detail panel -->
-    <div class="pipe-detail" id="pipeDetail"></div>
   </div>
+  <p style="text-align:center;color:var(--text3);font-size:0.8rem;margin-top:20px">
+    关键洞察: 极度重视可复现性 (89) — 对话中频繁提及环境配置/随机种子，确保结果可复现
+  </p>
+</div>
 </section>
 
-<!-- Interactive Demo -->
-<section class="sec" id="demo" style="background:linear-gradient(180deg,transparent,rgba(124,92,252,.02),transparent)">
-  <div class="container">
-    <h2 class="sec-title reveal">Interactive Demo</h2>
-    <p class="sec-sub reveal">体验 ShrimpFlow 的实际工作流程: 从事件采集到模式发现</p>
-    <div class="demo-container reveal">
-      <div class="demo-toolbar">
-        <div class="demo-dot" style="background:#ff5f57"></div>
-        <div class="demo-dot" style="background:#febc2e"></div>
-        <div class="demo-dot" style="background:#28c840"></div>
-        <div class="demo-tabs">
-          <button class="demo-tab active" onclick="switchDemo(0)">Shadow: Event Stream</button>
-          <button class="demo-tab" onclick="switchDemo(1)">Brain: Pattern Mining</button>
-          <button class="demo-tab" onclick="switchDemo(2)">Autopilot: Workflow</button>
-        </div>
-      </div>
-      <div class="demo-body">
-        <!-- Panel 0: Event Stream -->
-        <div class="demo-panel active" id="demoPanel0">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-            <div>
-              <h3 style="font-size:16px;color:#fff">Real-time Event Stream</h3>
-              <p style="font-size:13px;color:#666">Shadow 层正在采集开发行为事件</p>
-            </div>
-            <button onclick="addRandomEvent()" style="padding:8px 16px;border-radius:8px;background:var(--accent-dim);border:1px solid rgba(124,92,252,.3);color:var(--accent-g);font-size:13px;cursor:pointer;font-family:inherit;transition:all .2s"
-              onmouseover="this.style.background='rgba(124,92,252,.2)'" onmouseout="this.style.background='var(--accent-dim)'">
-              + Simulate Event
-            </button>
-          </div>
-          <div class="event-stream" id="eventStream"></div>
-        </div>
-        <!-- Panel 1: Pattern Mining -->
-        <div class="demo-panel" id="demoPanel1">
-          <div style="margin-bottom:16px">
-            <h3 style="font-size:16px;color:#fff">Discovered Patterns</h3>
-            <p style="font-size:13px;color:#666">Brain 层从事件流中自动挖掘出的行为模式</p>
-          </div>
-          <div id="patternResults"></div>
-        </div>
-        <!-- Panel 2: Workflow -->
-        <div class="demo-panel" id="demoPanel2">
-          <div style="margin-bottom:16px">
-            <h3 style="font-size:16px;color:#fff">Team Workflow</h3>
-            <p style="font-size:13px;color:#666">Autopilot 层将模式组合为可分发的团队工作流</p>
-          </div>
-          <div id="workflowDemo"></div>
-        </div>
+<!-- Claw the Claw -->
+<section class="section">
+<div class="container">
+  <div class="section-title">Claw the Claw — 自进化规范</div>
+  <p class="section-desc">你的 AI 工作规范不需要你写，会自己生长</p>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-label">已挖掘规范</div>
+      <div class="card-value">81</div>
+      <div class="card-sub">35 个已确认 · 每 30 分钟自动进化</div>
+      <div class="progress-bar"><div class="progress-fill" style="width:43%;background:linear-gradient(90deg,var(--violet),var(--cyan))"></div></div>
+      <div style="font-size:0.75rem;color:var(--text3)">确认率 43% — 对齐分数持续上升中</div>
+    </div>
+    <div class="card">
+      <div class="card-label">最新挖掘结果</div>
+      <div style="font-size:0.85rem;margin-top:8px">
+        <div style="padding:6px 0;border-bottom:1px solid var(--surface3)"><span style="color:var(--emerald)">98%</span> 供应商故障快速诊断规范</div>
+        <div style="padding:6px 0;border-bottom:1px solid var(--surface3)"><span style="color:var(--emerald)">98%</span> 步骤化思考习惯</div>
+        <div style="padding:6px 0;border-bottom:1px solid var(--surface3)"><span style="color:var(--cyan)">98%</span> AI 协作功能开发工作流</div>
+        <div style="padding:6px 0;border-bottom:1px solid var(--surface3)"><span style="color:var(--cyan)">97%</span> 连续小步提交迭代工作流</div>
+        <div style="padding:6px 0"><span style="color:var(--cyan)">97%</span> 提交前质量检查工作流</div>
       </div>
     </div>
   </div>
+</div>
 </section>
 
-<!-- Screenshot Gallery -->
-<section class="sec" id="features">
-  <div class="container">
-    <h2 class="sec-title reveal">Feature Gallery</h2>
-    <p class="sec-sub reveal">系统实际运行截图</p>
-    <div class="gallery reveal" id="gallery">
-      <button class="gallery-btn prev" onclick="galleryPrev()">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-      </button>
-      <button class="gallery-btn next" onclick="galleryNext()">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-      </button>
-      <div class="gallery-track" id="galleryTrack">
-        <div class="gallery-slide"><img src="assets/screenshot_1.png" alt="Dashboard" loading="lazy"><div class="slide-caption"><h3>Dashboard</h3><p>统计总览 - 事件分布、技能排行、行为模式洞察、四层进度</p></div></div>
-        <div class="gallery-slide"><img src="assets/screenshot_2.png" alt="Timeline" loading="lazy"><div class="slide-caption"><h3>Timeline</h3><p>Canvas 多泳道时间线 - 5 种数据源实时可视化，支持缩放和筛选</p></div></div>
-        <div class="gallery-slide"><img src="assets/screenshot_3.png" alt="Skill Graph" loading="lazy"><div class="slide-caption"><h3>Skill Graph</h3><p>D3 力导向技能图谱 - 三层结构展示技能关系与成长轨迹</p></div></div>
-        <div class="gallery-slide"><img src="assets/screenshot_4.png" alt="Patterns" loading="lazy"><div class="slide-caption"><h3>Behavior Patterns</h3><p>自动发现的行为模式 - 置信度可视化，支持导出为团队工作流</p></div></div>
-        <div class="gallery-slide"><img src="assets/screenshot_5.png" alt="OpenClaw" loading="lazy"><div class="slide-caption"><h3>OpenClaw Chat</h3><p>AI 对话会话管理 - 多轮对话、技能调用、知识检索</p></div></div>
-        <div class="gallery-slide"><img src="assets/screenshot_6.png" alt="Digest" loading="lazy"><div class="slide-caption"><h3>Daily Digest</h3><p>日报 - 日历热力图、AI 摘要、源分布、Git 统计</p></div></div>
-        <div class="gallery-slide"><img src="assets/screenshot_7.png" alt="Architecture" loading="lazy"><div class="slide-caption"><h3>Architecture</h3><p>系统架构可视化 - 数据流与四层处理管线交互展示</p></div></div>
-        <div class="gallery-slide"><img src="assets/screenshot_8.png" alt="Community" loading="lazy"><div class="slide-caption"><h3>Community Market</h3><p>模式社区 - 分享、导入、组合最佳实践</p></div></div>
-        <div class="gallery-slide"><img src="assets/screenshot_pattern.png" alt="Pattern Detail" loading="lazy"><div class="slide-caption"><h3>Pattern Detail</h3><p>模式详情 - 学习过程、证据链、置信度变化曲线</p></div></div>
-        <div class="gallery-slide"><img src="assets/screenshot_new2.png" alt="Profile" loading="lazy"><div class="slide-caption"><h3>Developer Profile</h3><p>开发者画像 - 个人档案、技能雷达图、活跃度分析</p></div></div>
-      </div>
-    </div>
-    <div class="gallery-nav" id="galleryNav"></div>
+<!-- 飞轮效应 -->
+<section class="section" style="background:var(--surface)">
+<div class="container">
+  <div class="section-title">飞轮效应</div>
+  <p class="section-desc">越用越准 — 个人化对齐的数据护城河</p>
+  <div class="flywheel">
+    <div class="fw-step">你使用 AI 工具</div>
+    <div class="fw-arrow">→</div>
+    <div class="fw-step">DevTwin 观察行为</div>
+    <div class="fw-arrow">→</div>
+    <div class="fw-step">挖掘认知偏好</div>
+    <div class="fw-arrow">→</div>
+    <div class="fw-step">生成 ClawProfile</div>
+    <div class="fw-arrow">→</div>
+    <div class="fw-step">注入 AI Session</div>
+    <div class="fw-arrow">→</div>
+    <div class="fw-step" style="border-color:var(--violet)">AI 更懂你 ↩</div>
   </div>
+  <div class="grid3" style="margin-top:24px">
+    <div class="card" style="text-align:center">
+      <div class="card-label">数据量</div>
+      <div class="card-value">30<span style="font-size:1rem;color:var(--text3)">/30</span></div>
+      <div class="card-sub">51 次会话 · 197 个片段</div>
+    </div>
+    <div class="card" style="text-align:center">
+      <div class="card-label">质量</div>
+      <div class="card-value" style="color:var(--emerald)">18<span style="font-size:1rem;color:var(--text3)">/40</span></div>
+      <div class="card-sub">35/75 规范已确认</div>
+    </div>
+    <div class="card" style="text-align:center">
+      <div class="card-label">多样性</div>
+      <div class="card-value" style="color:var(--cyan)">24<span style="font-size:1rem;color:var(--text3)">/30</span></div>
+      <div class="card-sub">品味维度分布均匀度</div>
+    </div>
+  </div>
+</div>
 </section>
 
-<!-- Algorithms -->
-<section class="sec" id="algorithms" style="background:linear-gradient(180deg,transparent,rgba(167,139,250,.02),transparent)">
-  <div class="container">
-    <h2 class="sec-title reveal">Pattern Mining Algorithms</h2>
-    <p class="sec-sub reveal">Brain 层三维挖掘: 序列 x 时间 x 关联</p>
-    <div class="algo-grid">
-      <div class="algo-card reveal" style="border-top:3px solid var(--accent)">
-        <h3 style="color:var(--accent-g)">Frequent Sequence</h3>
-        <div class="algo-en">频繁序列挖掘 · windowSize=3 · minSupport=3</div>
-        <p>滑动窗口扫描事件序列，统计子序列出现频次，发现重复行为模式</p>
-        <div class="algo-example">
-          <span style="color:var(--term)">git pull</span> →
-          <span style="color:var(--claude)">code edit</span> →
-          <span style="color:var(--git)">git commit</span><br>
-          <span style="color:var(--accent-g)">x 47 times → confidence: 92%</span>
-        </div>
-      </div>
-      <div class="algo-card reveal reveal-d1" style="border-top:3px solid var(--oc)">
-        <h3 style="color:var(--oc)">Time Pattern</h3>
-        <div class="algo-en">时间模式检测 · hourly[24] · weekly[7]</div>
-        <p>统计事件在 24h / 7d 维度的分布，发现周期性行为规律</p>
-        <div class="algo-example">
-          <span style="color:var(--oc)">10:00-11:00</span> code review<br>
-          <span style="color:var(--oc)">14:00-17:00</span> deep coding<br>
-          <span style="color:var(--accent-g)">→ Morning Review Pattern</span>
-        </div>
-      </div>
-      <div class="algo-card reveal reveal-d2" style="border-top:3px solid var(--success)">
-        <h3 style="color:var(--success)">Correlation Mining</h3>
-        <div class="algo-en">关联规则挖掘 · window=10min · minConf=30%</div>
-        <p>10 分钟时间窗口内，发现跨数据源的事件关联</p>
-        <div class="algo-example">
-          <span style="color:var(--oc)">openclaw chat</span> →
-          <span style="color:var(--term)">pytest</span> →
-          <span style="color:var(--git)">commit</span><br>
-          <span style="color:var(--accent-g)">confidence: 85%</span>
-        </div>
-      </div>
+<!-- Before / After -->
+<section class="section">
+<div class="container">
+  <div class="section-title">Before / After</div>
+  <p class="section-desc">有/没有 ClawProfile 时，AI 回答的差异</p>
+  <div class="ba-grid">
+    <div class="ba-col without">
+      <div class="ba-label" style="color:#ef4444">WITHOUT ClawProfile</div>
+      <p style="font-size:0.85rem;color:var(--text2);margin-bottom:12px;font-style:italic">"帮我设计这个实验"</p>
+      <p style="font-size:0.85rem;color:var(--text3)">好的，我建议你先确定实验目标，然后选择合适的数据集，接着设计模型架构，最后运行实验并分析结果。你可以使用 PyTorch 来实现...</p>
+      <p style="font-size:0.75rem;color:#ef4444;margin-top:12px">→ 通用、平庸、缺乏个性</p>
+    </div>
+    <div class="ba-col with">
+      <div class="ba-label" style="color:var(--emerald)">WITH ClawProfile ✓</div>
+      <p style="font-size:0.85rem;color:var(--text2);margin-bottom:12px;font-style:italic">"帮我设计这个实验"</p>
+      <p style="font-size:0.85rem;color:var(--text)">基于你的工作风格，我先形式化问题定义。实验设计遵循你的偏好: ① 固定随机种子确保可复现 ② 理论分析先于实验 ③ 消融实验覆盖所有组件 ④ 连续小步提交，每步可验证...</p>
+      <p style="font-size:0.75rem;color:var(--emerald);margin-top:12px">→ 个性化、精准、体现你的认知风格</p>
     </div>
   </div>
+</div>
 </section>
 
-<!-- Compare -->
-<section class="sec">
-  <div class="container">
-    <h2 class="sec-title reveal">Parametric vs Non-Parametric Memory</h2>
-    <p class="sec-sub reveal">与 OpenClaw-RL 互补的记忆机制</p>
-    <div class="compare-wrap reveal">
-      <div class="compare-col">
-        <h3 style="color:var(--oc)">OpenClaw-RL</h3>
-        <p style="font-size:13px;color:#555;margin-bottom:12px">参数化记忆 · 行为训入模型权重</p>
-        <ul>
-          <li>行为 → 梯度更新 → 神经网络权重</li>
-          <li>隐式存储，黑盒不可解释</li>
-          <li>需要大量训练数据 + GPU 算力</li>
-          <li>迁移需要 fine-tune 适配</li>
-          <li>需要重新训练才能更新</li>
-        </ul>
-      </div>
-      <div class="compare-vs">VS</div>
-      <div class="compare-col">
-        <h3 style="color:var(--accent-g)">ShrimpFlow</h3>
-        <p style="font-size:13px;color:#555;margin-bottom:12px">非参数化记忆 · 结构化模式存储</p>
-        <ul>
-          <li>行为 → 模式提取 → 结构化 JSON</li>
-          <li>显式存储，可审计可编辑</li>
-          <li>少量数据即可提取模式</li>
-          <li>可直接迁移、分享、组合</li>
-          <li>实时更新，即时生效</li>
-        </ul>
-      </div>
-    </div>
-    <p class="reveal" style="text-align:center;margin-top:24px;font-size:15px;color:var(--success);font-weight:500">
-      互补关系: ShrimpFlow 的显式模式 → 反哺为 RL 的 reward shaping hints
-    </p>
-  </div>
+<!-- 竞品对比 -->
+<section class="section" style="background:var(--surface)">
+<div class="container">
+  <div class="section-title">核心差异</div>
+  <p class="section-desc">DevTwin vs 现有方案</p>
+  <table class="compare-table">
+    <thead>
+      <tr><th></th><th>CatchMe</th><th>Mem0</th><th>Copilot</th><th style="color:var(--violet)">DevTwin</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>理解什么</td><td>你做了什么</td><td>你说了什么</td><td>你写了什么</td><td class="star">你怎么思考</td></tr>
+      <tr><td>输出是</td><td>记忆检索</td><td>记忆检索</td><td>代码补全</td><td class="star">可执行规范</td></tr>
+      <tr><td>跨 Session</td><td class="check">✓ recall</td><td class="check">✓ recall</td><td class="cross">部分</td><td class="star">✓ 注入</td></tr>
+      <tr><td>越用越准</td><td class="cross">✗ 静态</td><td class="cross">弱</td><td class="cross">✗</td><td class="star">✓ 自进化</td></tr>
+      <tr><td>私有化</td><td class="check">本地</td><td class="cross">云端</td><td class="cross">云端</td><td class="star">本地</td></tr>
+      <tr><td>输出可读</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td><td class="star">✓ Markdown</td></tr>
+    </tbody>
+  </table>
+</div>
 </section>
 
-<!-- ClawProfile Showcase -->
-<section class="sec" id="clawprofile" style="background:linear-gradient(180deg,transparent,rgba(124,92,252,.03),transparent)">
-  <div class="container">
-    <h2 class="sec-title reveal">ClawProfile</h2>
-    <p class="sec-sub reveal">点击下方流程步骤，查看每一层的真实数据结构</p>
-
-    <!-- Profile bar -->
-    <div class="cp-profile-bar reveal">
-      <div class="cp-avatar">PS</div>
-      <div class="cp-meta">
-        <h4>peter_steinberger.clawprofile</h4>
-        <p>Senior iOS Engineer · Multi-Agent Orchestration Expert</p>
-      </div>
-      <div class="cp-stats-row">
-        <div class="cp-stat"><div class="num" style="color:var(--accent-g)">1,247</div><div class="lbl">Events</div></div>
-        <div class="cp-stat"><div class="num" style="color:var(--oc)">23</div><div class="lbl">Patterns</div></div>
-        <div class="cp-stat"><div class="num" style="color:var(--success)">5</div><div class="lbl">Workflows</div></div>
-        <div class="cp-stat"><div class="num" style="color:var(--claude)">89</div><div class="lbl">Days</div></div>
-      </div>
+<!-- 技术架构 -->
+<section class="section">
+<div class="container">
+  <div class="section-title">技术架构</div>
+  <p class="section-desc">三层挖掘 + 贝叶斯更新 + NeuralMemory 生命周期</p>
+  <div class="timeline">
+    <div class="tl-item">
+      <div class="tl-title">Layer 1: Shadow — 行为采集</div>
+      <div class="tl-desc">Git commits, Terminal commands, AI conversations → 原子事件流</div>
     </div>
-
-    <!-- Flow steps (clickable tabs) -->
-    <div class="cp-flow reveal" id="cpFlow">
-      <div class="cp-flow-step active" style="border-top:3px solid var(--term)" onclick="switchCpTab(0)">
-        <div class="cp-flow-num" style="background:rgba(56,189,248,.15);color:var(--term)">1</div>
-        <h4 style="color:var(--term)">Record</h4>
-        <p>采集终端、Git、OpenClaw 等操作</p>
-        <span class="cp-flow-arrow">→</span>
-      </div>
-      <div class="cp-flow-step" style="border-top:3px solid var(--oc)" onclick="switchCpTab(1)">
-        <div class="cp-flow-num" style="background:var(--oc-dim);color:var(--oc)">2</div>
-        <h4 style="color:var(--oc)">Visualize</h4>
-        <p>日报、周报、开发生涯画像</p>
-        <span class="cp-flow-arrow">→</span>
-      </div>
-      <div class="cp-flow-step" style="border-top:3px solid var(--claude)" onclick="switchCpTab(2)">
-        <div class="cp-flow-num" style="background:rgba(167,139,250,.15);color:var(--claude)">3</div>
-        <h4 style="color:var(--claude)">Analyze</h4>
-        <p>归纳为 lifelong 行为模式</p>
-        <span class="cp-flow-arrow">→</span>
-      </div>
-      <div class="cp-flow-step" style="border-top:3px solid var(--success)" onclick="switchCpTab(3)">
-        <div class="cp-flow-num" style="background:rgba(16,185,129,.15);color:var(--success)">4</div>
-        <h4 style="color:var(--success)">Distribute</h4>
-        <p>下发给 Team Flow 驱动开发</p>
-        <span class="cp-flow-arrow">→</span>
-      </div>
-      <div class="cp-flow-step" style="border-top:3px solid var(--accent)" onclick="switchCpTab(4)">
-        <div class="cp-flow-num" style="background:var(--accent-dim);color:var(--accent-g)">5</div>
-        <h4 style="color:var(--accent-g)">Share</h4>
-        <p>打包分享，导入大佬模式</p>
-      </div>
+    <div class="tl-item">
+      <div class="tl-title">Layer 2: Mirror — 模式挖掘</div>
+      <div class="tl-desc">Episode 切片 → CoT 推理链分析 → Workflow 重建 → 行为模式识别</div>
     </div>
-
-    <!-- Viewer panel -->
-    <div class="cp-viewer reveal" id="cpViewer">
-      <div class="cp-viewer-header">
-        <h3 id="cpViewerTitle">Raw Data: DevEvent Stream</h3>
-        <span id="cpViewerBadge" style="font-size:12px;padding:4px 12px;border-radius:6px;background:rgba(56,189,248,.12);color:var(--term)">Layer 1 / 5</span>
-      </div>
-      <div class="cp-viewer-body" id="cpViewerBody"></div>
+    <div class="tl-item">
+      <div class="tl-title">Layer 3: Brain — 认知建模</div>
+      <div class="tl-desc">5 维度品味量化 → 贝叶斯置信度更新 → NeuralMemory 衰减/强化</div>
     </div>
-
-    <!-- Vision callout -->
-    <div class="reveal" style="margin-top:32px;text-align:center;padding:24px;background:linear-gradient(145deg,var(--s2),var(--s1));border:1px solid var(--s3);border-radius:16px">
-      <p style="font-size:18px;font-weight:700;color:#fff;margin-bottom:8px">Make Hinton in Your Compute</p>
-      <p style="font-size:14px;color:#888;max-width:640px;margin:0 auto">Peter Steinberger 可能有一套超级牛逼的多 agent 协作机制。如果能把这些机制直接存储成记忆保留下来，人人一键导入 —— 直接从小虾变成滔天大虾。</p>
+    <div class="tl-item">
+      <div class="tl-title">Layer 4: Autopilot — 规范输出</div>
+      <div class="tl-desc">ClawProfile 生成 → CLAUDE.md 导出 → 跨 Session 注入 → 持续进化</div>
     </div>
   </div>
+</div>
 </section>
 
-<!-- Showcase: Video + Interactive Materials -->
-<section class="sec" id="showcase">
-  <div class="container">
-    <h2 class="sec-title reveal">Live Showcase</h2>
-    <p class="sec-sub reveal">Demo 视频、交互式工作流动画、Git 提交编年史</p>
-
-    <!-- Demo Video (full width) -->
-    <div class="showcase-card showcase-card-full reveal" style="border-top:3px solid var(--accent)">
-      <div class="showcase-header">
-        <div class="sh-icon" style="background:var(--accent-dim)">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-g)" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        </div>
-        <div>
-          <h3>Demo Video</h3>
-          <p>ShrimpFlow 系统完整演示 - 从数据采集到模式发现的全流程</p>
-        </div>
-      </div>
-      <div class="showcase-body">
-        <video class="showcase-video" controls preload="metadata" poster="assets/screenshot_1.png">
-          <source src="https://huggingface.co/datasets/xiongdi/shrimpflow-assets/resolve/main/demo_video.mp4" type="video/mp4">
-        </video>
-      </div>
-    </div>
-
-    <!-- Two interactive cards side by side -->
-    <div class="showcase-grid">
-      <!-- Workflow Animation -->
-      <div class="showcase-card reveal" style="border-top:3px solid var(--oc)">
-        <div class="showcase-header">
-          <div class="sh-icon" style="background:var(--oc-dim)">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--oc)" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-          </div>
-          <div>
-            <h3>Workflow Animation</h3>
-            <p>ShrimpFlow 行为规范自主驱动 65 个真实 commit 的回放动画</p>
-          </div>
-        </div>
-        <div class="showcase-body">
-          <div style="position:relative;border-radius:12px;overflow:hidden;background:#0a0e14;aspect-ratio:16/10;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid var(--s3)">
-            <div style="font-size:48px;margin-bottom:16px;filter:grayscale(.3)">🎬</div>
-            <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:6px">ShrimpFlow Workflow Proof</div>
-            <div style="font-size:13px;color:#666;margin-bottom:20px;text-align:center;max-width:360px">学习到的行为规范自主驱动项目开发 — 65 commits, 32 iterations, 29 hours</div>
-            <a href="assets/devtwin_workflow.html" target="_blank" style="padding:10px 28px;border-radius:10px;background:var(--oc-dim);border:1px solid rgba(245,158,11,.3);color:var(--oc);font-size:14px;font-weight:600;text-decoration:none;transition:all .3s;display:inline-flex;align-items:center;gap:8px"
-              onmouseover="this.style.background='rgba(245,158,11,.2)';this.style.transform='translateY(-2px)'" onmouseout="this.style.background='var(--oc-dim)';this.style.transform='none'">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              Open Full Animation
-            </a>
-          </div>
-        </div>
-      </div>
-
-      <!-- Commit Chronicle -->
-      <div class="showcase-card reveal reveal-d1" style="border-top:3px solid var(--git)">
-        <div class="showcase-header">
-          <div class="sh-icon" style="background:rgba(52,211,153,.12)">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--git)" stroke-width="2"><circle cx="12" cy="12" r="4"/><line x1="1.05" y1="12" x2="7" y2="12"/><line x1="17.01" y1="12" x2="22.96" y2="12"/></svg>
-          </div>
-          <div>
-            <h3>Commit Chronicle</h3>
-            <p>AI 驱动的 Git 提交编年史 - 项目开发历程可视化</p>
-          </div>
-        </div>
-        <div class="showcase-body">
-          <iframe class="showcase-iframe" src="assets/commit_chronicle.html" loading="lazy"></iframe>
-        </div>
-      </div>
-    </div>
-  </div>
+<!-- CTA -->
+<section class="cta">
+<div class="container">
+  <p style="font-size:1.1rem;color:var(--text2);margin-bottom:24px">你每次纠正 AI 都在教它，但它从不记得。<br>DevTwin 记得，并把它变成规则。越用越像你。</p>
+  <a href="https://github.com/asimfish/ShrimpFlow" class="cta-btn">GitHub →</a>
+</div>
 </section>
 
-<!-- Tech Stack -->
-<section class="sec" id="tech">
-  <div class="container">
-    <h2 class="sec-title reveal">Tech Stack</h2>
-    <p class="sec-sub reveal">现代前端技术栈 + AI 驱动</p>
-    <div class="tech-grid reveal">
-      <div class="tech-chip"><div class="tc-icon" style="background:rgba(66,184,131,.15);color:#42b883">V</div>Vue 3.5</div>
-      <div class="tech-chip"><div class="tc-icon" style="background:rgba(49,120,198,.15);color:#3178c6">TS</div>TypeScript</div>
-      <div class="tech-chip"><div class="tc-icon" style="background:rgba(189,147,249,.15);color:#bd93f9">V</div>Vite 8</div>
-      <div class="tech-chip"><div class="tc-icon" style="background:rgba(56,189,248,.15);color:#38bdf8">T</div>Tailwind CSS 4</div>
-      <div class="tech-chip"><div class="tc-icon" style="background:rgba(245,158,11,.15);color:#f59e0b">D3</div>D3.js 7</div>
-      <div class="tech-chip"><div class="tc-icon" style="background:rgba(252,211,77,.15);color:#fcd34d">P</div>Pinia 3</div>
-      <div class="tech-chip"><div class="tc-icon" style="background:rgba(52,211,153,.15);color:#34d399">S</div>SQLite</div>
-      <div class="tech-chip"><div class="tc-icon" style="background:rgba(245,158,11,.15);color:#f59e0b">OC</div>OpenClaw API</div>
-    </div>
-  </div>
-</section>
-
-<!-- Team / Footer -->
-<footer class="footer" id="team">
-  <div class="container">
-    <!-- 三级标识: 项目 → 团队 → 学院 -->
-    <div class="footer-identity">
-      <div class="fi-project">
-        <img src="assets/shrimpflow_logo_new.png" alt="ShrimpFlow" style="height:64px">
-      </div>
-      <div class="fi-team">
-        <img src="assets/audaxlab_logo.png" alt="AudaxLab" style="height:40px">
-        <span style="font-size:16px;font-weight:600;color:#ddd">AudaxLab Team</span>
-      </div>
-      <div class="fi-academy">
-        <img src="assets/academy_logo.png" alt="Academy" style="height:28px;filter:brightness(0) invert(1);opacity:.5">
-        <span style="font-size:13px;color:#666">北京中关村学院 x 中关村人工智能研究院</span>
-      </div>
-    </div>
-    <div class="footer-links">
-      <a href="https://github.com/ChangWinde/ShrimpFlow/tree/main" target="_blank">GitHub</a>
-      <a href="#architecture">Architecture</a>
-      <a href="#demo">Demo</a>
-      <a href="#showcase">Showcase</a>
-      <a href="#clawprofile">ClawProfile</a>
-      <a href="#features">Features</a>
-      <a href="#algorithms">Algorithms</a>
-    </div>
-    <p style="margin-top:16px;font-size:12px;color:#444">ShrimpFlow · Powered by OpenClaw · OpenClaw Hackathon 2025</p>
-  </div>
+<footer style="text-align:center;padding:24px;color:var(--text3);font-size:0.75rem">
+  ShrimpFlow / DevTwin · Built with real data from 409 days of development
 </footer>
 
-<script>
-// === Particle Canvas ===
-const cvs = document.getElementById('particles');
-if (cvs) {
-  const ctx = cvs.getContext('2d');
-  let W, H;
-  const resize = () => { W = cvs.width = window.innerWidth; H = cvs.height = window.innerHeight; };
-  resize(); window.addEventListener('resize', resize);
-  const pts = Array.from({length: 50}, () => ({
-    x: Math.random() * W, y: Math.random() * H,
-    vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.4,
-    c: Math.random() > 0.5 ? 'rgba(124,92,252,' : 'rgba(245,158,11,',
-    r: Math.random() * 2 + 1
-  }));
-  const draw = () => {
-    ctx.clearRect(0, 0, W, H);
-    pts.forEach(p => {
-      p.x += p.vx; p.y += p.vy;
-      if (p.x < 0 || p.x > W) p.vx *= -1;
-      if (p.y < 0 || p.y > H) p.vy *= -1;
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = p.c + '0.5)'; ctx.fill();
-    });
-    for (let i = 0; i < pts.length; i++) {
-      for (let j = i + 1; j < pts.length; j++) {
-        const dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y;
-        const d = Math.sqrt(dx * dx + dy * dy);
-        if (d < 120) {
-          ctx.beginPath(); ctx.moveTo(pts[i].x, pts[i].y); ctx.lineTo(pts[j].x, pts[j].y);
-          ctx.strokeStyle = 'rgba(124,92,252,' + (1 - d / 120) * 0.15 + ')'; ctx.stroke();
-        }
-      }
-    }
-    requestAnimationFrame(draw);
-  };
-  draw();
-}
-
-// === Scroll Reveal ===
-const revealEls = document.querySelectorAll('.reveal');
-const revealObs = new IntersectionObserver((entries) => {
-  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('revealed'); revealObs.unobserve(e.target); } });
-}, { threshold: 0.15 });
-revealEls.forEach(el => revealObs.observe(el));
-
-// === Nav scroll state ===
-const topNav = document.getElementById('topNav');
-window.addEventListener('scroll', () => {
-  if (topNav) topNav.classList.toggle('scrolled', window.scrollY > 50);
-});
-
-// === Count-up animation ===
-const countEls = document.querySelectorAll('[data-count]');
-const countObs = new IntersectionObserver((entries) => {
-  entries.forEach(e => {
-    if (e.isIntersecting) {
-      const target = parseInt(e.target.dataset.count);
-      let current = 0;
-      const step = Math.max(1, Math.floor(target / 40));
-      const timer = setInterval(() => {
-        current += step;
-        if (current >= target) { current = target; clearInterval(timer); }
-        e.target.textContent = current.toLocaleString();
-      }, 30);
-      countObs.unobserve(e.target);
-    }
-  });
-}, { threshold: 0.5 });
-countEls.forEach(el => countObs.observe(el));
-
-// === Helper: hex to rgba ===
-const hexToRgba = (hex, alpha) => {
-  const r = parseInt(hex.slice(1,3), 16);
-  const g = parseInt(hex.slice(3,5), 16);
-  const b = parseInt(hex.slice(5,7), 16);
-  return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
-};
-
-// === Pipeline Detail Toggle ===
-const pipeData = [
-  { title: 'Shadow - Collect Layer', color: '#7c5cfc', items: [
-    ['Hooks', 'Shell hook + Git hook + 文件系统监听'],
-    ['API', 'OpenClaw API 实时采集对话和技能调用'],
-    ['Format', '统一 DevEvent 结构: {source, type, payload, ts}'],
-    ['Storage', '本地 SQLite 加密存储, 端到端加密']
-  ]},
-  { title: 'Mirror - Visualize Layer', color: '#f59e0b', items: [
-    ['Timeline', 'Canvas 多泳道时间线, 5 种数据源并行展示'],
-    ['Graph', 'D3 力导向技能图谱, 三层结构 (domain/skill/action)'],
-    ['Heatmap', '日历热力图, 活跃度可视化'],
-    ['Realtime', 'WebSocket 推送, 实时事件流']
-  ]},
-  { title: 'Brain - Pattern Mining', color: '#a78bfa', items: [
-    ['Sequence', '频繁序列挖掘: 滑动窗口 + 子序列统计'],
-    ['Time', '时间模式检测: 24h/7d 维度分布分析'],
-    ['Correlation', '关联规则挖掘: 10min 窗口跨源关联'],
-    ['Confidence', '贝叶斯置信度更新: 证据累积机制']
-  ]},
-  { title: 'Autopilot - Distribute Layer', color: '#10b981', items: [
-    ['Compose', '多模式组合成 Workflow'],
-    ['Share', '一键下发给团队成员'],
-    ['Market', '社区模式市场, 导入最佳实践'],
-    ['Feedback', '执行结果反哺模式优化']
-  ]}
-];
-let activePipe = -1;
-const togglePipe = (idx) => {
-  const panel = document.getElementById('pipeDetail');
-  if (!panel) return;
-  if (activePipe === idx) {
-    panel.style.display = 'none';
-    activePipe = -1;
-    return;
-  }
-  activePipe = idx;
-  const d = pipeData[idx];
-  // clear and rebuild with DOM methods
-  while (panel.firstChild) panel.removeChild(panel.firstChild);
-  const h = document.createElement('h3');
-  h.style.cssText = 'font-size:16px;color:' + d.color + ';margin-bottom:16px';
-  h.textContent = d.title;
-  panel.appendChild(h);
-  const grid = document.createElement('div');
-  grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px';
-  d.items.forEach(([label, desc]) => {
-    const card = document.createElement('div');
-    card.style.cssText = 'background:var(--s1);border-radius:8px;padding:12px';
-    const lbl = document.createElement('div');
-    lbl.style.cssText = 'font-size:11px;color:#555;margin-bottom:4px;font-family:JetBrains Mono,monospace';
-    lbl.textContent = label;
-    const dsc = document.createElement('div');
-    dsc.style.cssText = 'font-size:13px;color:#aaa';
-    dsc.textContent = desc;
-    card.appendChild(lbl);
-    card.appendChild(dsc);
-    grid.appendChild(card);
-  });
-  panel.appendChild(grid);
-  panel.style.display = 'block';
-  panel.style.borderColor = d.color;
-};
-
-// === Event Stream Simulation ===
-const eventTypes = [
-  { source: 'terminal', type: 'command', color: '#38bdf8', examples: ['npm run dev', 'pnpm build', 'pytest -v', 'docker compose up', 'curl localhost:3000'] },
-  { source: 'git', type: 'commit', color: '#34d399', examples: ['feat: add pattern mining', 'fix: timeline render', 'refactor: event store', 'docs: update README', 'chore: bump deps'] },
-  { source: 'openclaw', type: 'chat', color: '#f59e0b', examples: ['explain this error', 'optimize this query', 'review my code', 'suggest test cases', 'help debug crash'] },
-  { source: 'claude', type: 'edit', color: '#a78bfa', examples: ['refactor auth module', 'add error handling', 'extract utility fn', 'fix type errors', 'optimize render'] },
-  { source: 'env', type: 'system', color: '#f87171', examples: ['CPU: 45%', 'Memory: 2.1GB', 'Node v20.11', 'macOS 14.2', 'VSCode 1.85'] }
-];
-let eventCount = 0;
-const addEvent = (evt) => {
-  const stream = document.getElementById('eventStream');
-  if (!stream) return;
-  eventCount++;
-  const row = document.createElement('div');
-  row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--s1);border-radius:8px;margin-bottom:6px;animation:fadeIn .3s ease;border-left:3px solid ' + evt.color;
-  const badge = document.createElement('span');
-  badge.style.cssText = 'font-size:11px;padding:2px 8px;border-radius:4px;font-family:JetBrains Mono,monospace;background:' + hexToRgba(evt.color, 0.15) + ';color:' + evt.color;
-  badge.textContent = evt.source;
-  const txt = document.createElement('span');
-  txt.style.cssText = 'flex:1;font-size:13px;color:#ccc';
-  txt.textContent = evt.example;
-  const ts = document.createElement('span');
-  ts.style.cssText = 'font-size:11px;color:#444;font-family:JetBrains Mono,monospace';
-  const now = new Date();
-  ts.textContent = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0') + ':' + now.getSeconds().toString().padStart(2,'0');
-  row.appendChild(badge);
-  row.appendChild(txt);
-  row.appendChild(ts);
-  stream.insertBefore(row, stream.firstChild);
-  if (stream.children.length > 15) stream.removeChild(stream.lastChild);
-};
-const addRandomEvent = () => {
-  const et = eventTypes[Math.floor(Math.random() * eventTypes.length)];
-  addEvent({ source: et.source, color: et.color, example: et.examples[Math.floor(Math.random() * et.examples.length)] });
-};
-// auto-generate initial events
-for (let i = 0; i < 6; i++) setTimeout(() => addRandomEvent(), i * 300);
-// auto stream
-setInterval(addRandomEvent, 3000);
-
-// === Pattern Mining Results ===
-const patterns = [
-  { name: 'Morning Review Flow', confidence: 92, type: 'sequence', steps: ['git pull', 'code review', 'comment PR', 'approve merge'], color: '#7c5cfc' },
-  { name: 'TDD Cycle', confidence: 87, type: 'sequence', steps: ['write test', 'run test (fail)', 'implement', 'run test (pass)'], color: '#34d399' },
-  { name: 'Deep Focus Block', confidence: 78, type: 'time', steps: ['14:00 start', 'no context switch', 'single file edit', '17:00 commit'], color: '#f59e0b' },
-  { name: 'AI-Assisted Debug', confidence: 85, type: 'correlation', steps: ['error log', 'openclaw chat', 'code fix', 'test pass'], color: '#a78bfa' },
-  { name: 'Deploy Pipeline', confidence: 91, type: 'sequence', steps: ['git push', 'CI pass', 'docker build', 'deploy staging'], color: '#10b981' }
-];
-const renderPatterns = () => {
-  const container = document.getElementById('patternResults');
-  if (!container) return;
-  while (container.firstChild) container.removeChild(container.firstChild);
-  patterns.forEach(p => {
-    const card = document.createElement('div');
-    card.style.cssText = 'background:var(--s1);border-radius:10px;padding:16px;margin-bottom:10px;border-left:3px solid ' + p.color;
-    // header row
-    const header = document.createElement('div');
-    header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:10px';
-    const left = document.createElement('div');
-    const name = document.createElement('div');
-    name.style.cssText = 'font-size:14px;font-weight:600;color:#fff';
-    name.textContent = p.name;
-    const typeBadge = document.createElement('span');
-    typeBadge.style.cssText = 'font-size:11px;color:#666;font-family:JetBrains Mono,monospace';
-    typeBadge.textContent = p.type;
-    left.appendChild(name);
-    left.appendChild(typeBadge);
-    const confBadge = document.createElement('div');
-    confBadge.style.cssText = 'font-size:13px;font-weight:600;color:' + p.color;
-    confBadge.textContent = p.confidence + '%';
-    header.appendChild(left);
-    header.appendChild(confBadge);
-    card.appendChild(header);
-    // confidence bar
-    const barBg = document.createElement('div');
-    barBg.style.cssText = 'height:4px;background:var(--s3);border-radius:2px;margin-bottom:10px';
-    const barFill = document.createElement('div');
-    barFill.style.cssText = 'height:100%;border-radius:2px;background:' + p.color + ';width:' + p.confidence + '%;transition:width 1s ease';
-    barBg.appendChild(barFill);
-    card.appendChild(barBg);
-    // steps
-    const stepsRow = document.createElement('div');
-    stepsRow.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap';
-    p.steps.forEach((s, i) => {
-      const chip = document.createElement('span');
-      chip.style.cssText = 'font-size:12px;padding:3px 10px;border-radius:6px;background:' + hexToRgba(p.color, 0.15) + ';color:' + p.color;
-      chip.textContent = s;
-      stepsRow.appendChild(chip);
-      if (i < p.steps.length - 1) {
-        const arrow = document.createElement('span');
-        arrow.style.cssText = 'color:#444;font-size:12px;line-height:26px';
-        arrow.textContent = '\u2192';
-        stepsRow.appendChild(arrow);
-      }
-    });
-    card.appendChild(stepsRow);
-    container.appendChild(card);
-  });
-};
-
-// === Workflow Demo ===
-const renderWorkflow = () => {
-  const container = document.getElementById('workflowDemo');
-  if (!container) return;
-  while (container.firstChild) container.removeChild(container.firstChild);
-  const wf = {
-    name: 'Morning Standup Workflow',
-    desc: 'Autopilot 自动组合 3 个行为模式生成的团队工作流',
-    steps: [
-      { label: 'git pull --rebase', source: 'git', color: '#34d399' },
-      { label: 'review open PRs', source: 'openclaw', color: '#f59e0b' },
-      { label: 'run test suite', source: 'terminal', color: '#38bdf8' },
-      { label: 'update standup notes', source: 'claude', color: '#a78bfa' },
-      { label: 'push & notify team', source: 'git', color: '#34d399' }
-    ],
-    patterns: ['Morning Review Flow', 'TDD Cycle'],
-    confidence: 94
-  };
-  // workflow card
-  const card = document.createElement('div');
-  card.style.cssText = 'background:var(--s1);border-radius:12px;padding:24px;border:1px solid var(--s3)';
-  const title = document.createElement('div');
-  title.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:16px';
-  const tl = document.createElement('div');
-  const tn = document.createElement('h3');
-  tn.style.cssText = 'font-size:16px;color:#fff;margin-bottom:4px';
-  tn.textContent = wf.name;
-  const td = document.createElement('p');
-  td.style.cssText = 'font-size:13px;color:#666';
-  td.textContent = wf.desc;
-  tl.appendChild(tn);
-  tl.appendChild(td);
-  const confBox = document.createElement('div');
-  confBox.style.cssText = 'text-align:right';
-  const confNum = document.createElement('div');
-  confNum.style.cssText = 'font-size:24px;font-weight:700;color:var(--success)';
-  confNum.textContent = wf.confidence + '%';
-  const confLabel = document.createElement('div');
-  confLabel.style.cssText = 'font-size:11px;color:#555';
-  confLabel.textContent = 'confidence';
-  confBox.appendChild(confNum);
-  confBox.appendChild(confLabel);
-  title.appendChild(tl);
-  title.appendChild(confBox);
-  card.appendChild(title);
-  // steps flow
-  const flow = document.createElement('div');
-  flow.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px';
-  wf.steps.forEach((s, i) => {
-    const step = document.createElement('div');
-    step.style.cssText = 'display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;background:' + hexToRgba(s.color, 0.12) + ';border:1px solid ' + hexToRgba(s.color, 0.3);
-    const dot = document.createElement('div');
-    dot.style.cssText = 'width:6px;height:6px;border-radius:50%;background:' + s.color;
-    const lbl = document.createElement('span');
-    lbl.style.cssText = 'font-size:13px;color:' + s.color;
-    lbl.textContent = s.label;
-    const src = document.createElement('span');
-    src.style.cssText = 'font-size:10px;color:#555;font-family:JetBrains Mono,monospace';
-    src.textContent = s.source;
-    step.appendChild(dot);
-    step.appendChild(lbl);
-    step.appendChild(src);
-    flow.appendChild(step);
-    if (i < wf.steps.length - 1) {
-      const arrow = document.createElement('span');
-      arrow.style.cssText = 'color:#444;font-size:16px';
-      arrow.textContent = '\u2192';
-      flow.appendChild(arrow);
-    }
-  });
-  card.appendChild(flow);
-  // source patterns
-  const srcRow = document.createElement('div');
-  srcRow.style.cssText = 'display:flex;gap:8px;align-items:center';
-  const srcLabel = document.createElement('span');
-  srcLabel.style.cssText = 'font-size:12px;color:#555';
-  srcLabel.textContent = 'Source Patterns:';
-  srcRow.appendChild(srcLabel);
-  wf.patterns.forEach(pn => {
-    const chip = document.createElement('span');
-    chip.style.cssText = 'font-size:12px;padding:3px 10px;border-radius:6px;background:var(--accent-dim);color:var(--accent-g)';
-    chip.textContent = pn;
-    srcRow.appendChild(chip);
-  });
-  card.appendChild(srcRow);
-  container.appendChild(card);
-};
-
-// === Demo Tab Switching ===
-const switchDemo = (idx) => {
-  document.querySelectorAll('.demo-tab').forEach((t, i) => t.classList.toggle('active', i === idx));
-  document.querySelectorAll('.demo-panel').forEach((p, i) => p.classList.toggle('active', i === idx));
-  if (idx === 1) renderPatterns();
-  if (idx === 2) renderWorkflow();
-};
-
-// === Gallery ===
-let galleryIdx = 0;
-const slides = document.querySelectorAll('.gallery-slide');
-const totalSlides = slides.length;
-const galleryGo = (idx) => {
-  galleryIdx = ((idx % totalSlides) + totalSlides) % totalSlides;
-  const track = document.getElementById('galleryTrack');
-  if (track) track.style.transform = 'translateX(-' + (galleryIdx * 100) + '%)';
-  document.querySelectorAll('.gallery-dot').forEach((d, i) => d.classList.toggle('active', i === galleryIdx));
-};
-const galleryNext = () => galleryGo(galleryIdx + 1);
-const galleryPrev = () => galleryGo(galleryIdx - 1);
-// build dots
-const navDots = document.getElementById('galleryNav');
-if (navDots) {
-  for (let i = 0; i < totalSlides; i++) {
-    const dot = document.createElement('button');
-    dot.className = 'gallery-dot' + (i === 0 ? ' active' : '');
-    dot.onclick = () => galleryGo(i);
-    navDots.appendChild(dot);
-  }
-}
-// auto-play
-let galleryTimer = setInterval(galleryNext, 5000);
-const gallery = document.getElementById('gallery');
-if (gallery) {
-  gallery.addEventListener('mouseenter', () => clearInterval(galleryTimer));
-  gallery.addEventListener('mouseleave', () => { galleryTimer = setInterval(galleryNext, 5000); });
-}
-// keyboard
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'ArrowLeft') galleryPrev();
-  if (e.key === 'ArrowRight') galleryNext();
-});
-
-// === Nav active highlight ===
-const sections = document.querySelectorAll('section[id]');
-const navLinks = document.querySelectorAll('#navLinks a');
-window.addEventListener('scroll', () => {
-  let current = '';
-  sections.forEach(s => {
-    if (window.scrollY >= s.offsetTop - 200) current = s.id;
-  });
-  navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + current));
-});
-
-// === ClawProfile Tab System ===
-let cpActiveTab = 0;
-const cpTabData = [
-  { title: 'Raw Data: DevEvent Stream', badge: 'Layer 1 / 5', badgeColor: '#38bdf8' },
-  { title: 'Visualization: Digest & Career', badge: 'Layer 2 / 5', badgeColor: '#f59e0b' },
-  { title: 'Behavior Patterns: Digital Twin', badge: 'Layer 3 / 5', badgeColor: '#a78bfa' },
-  { title: 'Distributed Workflows: Team Flow', badge: 'Layer 4 / 5', badgeColor: '#10b981' },
-  { title: 'Export & Share: ClawProfile', badge: 'Layer 5 / 5', badgeColor: '#7c5cfc' },
-];
-
-const switchCpTab = (idx) => {
-  cpActiveTab = idx;
-  // update flow step active state
-  document.querySelectorAll('#cpFlow .cp-flow-step').forEach((el, i) => el.classList.toggle('active', i === idx));
-  // update header
-  const titleEl = document.getElementById('cpViewerTitle');
-  const badgeEl = document.getElementById('cpViewerBadge');
-  if (titleEl) titleEl.textContent = cpTabData[idx].title;
-  if (badgeEl) {
-    badgeEl.textContent = cpTabData[idx].badge;
-    badgeEl.style.background = hexToRgba(cpTabData[idx].badgeColor, 0.12);
-    badgeEl.style.color = cpTabData[idx].badgeColor;
-  }
-  // render content
-  const cpRenderers = [renderCpRecord, renderCpVisualize, renderCpPatterns, renderCpWorkflows, renderCpShare];
-  cpRenderers[idx]();
-};
-
-// helper: make a styled card row
-const mkRow = (color, badge, text, sub) => {
-  const r = document.createElement('div');
-  r.style.cssText = 'display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--s1);border-radius:10px;margin-bottom:8px;border-left:3px solid ' + color + ';transition:all .2s;cursor:default';
-  r.onmouseenter = () => { r.style.borderColor = color; r.style.background = hexToRgba(color, 0.05); };
-  r.onmouseleave = () => { r.style.background = 'var(--s1)'; };
-  const b = document.createElement('span');
-  b.style.cssText = 'font-size:11px;padding:3px 10px;border-radius:5px;font-family:JetBrains Mono,monospace;background:' + hexToRgba(color, 0.15) + ';color:' + color + ';flex-shrink:0;font-weight:500';
-  b.textContent = badge;
-  const mid = document.createElement('div');
-  mid.style.cssText = 'flex:1;min-width:0';
-  const t = document.createElement('div');
-  t.style.cssText = 'font-size:13px;color:#ddd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
-  t.textContent = text;
-  mid.appendChild(t);
-  if (sub) {
-    const s = document.createElement('div');
-    s.style.cssText = 'font-size:11px;color:#555;margin-top:2px';
-    s.textContent = sub;
-    mid.appendChild(s);
-  }
-  r.appendChild(b);
-  r.appendChild(mid);
-  return r;
-};
-
-// Tab 0: Record
-const renderCpRecord = () => {
-  const body = document.getElementById('cpViewerBody');
-  if (!body) return;
-  while (body.firstChild) body.removeChild(body.firstChild);
-  // desc
-  const desc = document.createElement('p');
-  desc.style.cssText = 'font-size:14px;color:#888;margin-bottom:16px;line-height:1.7';
-  desc.textContent = 'Shadow 层采集终端命令、Git 操作、OpenClaw 对话、Claude Code 编辑等所有开发行为，统一为 DevEvent 结构存储。';
-  body.appendChild(desc);
-  // events
-  const events = [
-    { source: 'terminal', color: '#38bdf8', action: 'pnpm run build --mode production', sub: 'exit_code: 0 · duration: 4.2s · tags: build, vite' },
-    { source: 'git', color: '#34d399', action: 'feat: add pattern confidence evolution curve', sub: 'branch: feat/patterns · +127 -23 · project: shrimpflow' },
-    { source: 'openclaw', color: '#f59e0b', action: 'session: "优化 D3 力导向图渲染性能"', sub: 'category: performance · 12 messages · duration: 8min' },
-    { source: 'claude_code', color: '#a78bfa', action: 'refactor: extract pattern_mining.ts utility functions', sub: 'files: 3 changed · semantic: code-refactor' },
-    { source: 'env', color: '#f87171', action: 'system snapshot: macOS 14.2 · Node v20.11 · CPU 34%', sub: 'memory: 2.1GB · disk: 45% · uptime: 6h' },
-  ];
-  events.forEach(e => body.appendChild(mkRow(e.color, e.source, e.action, e.sub)));
-  // schema hint
-  const hint = document.createElement('div');
-  hint.style.cssText = 'margin-top:16px;padding:14px 18px;background:var(--s1);border-radius:10px;border:1px dashed var(--s3);font-family:JetBrains Mono,monospace;font-size:12px;color:#666;line-height:1.8';
-  hint.textContent = 'DevEvent { id, timestamp, source, action, directory, project, branch, exit_code, duration_ms, semantic, tags[], openclaw_session_id? }';
-  body.appendChild(hint);
-};
-
-// placeholder for next chunk
-// Tab 1: Visualize
-const renderCpVisualize = () => {
-  const body = document.getElementById('cpViewerBody');
-  if (!body) return;
-  while (body.firstChild) body.removeChild(body.firstChild);
-  const desc = document.createElement('p');
-  desc.style.cssText = 'font-size:14px;color:#888;margin-bottom:16px;line-height:1.7';
-  desc.textContent = 'Mirror 层将原始事件数据转化为可视化报告: 日报、周报、开发生涯画像、关注领域和思考轨迹。';
-  body.appendChild(desc);
-  const grid = document.createElement('div');
-  grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px';
-  const items = [
-    { icon: '📊', label: 'Daily Digest', value: '89 days', desc: '每日事件统计、AI 摘要、源分布、Git 统计', color: '#f59e0b' },
-    { icon: '📈', label: 'Weekly Report', value: '12 weeks', desc: '技能成长趋势、模式演化、项目进度追踪', color: '#38bdf8' },
-    { icon: '🧑‍💻', label: 'Career Profile', value: 'Level 9', desc: '技能雷达图、活跃度曲线、开发者类型画像', color: '#a78bfa' },
-    { icon: '🎯', label: 'Focus Areas', value: '5 topics', desc: 'CI/CD, 性能优化, 代码审查, 测试策略, 架构设计', color: '#34d399' },
-    { icon: '💭', label: 'Thinking Trace', value: '47 sessions', desc: 'OpenClaw 对话中的问题思考路径和决策记录', color: '#f59e0b' },
-    { icon: '🔥', label: 'Activity Heatmap', value: '365 days', desc: '日历热力图展示全年开发活跃度分布', color: '#f87171' },
-  ];
-  items.forEach(v => {
-    const card = document.createElement('div');
-    card.style.cssText = 'background:var(--s1);border-radius:12px;padding:18px;border-top:2px solid ' + v.color + ';transition:all .2s;cursor:default';
-    card.onmouseenter = () => { card.style.transform = 'translateY(-3px)'; card.style.boxShadow = '0 8px 24px rgba(0,0,0,.3)'; };
-    card.onmouseleave = () => { card.style.transform = 'none'; card.style.boxShadow = 'none'; };
-    const top = document.createElement('div');
-    top.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:8px';
-    const lbl = document.createElement('div');
-    lbl.style.cssText = 'display:flex;align-items:center;gap:8px';
-    const ic = document.createElement('span');
-    ic.style.cssText = 'font-size:18px';
-    ic.textContent = v.icon;
-    const nm = document.createElement('span');
-    nm.style.cssText = 'font-size:14px;font-weight:600;color:#fff';
-    nm.textContent = v.label;
-    lbl.appendChild(ic);
-    lbl.appendChild(nm);
-    const val = document.createElement('span');
-    val.style.cssText = 'font-size:16px;font-weight:800;color:' + v.color;
-    val.textContent = v.value;
-    top.appendChild(lbl);
-    top.appendChild(val);
-    card.appendChild(top);
-    const d = document.createElement('div');
-    d.style.cssText = 'font-size:12px;color:#666;line-height:1.5';
-    d.textContent = v.desc;
-    card.appendChild(d);
-    grid.appendChild(card);
-  });
-  body.appendChild(grid);
-};
-
-// Tab 2: Patterns
-const renderCpPatterns = () => {
-  const body = document.getElementById('cpViewerBody');
-  if (!body) return;
-  while (body.firstChild) body.removeChild(body.firstChild);
-  const desc = document.createElement('p');
-  desc.style.cssText = 'font-size:14px;color:#888;margin-bottom:16px;line-height:1.7';
-  desc.textContent = 'Brain 层通过频繁序列挖掘、时间模式检测、关联规则分析，将碎片化行为归纳为可执行的 lifelong 行为模式。';
-  body.appendChild(desc);
-  const ptns = [
-    { name: 'Multi-Agent Orchestration', cat: 'collaboration', conf: 95, status: 'exportable', color: '#7c5cfc',
-      rule: 'complex task → spawn 3+ agents → parallel exec → merge', scenarios: ['feature', 'review', 'debug'] },
-    { name: 'TDD-First Development', cat: 'coding', conf: 91, status: 'exportable', color: '#34d399',
-      rule: 'before impl → write test (fail) → implement → refactor', scenarios: ['new feature', 'bug fix'] },
-    { name: 'Morning Review Ritual', cat: 'review', conf: 88, status: 'confirmed', color: '#f59e0b',
-      rule: '09:00 → git pull → review PRs → run tests → notes', scenarios: ['standup', 'review'] },
-    { name: 'AI-Assisted Debug Loop', cat: 'devops', conf: 85, status: 'confirmed', color: '#a78bfa',
-      rule: 'error → stack trace → openclaw → fix → test', scenarios: ['runtime', 'build fail'] },
-  ];
-  ptns.forEach(p => {
-    const card = document.createElement('div');
-    card.style.cssText = 'background:var(--s1);border-radius:12px;padding:18px;margin-bottom:10px;border-left:4px solid ' + p.color + ';transition:all .2s;cursor:default';
-    card.onmouseenter = () => { card.style.background = hexToRgba(p.color, 0.04); };
-    card.onmouseleave = () => { card.style.background = 'var(--s1)'; };
-    // row 1: name + confidence
-    const r1 = document.createElement('div');
-    r1.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:10px';
-    const left = document.createElement('div');
-    left.style.cssText = 'display:flex;align-items:center;gap:10px';
-    const nm = document.createElement('span');
-    nm.style.cssText = 'font-size:15px;font-weight:700;color:#fff';
-    nm.textContent = p.name;
-    const catBadge = document.createElement('span');
-    catBadge.style.cssText = 'font-size:10px;padding:2px 8px;border-radius:4px;background:' + hexToRgba(p.color, 0.12) + ';color:' + p.color;
-    catBadge.textContent = p.cat;
-    const stBadge = document.createElement('span');
-    stBadge.style.cssText = 'font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(16,185,129,.12);color:#10b981';
-    stBadge.textContent = p.status;
-    left.appendChild(nm);
-    left.appendChild(catBadge);
-    left.appendChild(stBadge);
-    const confEl = document.createElement('span');
-    confEl.style.cssText = 'font-size:20px;font-weight:800;color:' + p.color;
-    confEl.textContent = p.conf + '%';
-    r1.appendChild(left);
-    r1.appendChild(confEl);
-    card.appendChild(r1);
-    // confidence bar
-    const bar = document.createElement('div');
-    bar.style.cssText = 'height:4px;background:var(--s3);border-radius:2px;margin-bottom:12px;overflow:hidden';
-    const fill = document.createElement('div');
-    fill.style.cssText = 'height:100%;border-radius:2px;background:linear-gradient(90deg,' + p.color + ',' + hexToRgba(p.color, 0.5) + ');width:' + p.conf + '%;transition:width 1.5s ease';
-    bar.appendChild(fill);
-    card.appendChild(bar);
-    // rule
-    const ruleEl = document.createElement('div');
-    ruleEl.style.cssText = 'font-size:13px;color:#bbb;margin-bottom:10px;padding:10px 14px;background:var(--s2);border-radius:8px;font-family:JetBrains Mono,monospace;line-height:1.6;border:1px solid var(--s3)';
-    ruleEl.textContent = p.rule;
-    card.appendChild(ruleEl);
-    // scenarios
-    const scRow = document.createElement('div');
-    scRow.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap';
-    const scLabel = document.createElement('span');
-    scLabel.style.cssText = 'font-size:11px;color:#555;line-height:24px';
-    scLabel.textContent = 'Scenarios:';
-    scRow.appendChild(scLabel);
-    p.scenarios.forEach(sc => {
-      const chip = document.createElement('span');
-      chip.style.cssText = 'font-size:11px;padding:3px 10px;border-radius:5px;background:' + hexToRgba(p.color, 0.1) + ';color:' + p.color;
-      chip.textContent = sc;
-      scRow.appendChild(chip);
-    });
-    card.appendChild(scRow);
-    body.appendChild(card);
-  });
-};
-
-// Tab 3: Workflows
-const renderCpWorkflows = () => {
-  const body = document.getElementById('cpViewerBody');
-  if (!body) return;
-  while (body.firstChild) body.removeChild(body.firstChild);
-  const desc = document.createElement('p');
-  desc.style.cssText = 'font-size:14px;color:#888;margin-bottom:16px;line-height:1.7';
-  desc.textContent = 'Autopilot 层将多个行为模式组合为可执行的团队工作流，一键下发给 Team Flow 驱动个性化项目开发。';
-  body.appendChild(desc);
-  const wfs = [
-    { name: 'Morning Standup Automation', status: 'distributed', conf: 94, color: '#10b981',
-      steps: ['git pull --rebase', 'review open PRs', 'run test suite', 'update standup notes', 'push & notify'],
-      stepColors: ['#34d399','#f59e0b','#38bdf8','#a78bfa','#34d399'],
-      from: ['Morning Review Ritual', 'TDD-First Development'] },
-    { name: 'Multi-Agent Feature Sprint', status: 'active', conf: 89, color: '#7c5cfc',
-      steps: ['spawn planner agent', 'parallel: code + test + docs', 'merge & review', 'CI/CD deploy'],
-      stepColors: ['#7c5cfc','#a78bfa','#f59e0b','#10b981'],
-      from: ['Multi-Agent Orchestration'] },
-  ];
-  wfs.forEach(wf => {
-    const card = document.createElement('div');
-    card.style.cssText = 'background:var(--s1);border-radius:12px;padding:20px;margin-bottom:12px;border-left:4px solid ' + wf.color + ';transition:all .2s';
-    card.onmouseenter = () => { card.style.background = hexToRgba(wf.color, 0.04); };
-    card.onmouseleave = () => { card.style.background = 'var(--s1)'; };
-    // header
-    const hdr = document.createElement('div');
-    hdr.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:14px';
-    const left = document.createElement('div');
-    left.style.cssText = 'display:flex;align-items:center;gap:10px';
-    const nm = document.createElement('span');
-    nm.style.cssText = 'font-size:15px;font-weight:700;color:#fff';
-    nm.textContent = wf.name;
-    const st = document.createElement('span');
-    st.style.cssText = 'font-size:10px;padding:2px 8px;border-radius:4px;background:' + hexToRgba(wf.color, 0.15) + ';color:' + wf.color;
-    st.textContent = wf.status;
-    left.appendChild(nm);
-    left.appendChild(st);
-    const conf = document.createElement('span');
-    conf.style.cssText = 'font-size:20px;font-weight:800;color:' + wf.color;
-    conf.textContent = wf.conf + '%';
-    hdr.appendChild(left);
-    hdr.appendChild(conf);
-    card.appendChild(hdr);
-    // steps flow
-    const flow = document.createElement('div');
-    flow.style.cssText = 'display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:14px';
-    wf.steps.forEach((s, i) => {
-      const chip = document.createElement('span');
-      const c = wf.stepColors[i];
-      chip.style.cssText = 'display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:500;background:' + hexToRgba(c, 0.12) + ';border:1px solid ' + hexToRgba(c, 0.25) + ';color:' + c;
-      const dot = document.createElement('span');
-      dot.style.cssText = 'width:6px;height:6px;border-radius:50%;background:' + c;
-      chip.appendChild(dot);
-      chip.appendChild(document.createTextNode(s));
-      flow.appendChild(chip);
-      if (i < wf.steps.length - 1) {
-        const arrow = document.createElement('span');
-        arrow.style.cssText = 'color:#444;font-size:14px';
-        arrow.textContent = '\u2192';
-        flow.appendChild(arrow);
-      }
-    });
-    card.appendChild(flow);
-    // source patterns
-    const srcRow = document.createElement('div');
-    srcRow.style.cssText = 'display:flex;gap:8px;align-items:center';
-    const srcLbl = document.createElement('span');
-    srcLbl.style.cssText = 'font-size:11px;color:#555';
-    srcLbl.textContent = 'Source Patterns:';
-    srcRow.appendChild(srcLbl);
-    wf.from.forEach(pn => {
-      const chip = document.createElement('span');
-      chip.style.cssText = 'font-size:11px;padding:3px 10px;border-radius:5px;background:var(--accent-dim);color:var(--accent-g)';
-      chip.textContent = pn;
-      srcRow.appendChild(chip);
-    });
-    card.appendChild(srcRow);
-    body.appendChild(card);
-  });
-};
-
-// Tab 4: Share
-const renderCpShare = () => {
-  const body = document.getElementById('cpViewerBody');
-  if (!body) return;
-  while (body.firstChild) body.removeChild(body.firstChild);
-  const desc = document.createElement('p');
-  desc.style.cssText = 'font-size:14px;color:#888;margin-bottom:16px;line-height:1.7';
-  desc.textContent = '将完整的行为模式数字孪生打包为 .clawprofile 文件，在社区分享或导入其他开发者的行为模式来接管你的开发 workflow。';
-  body.appendChild(desc);
-  // export card
-  const exportCard = document.createElement('div');
-  exportCard.style.cssText = 'background:var(--s1);border-radius:12px;padding:20px;border:1px solid var(--s3);margin-bottom:16px';
-  const eTitle = document.createElement('div');
-  eTitle.style.cssText = 'font-size:14px;font-weight:600;color:#fff;margin-bottom:12px;display:flex;align-items:center;gap:8px';
-  eTitle.textContent = 'peter_steinberger.clawprofile';
-  const eBadge = document.createElement('span');
-  eBadge.style.cssText = 'font-size:10px;padding:2px 8px;border-radius:4px;background:var(--accent-dim);color:var(--accent-g)';
-  eBadge.textContent = 'v1.0.0';
-  eTitle.appendChild(eBadge);
-  exportCard.appendChild(eTitle);
-  // file info grid
-  const infoGrid = document.createElement('div');
-  infoGrid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px';
-  const infos = [
-    { label: 'Format', value: 'clawprofile/v1', color: '#7c5cfc' },
-    { label: 'Size', value: '2.4 MB', color: '#38bdf8' },
-    { label: 'Patterns', value: '23 exportable', color: '#a78bfa' },
-    { label: 'Workflows', value: '5 distributed', color: '#10b981' },
-    { label: 'Compatibility', value: 'ShrimpFlow >= 1.0', color: '#f59e0b' },
-    { label: 'Checksum', value: 'sha256:a1b2c3...', color: '#666' },
-  ];
-  infos.forEach(info => {
-    const item = document.createElement('div');
-    item.style.cssText = 'padding:10px 14px;background:var(--s2);border-radius:8px;border:1px solid var(--s3)';
-    const lbl = document.createElement('div');
-    lbl.style.cssText = 'font-size:10px;color:#555;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px';
-    lbl.textContent = info.label;
-    const val = document.createElement('div');
-    val.style.cssText = 'font-size:13px;font-weight:600;color:' + info.color;
-    val.textContent = info.value;
-    item.appendChild(lbl);
-    item.appendChild(val);
-    infoGrid.appendChild(item);
-  });
-  exportCard.appendChild(infoGrid);
-  // actions
-  const actions = document.createElement('div');
-  actions.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap';
-  const btns = [
-    { label: 'Export .clawprofile', color: '#7c5cfc' },
-    { label: 'Share to Community', color: '#f59e0b' },
-    { label: 'Import from URL', color: '#10b981' },
-  ];
-  btns.forEach(b => {
-    const btn = document.createElement('span');
-    btn.style.cssText = 'padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;background:' + hexToRgba(b.color, 0.12) + ';border:1px solid ' + hexToRgba(b.color, 0.3) + ';color:' + b.color;
-    btn.textContent = b.label;
-    btn.onmouseenter = () => { btn.style.background = hexToRgba(b.color, 0.2); btn.style.transform = 'translateY(-2px)'; };
-    btn.onmouseleave = () => { btn.style.background = hexToRgba(b.color, 0.12); btn.style.transform = 'none'; };
-    actions.appendChild(btn);
-  });
-  exportCard.appendChild(actions);
-  body.appendChild(exportCard);
-  // import hint
-  const hint = document.createElement('div');
-  hint.style.cssText = 'padding:16px 20px;background:var(--s1);border-radius:12px;border:1px dashed var(--accent);text-align:center';
-  const h1 = document.createElement('div');
-  h1.style.cssText = 'font-size:14px;font-weight:600;color:var(--accent-g);margin-bottom:6px';
-  h1.textContent = 'Import a ClawProfile to level up instantly';
-  const h2 = document.createElement('div');
-  h2.style.cssText = 'font-size:12px;color:#666;line-height:1.6';
-  h2.textContent = '导入后自动适配你的项目结构和技术栈，行为模式即刻生效，驱动你的 Team Flow';
-  hint.appendChild(h1);
-  hint.appendChild(h2);
-  body.appendChild(hint);
-};
-
-// Init: render first tab and auto-switch
-const initCpViewer = () => {
-  switchCpTab(0);
-};
-// Render when scrolled into view
-const cpObs2 = new IntersectionObserver((entries) => {
-  entries.forEach(e => {
-    if (e.isIntersecting) { initCpViewer(); cpObs2.unobserve(e.target); }
-  });
-}, { threshold: 0.1 });
-const cpViewer = document.getElementById('cpViewer');
-if (cpViewer) cpObs2.observe(cpViewer);
-
-// === fadeIn keyframe ===
-const style = document.createElement('style');
-style.textContent = '@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}';
-document.head.appendChild(style);
-</script>
 </body>
 </html>

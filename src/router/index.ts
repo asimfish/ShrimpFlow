@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 export const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
@@ -50,6 +50,18 @@ export const router = createRouter({
     {
       path: '/workflows/:id',
       component: () => import('@/pages/patterns/workflow_detail_page.vue'),
+    },
+    {
+      path: '/memory',
+      name: 'memory',
+      meta: { keepAlive: true },
+      component: () => import('@/pages/memory/memory_page.vue'),
+    },
+    {
+      path: '/twin',
+      name: 'twin',
+      meta: { keepAlive: true },
+      component: () => import('@/pages/twin/twin_page.vue'),
     },
     {
       path: '/community',

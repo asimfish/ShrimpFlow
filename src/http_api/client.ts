@@ -61,6 +61,12 @@ const request = async <T>(url: string, options: RequestInit = {}): Promise<ApiRe
       }
     }
 
+    // GitHub Pages 场景：返回 200 但内容是 HTML（SPA fallback），不是 JSON
+    if (parsedBody === null) {
+      const snap = findSnapshot<T>(url)
+      if (snap) return { data: snap, error: null }
+    }
+
     return { data: parsedBody, error: null }
   } catch (error) {
     // 网络不可达时用快照 fallback（GitHub Pages 场景）

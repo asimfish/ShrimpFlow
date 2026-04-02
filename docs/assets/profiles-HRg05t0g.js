@@ -1,0 +1,1 @@
+import{i as e,r as t}from"./client-Bwkf9fyu.js";var n=()=>t(`/profiles`),r=()=>t(`/profiles/active`),i=t=>e(`/profiles/${t}/activate`,{});export{r as n,n as r,i as t};

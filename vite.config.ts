@@ -4,7 +4,11 @@ import tailwindcss from '@tailwindcss/vite'
 import { resolve } from 'path'
 
 export default defineConfig({
+  base: process.env.GITHUB_PAGES ? '/ShrimpFlow/' : '/',
   plugins: [vue(), tailwindcss()],
+  build: {
+    outDir: 'docs',
+  },
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),

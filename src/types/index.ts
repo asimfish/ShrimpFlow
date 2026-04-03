@@ -71,6 +71,64 @@ export type SkillRecommendation = {
   confidence: number
 }
 
+// GET /skills/discovery（本地 skill 库扫描 + 与 DB 比对）
+export type SkillDiscoveryExternalEntry = {
+  name: string
+  description: string
+  category: string
+  path: string
+  paths: string[]
+  source_library: string
+}
+
+export type SkillDiscoveryStats = {
+  total_scanned: number
+  new_found: number
+  related_found: number
+  upgrade_found: number
+  library_count: number
+}
+
+export type SkillDiscoveryRelatedItem = {
+  external: {
+    name: string
+    category: string
+    description: string
+    source_library: string
+  }
+  local_skill: {
+    id: number
+    name: string
+    category: string
+    level: number
+  }
+  score: number
+}
+
+export type SkillDiscoveryUpgradeItem = {
+  external: {
+    name: string
+    description: string
+    category: string
+    source_library: string
+  }
+  base_skill: {
+    id: number
+    name: string
+    category: string
+    level: number
+  }
+}
+
+export type SkillDiscoveryReport = {
+  libraries_scanned: string[]
+  stats: SkillDiscoveryStats
+  external_skills: SkillDiscoveryExternalEntry[]
+  new_skills: SkillDiscoveryExternalEntry[]
+  related_skills: SkillDiscoveryRelatedItem[]
+  upgrade_skills: SkillDiscoveryUpgradeItem[]
+}
+
 export type LearningPlanPhase = {
   title: string
   objective: string

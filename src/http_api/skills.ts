@@ -1,4 +1,11 @@
-import type { LearningPlan, Skill, SkillRecommendation, SkillWorkflow, SkillWorkflowItem } from '@/types'
+import type {
+  LearningPlan,
+  Skill,
+  SkillDiscoveryReport,
+  SkillRecommendation,
+  SkillWorkflow,
+  SkillWorkflowItem,
+} from '@/types'
 
 import { get, post } from './client'
 
@@ -39,6 +46,8 @@ export const getMinedWorkflowsApi = async () => {
 }
 
 export const getSkillRecommendationsApi = () => get<SkillRecommendation[]>('/skills/recommendations')
+
+export const getSkillDiscoveryApi = () => get<SkillDiscoveryReport>('/skills/discovery')
 
 export const trackSkillApi = (name: string, invocation_type: string) =>
   post<{ status: string }>('/skills/track', { name, invocation_type })

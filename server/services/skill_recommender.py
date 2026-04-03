@@ -223,6 +223,32 @@ def _related_pattern_candidates(db: Session, skills: list[Skill]) -> list[dict]:
     return results
 
 
+def _apply_taste_to_recommendations(items: list[dict], taste) -> list[dict]:
+    if taste is None:
+        return items
+    preferred = _parse_json_value(getattr(taste, 'preferred_categories', None) or '') or {}
+    if not isinstance(preferred, dict):
+        preferred = {}
+    summary = (getattr(taste, 'taste_summary', None) or '').strip()
+    reject_tokens: set[str] = set()
+    for marker in ('常见拒绝原因:', '用户填写的拒绝原因统计:'):
+        if marker in summary:
+            reject_tokens = _tokenize(summary.split(marker, 1)[-1])
+            break
+    adjusted = []
+    for item in items:
+        conf = float(item.get('confidence', 0))
+        cat = item.get('category') or ''
+        if preferred and cat in preferred:
+            conf = min(1.0, conf + 0.10)
+        if reject_tokens:
+            blob = ' '.join(str(item.get(k) or '') for k in ('name', 'reason', 'category'))
+            if _tokenize(blob) & reject_tokens:
+                conf = max(0.0, conf - 0.08)
+        adjusted.append({**item, 'confidence': round(conf, 2)})
+    return sorted(adjusted, key=lambda row: row['confidence'], reverse=True)
+
+
 def recommend_skills(db: Session, limit: int = 8) -> list[dict]:
     skills = db.query(Skill).order_by(Skill.level.desc(), Skill.total_uses.desc()).all()
     if not skills:
@@ -243,7 +269,13 @@ def recommend_skills(db: Session, limit: int = 8) -> list[dict]:
         deduped.append(item)
         if len(deduped) >= max(1, limit):
             break
-    return deduped
+    taste_profile = None
+    if get_active_taste_profile is not None:
+        try:
+            taste_profile = get_active_taste_profile(db)
+        except Exception:
+            taste_profile = None
+    return _apply_taste_to_recommendations(deduped, taste_profile)
 
 
 def _find_skill_pattern(db: Session, skill: Skill) -> BehaviorPattern | None:

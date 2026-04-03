@@ -302,7 +302,7 @@ def mine_cot_skills(db: Session, lookback_hours: int = 168) -> list[dict]:
         if not name:
             continue
         # mine_skill_workflows 忽略长度 <2 的序列；第二项 'cot' 标记来源且满足长度
-        slug_seq = [name, 'cot']
+        slug_seq = [_name_to_slug(name), 'cot']
         db.add(OpenClawInvocationLog(
             session_id=anchor_session_id,
             profile_id=None,

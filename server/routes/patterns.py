@@ -593,3 +593,123 @@ class PatternRejectRequest(BaseModel):
 @router.post("/patterns/{pattern_id}/reject")
 def reject_pattern_api(pattern_id: int, req: PatternRejectRequest, db: Session = Depends(get_db)):
     return reject_pattern(db, pattern_id, reason=req.reason)
+
+
+@router.get("/patterns/review-queue")
+def get_review_queue(db: Session = Depends(get_db)):
+    """Return prioritized review queue with skill alignment details."""
+    from models.skill import Skill
+    from services.pattern_confirm import _compute_skill_alignment_score
+
+    rows = (
+        db.query(BehaviorPattern)
+        .filter(BehaviorPattern.status.in_(["learning", "pending"]))
+        .order_by(BehaviorPattern.confidence.desc())
+        .limit(50)
+        .all()
+    )
+    skills = db.query(Skill).all()
+    skill_names = [s.name for s in skills]
+
+    queue = []
+    for row in rows:
+        alignment = _compute_skill_alignment_score(row, skills)
+        matched = [s.name for s in skills if s.name.lower() in (row.name or "").lower() + " " + (row.description or "").lower()]
+        taste_rec = get_pending_pattern_recommendations(db)
+        taste_action = None
+        for rec in taste_rec:
+            if rec.get("pattern_id") == row.id:
+                taste_action = rec.get("recommended_action")
+                break
+
+        item = _row_to_dict(row)
+        item["skill_alignment"] = alignment
+        item["matched_skills"] = matched[:5]
+        item["taste_recommendation"] = taste_action
+        item["priority_score"] = alignment + (row.confidence or 0) + (row.evidence_count or 0) * 5
+        queue.append(item)
+
+    queue.sort(key=lambda x: x["priority_score"], reverse=True)
+    return queue
+
+
+class BatchReviewRequest(BaseModel):
+    actions: list[dict]
+
+
+@router.post("/patterns/batch-review")
+def batch_review_patterns(req: BatchReviewRequest, db: Session = Depends(get_db)):
+    """Batch confirm/reject patterns."""
+    confirmed = 0
+    rejected = 0
+    errors = []
+    for action in req.actions:
+        pid = action.get("id")
+        decision = action.get("decision", "confirm")
+        reason = action.get("reason", "")
+        try:
+            if decision == "confirm":
+                confirm_pattern(db, pid)
+                confirmed += 1
+            elif decision == "reject":
+                reject_pattern(db, pid, reason=reason)
+                rejected += 1
+        except Exception as e:
+            errors.append({"id": pid, "error": str(e)})
+    return {"confirmed": confirmed, "rejected": rejected, "errors": errors}
+
+
+@router.get("/patterns/review-stats")
+def get_review_stats(db: Session = Depends(get_db)):
+    """Return review statistics for the dashboard."""
+    all_patterns = db.query(BehaviorPattern).all()
+    total = len(all_patterns)
+    confirmed = sum(1 for p in all_patterns if p.status in ("confirmed", "exportable"))
+    rejected = sum(1 for p in all_patterns if p.status == "rejected")
+    pending = sum(1 for p in all_patterns if p.status in ("learning", "pending"))
+    confirm_rate = round(confirmed / total, 3) if total else 0
+
+    categories: dict[str, int] = {}
+    for p in all_patterns:
+        cat = p.category or "unknown"
+        categories[cat] = categories.get(cat, 0) + 1
+
+    return {
+        "total": total,
+        "confirmed": confirmed,
+        "rejected": rejected,
+        "pending": pending,
+        "confirm_rate": confirm_rate,
+        "by_category": categories,
+    }
+
+
+@router.get("/patterns/export-readiness")
+def get_export_readiness(db: Session = Depends(get_db)):
+    """Check if patterns are ready for export to CLAUDE.md."""
+    all_patterns = db.query(BehaviorPattern).all()
+    confirmed = [p for p in all_patterns if p.status in ("confirmed", "exportable")]
+    manual = [p for p in confirmed if p.source == "manual"]
+    total = len(all_patterns)
+    categories = set(p.category for p in confirmed if p.category)
+
+    confirmed_count = len(confirmed)
+    confirm_rate = round(confirmed_count / total, 3) if total else 0
+    ready = confirmed_count >= 5 and confirm_rate >= 0.6
+
+    issues = []
+    if confirmed_count < 5:
+        issues.append(f"还需确认 {5 - confirmed_count} 条模式")
+    if confirm_rate < 0.6:
+        issues.append(f"确认率 {confirm_rate:.0%} 未达 60%")
+    if len(categories) < 3:
+        issues.append(f"已确认模式仅覆盖 {len(categories)} 个类别，建议 ≥3")
+
+    return {
+        "ready": ready,
+        "confirmed": confirmed_count,
+        "manual_refined": len(manual),
+        "confirm_rate": confirm_rate,
+        "categories": list(categories),
+        "issues": issues,
+    }

@@ -252,7 +252,7 @@ def _category_for_pattern(category: str) -> str:
 
 
 def import_skills_as_patterns(db: Session) -> int:
-    """Import local SKILL.md entries as confirmed BehaviorPatterns for pattern mining."""
+    """Import local SKILL.md entries as learning BehaviorPatterns for human-in-the-loop confirmation."""
     external = scan_local_skill_libraries()
     now = int(time.time())
     imported = 0
@@ -312,7 +312,7 @@ def import_skills_as_patterns(db: Session) -> int:
             learned_from="skill_library",
             rule="从本地技能库导入的 SKILL.md（人工策展）",
             created_at=now,
-            status="confirmed",
+            status="learning",
             evolution=json.dumps(
                 [
                     {

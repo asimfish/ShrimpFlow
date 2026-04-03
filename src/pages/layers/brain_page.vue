@@ -8,8 +8,8 @@ import { useEventsStore } from '@/stores/events'
 import { usePatternsStore } from '@/stores/patterns'
 import { mineAllPatterns } from '@/utils/pattern_mining'
 import { getEpisodesApi, getEpisodeStatsApi, getArchetypesApi, getFeatureGraphStatsApi, getEvidenceLedgerStatsApi } from '@/http_api/episodes'
-import { getAgentTasteApi, relearnAgentTasteApi, autoConfirmPatternsApi } from '@/http_api/agent_taste'
-import type { TasteProfile, AutoConfirmResult } from '@/http_api/agent_taste'
+import { getAgentTasteApi, relearnAgentTasteApi, autoConfirmPatternsApi, getAutonomousSuggestionsApi } from '@/http_api/agent_taste'
+import type { TasteProfile, AutoConfirmResult, AutonomousTaskSuggestion } from '@/http_api/agent_taste'
 import { dayjs } from '@/libs/dayjs'
 import { generateClawsApi, getCotProfileApi, exportMarkdownApi } from '@/http_api/claw_gen'
 import type { ClawGenResult, CotProfile } from '@/http_api/claw_gen'
@@ -34,6 +34,7 @@ const tasteError = ref('')
 const autoConfirmResult = ref<AutoConfirmResult | null>(null)
 const autoConfirming = ref(false)
 const relearning = ref(false)
+const autonomousSuggestions = ref<AutonomousTaskSuggestion[]>([])
 
 const loadTasteProfile = async () => {
   tasteLoading.value = true
@@ -79,6 +80,9 @@ onMounted(async () => {
   if (ledgerRes.data) ledgerStats.value = ledgerRes.data
   void loadTasteProfile()
   void loadCotProfile()
+  getAutonomousSuggestionsApi().then(res => {
+    if (res.data?.suggestions) autonomousSuggestions.value = res.data.suggestions
+  })
 })
 
 // 运行挖掘算法
@@ -682,6 +686,24 @@ const copyMarkdownToClipboard = () => {
           </div>
         </div>
         <div v-else class="text-xs text-gray-600 py-2">暂无 learning 状态的 Pattern，采集后会自动出现。</div>
+      </div>
+    </div>
+
+    <!-- Autonomous Suggestions -->
+    <div v-if="autonomousSuggestions.length">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="inline-block w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
+        <span class="text-sm font-medium text-teal-400">自主任务建议 ({{ autonomousSuggestions.length }})</span>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div v-for="(s, idx) in autonomousSuggestions" :key="idx" class="bg-surface-1 rounded-xl border border-surface-3 p-4 space-y-2">
+          <div class="text-sm font-medium text-gray-200">{{ s.task }}</div>
+          <div class="text-[11px] text-gray-400 leading-relaxed">{{ s.reason }}</div>
+          <div class="flex items-center gap-3 text-[11px]">
+            <span class="text-gray-500">置信度 <span :class="s.confidence >= 80 ? 'text-emerald-400' : s.confidence >= 60 ? 'text-amber-400' : 'text-gray-400'" class="font-medium">{{ s.confidence }}%</span></span>
+            <span class="text-gray-500">频率 <span class="text-teal-400">{{ s.frequency }}</span></span>
+          </div>
+        </div>
       </div>
     </div>
 

@@ -7,8 +7,10 @@ import {
   generateLearningPlanApi,
   getMinedWorkflowsApi,
   getSkillRecommendationsApi,
+  getSkillDiscoveryApi,
   getSkillWorkflowsApi,
 } from '@/http_api/skills'
+import type { SkillDiscoveryReport } from '@/types'
 import SkillGraph from './skill_graph.vue'
 import SkillDetailPanel from './skill_detail_panel.vue'
 
@@ -34,6 +36,7 @@ const recommendLoaded = ref(false)
 
 // 推荐 tab：持久化挖掘的 workflow
 const minedWorkflows = ref<SkillWorkflowItem[]>([])
+const discoveryReport = ref<SkillDiscoveryReport | null>(null)
 
 const confidenceColor = (v: number) => {
   if (v >= 0.8) return 'text-emerald-400'
@@ -74,9 +77,10 @@ const switchTab = async (tab: 'detail' | 'workflow' | 'recommend') => {
   }
   if (tab === 'recommend' && !recommendLoaded.value) {
     recommendLoading.value = true
-    const [recRes, minedRes] = await Promise.all([
+    const [recRes, minedRes, discRes] = await Promise.all([
       getSkillRecommendationsApi(),
       getMinedWorkflowsApi(),
+      getSkillDiscoveryApi(),
     ])
     recommendLoading.value = false
     if (recRes.data) {
@@ -84,6 +88,9 @@ const switchTab = async (tab: 'detail' | 'workflow' | 'recommend') => {
     }
     if (minedRes.data) {
       minedWorkflows.value = [...minedRes.data].sort((a, b) => b.frequency - a.frequency)
+    }
+    if (discRes.data) {
+      discoveryReport.value = discRes.data
     }
     recommendLoaded.value = true
   }
@@ -237,6 +244,14 @@ const generatePlan = async () => {
         <div class="flex-1 min-h-0 overflow-y-auto">
           <div v-if="recommendLoading" class="flex items-center justify-center h-32 text-gray-500 text-sm">加载中...</div>
           <div v-else class="p-4 space-y-6">
+            <!-- Skill Discovery -->
+            <div v-if="discoveryReport && (discoveryReport.new_skills.length || discoveryReport.related_skills.length || discoveryReport.upgrade_skills.length)" class="space-y-2 pb-2 border-b border-surface-3">
+              <div class="text-xs font-semibold text-gray-200 tracking-wide">技能发现</div>
+              <div v-for="ns in discoveryReport.new_skills.slice(0, 5)" :key="ns.name" class="text-[11px] text-emerald-400">+ {{ ns.name }} <span class="text-gray-500">{{ ns.category }}</span></div>
+              <div v-for="rs in discoveryReport.related_skills.slice(0, 3)" :key="rs.external.name" class="text-[11px] text-sky-400">~ {{ rs.external.name }} → {{ rs.local_skill.name }}</div>
+              <div v-for="us in discoveryReport.upgrade_skills.slice(0, 3)" :key="us.external.name" class="text-[11px] text-amber-400">↑ {{ us.external.name }} (升级 {{ us.base_skill.name }})</div>
+            </div>
+
             <div class="space-y-3">
               <div v-if="recommendations.length > 0" class="text-xs text-gray-500">
                 系统根据你的技能图谱和行为模式推荐 {{ recommendations.length }} 项

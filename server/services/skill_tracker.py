@@ -180,7 +180,8 @@ def mine_skill_workflows(db) -> list[dict]:
 
     workflows = []
     for sequence, count in counts.items():
-        if count < 3:
+        min_freq = 1 if len(sequence) == 2 else 3
+        if count < min_freq:
             continue
 
         success_rate = round(success_counts[sequence] / count, 3)

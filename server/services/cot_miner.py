@@ -21,6 +21,7 @@ from services.ai_provider import chat as ai_chat
 from services.pattern_mining import (
     bayesian_update, _confidence_to_level, _name_to_slug, _strip_json_fence,
 )
+from services.skill_tracker import mine_skill_workflows
 
 logger = logging.getLogger(__name__)
 
@@ -318,6 +319,7 @@ def mine_cot_skills(db: Session, lookback_hours: int = 168) -> list[dict]:
         wrote_log = True
     if wrote_log:
         db.commit()
+        mine_skill_workflows(db)
 
     return combined
 

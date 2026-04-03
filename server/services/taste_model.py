@@ -252,6 +252,62 @@ def record_pattern_decision(
     return learn_from_history(db)
 
 
+def record_task_preference(
+    db: Session,
+    task_type: str,
+    action: str,
+    context: str = "",
+) -> AgentTasteProfile:
+    """Append a workflow/task event to decision_history (Direction 4 task preferences)."""
+    profile = get_or_create_taste_profile(db)
+    history = _loads_json(profile.decision_history, [])
+    if not isinstance(history, list):
+        history = []
+    entry = {
+        "task_type": task_type,
+        "action": action,
+        "ts": _now_ts(),
+    }
+    if context:
+        entry["context"] = context
+    history.append(entry)
+    profile.decision_history = _dumps_json(history[-DECISION_HISTORY_LIMIT:])
+    profile.updated_at = _now_ts()
+    db.commit()
+    db.refresh(profile)
+    return profile
+
+
+def get_preferred_task_schedule(db: Session) -> dict[str, float]:
+    """Map task_type -> preference score in [0,1] from triggered vs skipped counts in decision_history."""
+    profile = get_or_create_taste_profile(db)
+    history = _loads_json(profile.decision_history, [])
+    if not isinstance(history, list):
+        return {}
+    triggered: dict[str, int] = defaultdict(int)
+    skipped: dict[str, int] = defaultdict(int)
+    for entry in history:
+        if not isinstance(entry, dict):
+            continue
+        tt = entry.get("task_type")
+        if tt is None:
+            continue
+        key = str(tt)
+        act = str(entry.get("action") or "").lower()
+        if act == "triggered":
+            triggered[key] += 1
+        elif act == "skipped":
+            skipped[key] += 1
+    scores: dict[str, float] = {}
+    all_types = set(triggered) | set(skipped)
+    for tt in all_types:
+        t, s = triggered[tt], skipped[tt]
+        total = t + s
+        if total > 0:
+            scores[tt] = round(t / total, 4)
+    return scores
+
+
 def evaluate_pattern_with_taste(profile: AgentTasteProfile, pattern: BehaviorPattern) -> dict:
     preferred_categories = _loads_json(profile.preferred_categories, {})
     preferred_sources = set(_loads_json(profile.preferred_sources, []))

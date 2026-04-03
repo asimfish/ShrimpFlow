@@ -24,7 +24,7 @@ _SKILL_LIBRARY_REL_PATHS = (
     ".codex/skills",
 )
 
-_ARROW_RE = re.compile(r"[→->]\s*(.+)$")
+_ARROW_RE = re.compile(r"[→\->]\s*(.+)$")
 _SKILL_TOKEN_RE = re.compile(r"^[\w./-]+")
 _SECTION_RE = re.compile(r"^##\s+(.+?)\s*$")
 

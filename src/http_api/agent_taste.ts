@@ -49,3 +49,6 @@ export type AutonomousSuggestionsPayload = {
 
 export const getAutonomousSuggestionsApi = () =>
   get<AutonomousSuggestionsPayload>('/agent-taste/autonomous-suggestions')
+
+export const approveTaskApi = (task: string) =>
+  post<{ status: string; task: string }>('/agent-taste/approve-task', { task })

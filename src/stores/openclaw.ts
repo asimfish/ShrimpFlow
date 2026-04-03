@@ -162,7 +162,6 @@ export const useOpenClawStore = defineStore('openclaw', () => {
     sessionsLoaded,
     documentsLoaded,
     fetchSessions,
-    fetchDocuments,
     ensureSessionsLoaded,
     ensureDocumentsLoaded,
     analyzeSelectedSession,

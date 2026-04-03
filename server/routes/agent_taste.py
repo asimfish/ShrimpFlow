@@ -2,6 +2,7 @@ import threading
 import time
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from db import SessionLocal, get_db
@@ -81,6 +82,24 @@ def get_autonomous_suggestions(db: Session = Depends(get_db)):
 @router.post("/agent-taste/auto-confirm")
 def run_auto_confirm(db: Session = Depends(get_db)):
     return auto_confirm_patterns(db)
+
+
+class ApproveTaskRequest(BaseModel):
+    task: str
+
+
+@router.post("/agent-taste/approve-task")
+def approve_autonomous_task(req: ApproveTaskRequest, db: Session = Depends(get_db)):
+    from services.taste_model import record_pattern_decision
+    from models.behavior_pattern import BehaviorPattern
+
+    pattern = db.query(BehaviorPattern).filter(BehaviorPattern.name == req.task).first()
+    if not pattern:
+        pattern = BehaviorPattern(name=req.task, category="autonomous", source="suggestion", confidence=60)
+        db.add(pattern)
+        db.flush()
+    record_pattern_decision(db, pattern, "confirm", f"User approved autonomous task: {req.task}")
+    return {"status": "approved", "task": req.task}
 
 
 @router.post("/agent-taste/relearn")

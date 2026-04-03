@@ -924,6 +924,100 @@
       ]
     }
   ],
+  "/skills/discovery": {
+    "libraries_scanned": ["claude-skills", "codex-skills", "cursor-skills"],
+    "stats": {
+      "total_scanned": 42,
+      "new_found": 5,
+      "related_found": 3,
+      "upgrade_found": 1,
+      "library_count": 3
+    },
+    "external_skills": [
+      {
+        "name": "playwright-browser-automation",
+        "description": "Direct Playwright API for reliable browser automation.",
+        "category": "testing",
+        "path": "~/.claude/skills/playwright-browser-automation/SKILL.md",
+        "paths": ["~/.claude/skills/playwright-browser-automation/SKILL.md"],
+        "source_library": "claude-skills"
+      },
+      {
+        "name": "pytorch-lightning",
+        "description": "High-level PyTorch framework with Trainer class.",
+        "category": "ml",
+        "path": "~/.codex/skills/pytorch-lightning/SKILL.md",
+        "paths": ["~/.codex/skills/pytorch-lightning/SKILL.md"],
+        "source_library": "codex-skills"
+      }
+    ],
+    "new_skills": [
+      {
+        "name": "kubernetes-patterns",
+        "description": "K8s deployment patterns and operator design.",
+        "category": "devops",
+        "path": "~/.claude/skills/kubernetes-patterns/SKILL.md",
+        "paths": ["~/.claude/skills/kubernetes-patterns/SKILL.md"],
+        "source_library": "claude-skills"
+      }
+    ],
+    "related_skills": [
+      {
+        "external": {
+          "name": "vitest-testing",
+          "category": "testing",
+          "description": "Vitest unit testing patterns.",
+          "source_library": "cursor-skills"
+        },
+        "local_skill": {"id": 2, "name": "Vitest", "category": "tool", "level": 55},
+        "score": 0.72
+      }
+    ],
+    "upgrade_skills": []
+  },
+  "/skills/workflows/mined": [
+    {
+      "id": 1,
+      "name": "edit-test-commit",
+      "sequence": ["editor", "vitest", "git-commit"],
+      "frequency": 14,
+      "success_rate": 0.86,
+      "source": "mined",
+      "matched_pattern_ids": [1],
+      "created_at": 1700000000,
+      "updated_at": 1700001000
+    },
+    {
+      "id": 2,
+      "name": "lint-fix-commit",
+      "sequence": ["eslint", "editor", "git-commit"],
+      "frequency": 7,
+      "success_rate": 0.92,
+      "source": "mined",
+      "matched_pattern_ids": [],
+      "created_at": 1700000100,
+      "updated_at": 1700000900
+    }
+  ],
+  "/skills/import-from-library": {
+    "imported": 3
+  },
+  "/agent-taste/autonomous-suggestions": {
+    "suggestions": [
+      {
+        "task": "mine_patterns",
+        "reason": "Demo: 最近行为数据足以支持一次挖掘；当前画像更关注类别：coding",
+        "confidence": 0.85,
+        "frequency": "moderate"
+      },
+      {
+        "task": "taste_auto_confirm",
+        "reason": "Demo: 存在待确认 pattern 符合品味偏好",
+        "confidence": 0.72,
+        "frequency": "low"
+      }
+    ]
+  },
   "/agent-taste": {
     "id": 1,
     "created_at": 1700008300,

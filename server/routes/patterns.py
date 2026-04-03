@@ -95,8 +95,12 @@ def export_patterns(ids: str = Query(...), db: Session = Depends(get_db)):
             'body': r.body or r.description or '',
             'evolution': [{'date': e.get('date', ''), 'score': e.get('confidence', 0), 'note': e.get('event_description', '')} for e in evolution],
         })
-    # 导出关联的 workflows
-    wf_rows = db.query(TeamWorkflow).all()
+    # 导出关联的 workflows（先按 profile 收窄，避免全表扫描后再过滤）
+    wf_q = db.query(TeamWorkflow)
+    pid = rows[0].profile_id if rows else None
+    if pid is not None:
+        wf_q = wf_q.filter(TeamWorkflow.profile_id == pid)
+    wf_rows = wf_q.all()
     workflows_out = []
     for wf in wf_rows:
         wf_patterns = json.loads(wf.patterns) if wf.patterns else []

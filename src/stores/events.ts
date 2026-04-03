@@ -318,6 +318,5 @@ export const useEventsStore = defineStore('events', () => {
     ensureLoaded,
     startRealtime,
     stopRealtime,
-    syncRecentEvents,
   }
 })

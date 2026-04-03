@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from models.pattern import BehaviorPattern
 from models.profile import ClawProfile
+from models.skill_workflow import SkillWorkflow
 from models.workflow import TeamWorkflow
 
 EXPORT_ROOT = Path(__file__).resolve().parents[1] / "automation" / "clawprofile_snapshots"
@@ -63,6 +64,17 @@ def export_active_clawprofile_snapshot(db: Session) -> dict | None:
         TeamWorkflow.profile_id == profile.id,
     ).order_by(TeamWorkflow.created_at.desc()).all()
 
+    skill_wf_rows = db.query(SkillWorkflow).all()
+
+    def _safe_json_list(raw: str | None) -> list:
+        if not raw:
+            return []
+        try:
+            data = json.loads(raw)
+            return data if isinstance(data, list) else []
+        except (TypeError, json.JSONDecodeError):
+            return []
+
     payload = {
         "schema": profile.schema or "clawprofile/v1",
         "profile": {
@@ -77,6 +89,15 @@ def export_active_clawprofile_snapshot(db: Session) -> dict | None:
         },
         "patterns": [_pattern_to_export(pattern) for pattern in patterns],
         "workflows": [_workflow_to_export(workflow) for workflow in workflows],
+        "skill_workflows": [
+            {
+                "name": sw.name,
+                "skill_sequence": _safe_json_list(sw.skill_sequence),
+                "frequency": sw.frequency or 0,
+                "success_rate": float(sw.success_rate or 0.0),
+            }
+            for sw in skill_wf_rows
+        ],
         "exported_at": int(time.time()),
     }
 
@@ -91,6 +112,7 @@ def export_active_clawprofile_snapshot(db: Session) -> dict | None:
         "profile": profile.display,
         "patterns": len(payload["patterns"]),
         "workflows": len(payload["workflows"]),
+        "skill_workflows": len(payload["skill_workflows"]),
         "latest_path": str(latest_path),
         "snapshot_path": str(stamped_path),
     }

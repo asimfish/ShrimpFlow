@@ -85,6 +85,27 @@ def get_learning_plan(req: LearningPlanRequest, db: Session = Depends(get_db)):
     return generate_learning_plan(db, req.goal.strip())
 
 
+class RecommendationFeedbackRequest(BaseModel):
+    skill_name: str
+    action: str = Field(..., pattern=r"^(useful|dismiss)$")
+
+
+@router.post("/skills/recommendations/feedback")
+def skill_recommendation_feedback(req: RecommendationFeedbackRequest, db: Session = Depends(get_db)):
+    from models.behavior_pattern import BehaviorPattern
+    from services.taste_model import record_pattern_decision
+
+    pattern = db.query(BehaviorPattern).filter(BehaviorPattern.name == req.skill_name).first()
+    if not pattern:
+        pattern = BehaviorPattern(name=req.skill_name, category="skill_rec", source="recommendation", confidence=50)
+        db.add(pattern)
+        db.flush()
+    decision = "confirm" if req.action == "useful" else "reject"
+    reason = f"User marked recommendation '{req.skill_name}' as {req.action}"
+    record_pattern_decision(db, pattern, decision, reason)
+    return {"status": "ok"}
+
+
 class TrackSkillRequest(BaseModel):
     name: str
     invocation_type: str

@@ -2,15 +2,22 @@
 import { onMounted, ref } from 'vue'
 
 import { useSkillsStore } from '@/stores/skills'
-import type { LearningPlan, Skill, SkillRecommendation, SkillWorkflow, SkillWorkflowItem } from '@/types'
+import type {
+  LearningPlan,
+  Skill,
+  SkillDiscoveryReport,
+  SkillRecommendation,
+  SkillWorkflow,
+  SkillWorkflowItem,
+} from '@/types'
 import {
   generateLearningPlanApi,
   getMinedWorkflowsApi,
   getSkillRecommendationsApi,
   getSkillDiscoveryApi,
   getSkillWorkflowsApi,
+  recommendationFeedbackApi,
 } from '@/http_api/skills'
-import type { SkillDiscoveryReport } from '@/types'
 import SkillGraph from './skill_graph.vue'
 import SkillDetailPanel from './skill_detail_panel.vue'
 
@@ -99,6 +106,16 @@ const switchTab = async (tab: 'detail' | 'workflow' | 'recommend') => {
 onMounted(() => {
   void skillsStore.ensureLoaded()
 })
+
+const feedbackSent = ref<Set<string>>(new Set())
+
+const sendRecFeedback = async (name: string, action: 'useful' | 'dismiss') => {
+  feedbackSent.value.add(`${name}:${action}`)
+  await recommendationFeedbackApi(name, action)
+  if (action === 'dismiss') {
+    recommendations.value = recommendations.value.filter(r => r.name !== name)
+  }
+}
 
 const generatePlan = async () => {
   if (!learningGoal.value.trim()) return
@@ -267,9 +284,23 @@ const generatePlan = async () => {
                   <span class="text-[10px] px-2 py-0.5 rounded-full shrink-0" :class="recommendTypeColor[rec.type] ?? 'bg-surface-3 text-gray-400'">{{ recommendTypeLabel[rec.type] ?? rec.type }}</span>
                 </div>
                 <div class="text-[11px] text-gray-400 leading-relaxed">{{ rec.reason }}</div>
-                <div class="flex items-center gap-3 text-[11px]">
-                  <span class="text-gray-500">置信度 <span :class="confidenceColor(rec.confidence)" class="font-medium">{{ Math.round(rec.confidence * 100) }}%</span></span>
-                  <span class="text-gray-600">{{ rec.category }}</span>
+                <div class="flex items-center justify-between text-[11px]">
+                  <div class="flex items-center gap-3">
+                    <span class="text-gray-500">置信度 <span :class="confidenceColor(rec.confidence)" class="font-medium">{{ Math.round(rec.confidence * 100) }}%</span></span>
+                    <span class="text-gray-600">{{ rec.category }}</span>
+                  </div>
+                  <div class="flex items-center gap-1.5">
+                    <button
+                      class="px-2 py-0.5 rounded text-[10px] transition-colors"
+                      :class="feedbackSent.has(`${rec.name}:useful`) ? 'bg-emerald-500/20 text-emerald-400' : 'bg-surface-3 text-gray-400 hover:text-emerald-400 hover:bg-emerald-500/10'"
+                      :disabled="feedbackSent.has(`${rec.name}:useful`)"
+                      @click.stop="sendRecFeedback(rec.name, 'useful')"
+                    >有用</button>
+                    <button
+                      class="px-2 py-0.5 rounded text-[10px] bg-surface-3 text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                      @click.stop="sendRecFeedback(rec.name, 'dismiss')"
+                    >忽略</button>
+                  </div>
                 </div>
               </div>
             </div>

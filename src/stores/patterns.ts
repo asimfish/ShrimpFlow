@@ -76,18 +76,6 @@ export const usePatternsStore = defineStore('patterns', () => {
     }
   }
 
-  const createPattern = async (patternData: Partial<BehaviorPattern>) => {
-    const { data } = await patternsApi.createPatternApi(patternData)
-    if (data) patterns.value = [...patterns.value, data]
-    return data
-  }
-
-  const updatePattern = async (id: number, patternData: Partial<BehaviorPattern>) => {
-    const { data } = await patternsApi.updatePatternApi(id, patternData)
-    if (data) patterns.value = patterns.value.map(p => p.id === id ? data : p)
-    return data
-  }
-
   const deletePattern = async (id: number) => {
     const { error } = await patternsApi.deletePatternApi(id)
     if (!error) patterns.value = patterns.value.filter(p => p.id !== id)
@@ -109,8 +97,6 @@ export const usePatternsStore = defineStore('patterns', () => {
     fetchWorkflows,
     ensurePatternsLoaded,
     ensureWorkflowsLoaded,
-    createPattern,
-    updatePattern,
     deletePattern,
   }
 })

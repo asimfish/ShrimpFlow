@@ -51,3 +51,6 @@ export const getSkillDiscoveryApi = () => get<SkillDiscoveryReport>('/skills/dis
 
 export const trackSkillApi = (name: string, invocation_type: string) =>
   post<{ status: string }>('/skills/track', { name, invocation_type })
+
+export const recommendationFeedbackApi = (skill_name: string, action: 'useful' | 'dismiss') =>
+  post<{ status: string }>('/skills/recommendations/feedback', { skill_name, action })

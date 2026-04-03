@@ -53,9 +53,9 @@ watch(() => route.params.id, id => {
 }, { immediate: true })
 
 const includedPatterns = computed(() =>
-  (workflow.value?.patterns
+  (workflow.value?.patterns ?? [])
     .map(id => allPatterns.value.find(p => p.id === id))
-    .filter((pattern): pattern is BehaviorPattern => Boolean(pattern))) ?? []
+    .filter((pattern): pattern is BehaviorPattern => Boolean(pattern)),
 )
 
 const statusColorMap: Record<string, string> = {
@@ -247,7 +247,7 @@ const executionSteps = [
             class="contents"
           >
             <span
-              v-for="scenario in p.applicable_scenarios"
+              v-for="scenario in (p.applicable_scenarios ?? [])"
               :key="scenario"
               class="text-xs px-3 py-1 rounded-full bg-surface-3 text-gray-400 border border-surface-3"
             >

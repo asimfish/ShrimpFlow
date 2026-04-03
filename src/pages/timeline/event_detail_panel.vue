@@ -116,7 +116,7 @@ const exitCodeClass = computed(() => {
         <div class="text-xs font-mono text-gray-300 break-all">{{ event.directory }}</div>
       </div>
 
-      <div v-if="event.tags.length">
+      <div v-if="(event.tags ?? []).length">
         <div class="text-xs text-gray-500 mb-2">标签</div>
         <div class="flex flex-wrap gap-1.5">
           <span v-for="tag in event.tags" :key="tag" class="text-[11px] px-2 py-0.5 rounded-full bg-surface-3 text-gray-400">

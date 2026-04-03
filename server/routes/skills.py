@@ -29,7 +29,7 @@ def get_skills(db: Session = Depends(get_db)):
         try:
             data = json.loads(raw)
             return data if isinstance(data, list) else []
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return []
     return [
         {

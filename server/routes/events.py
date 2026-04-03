@@ -73,7 +73,7 @@ def notify_new_event(event_data: dict):
     for q in list(_event_subscribers):
         try:
             q.put_nowait(event_data)
-        except Exception:
+        except asyncio.QueueFull:
             pass
 
 

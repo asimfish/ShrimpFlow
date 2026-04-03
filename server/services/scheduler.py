@@ -129,8 +129,8 @@ def _install_taste_mining_patch(prioritized_categories: list[str]) -> Callable[[
     preferred = set(prioritized_categories)
     original = pm.semantic_refine_patterns
 
-    def wrapped(patterns):
-        out = original(patterns)
+    def wrapped(patterns, reject_constraint: str = ""):
+        out = original(patterns, reject_constraint)
         if not isinstance(out, list):
             return out
         for item in out:

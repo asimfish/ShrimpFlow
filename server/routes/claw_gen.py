@@ -107,10 +107,9 @@ def generate_before_after(db: Session = Depends(get_db)):
         trigger = p.trigger or ''
         if isinstance(trigger, str) and trigger.startswith('{'):
             try:
-                import json as _json
-                trigger_obj = _json.loads(trigger)
+                trigger_obj = json.loads(trigger)
                 trigger = trigger_obj.get('when', trigger)
-            except Exception:
+            except (json.JSONDecodeError, TypeError, ValueError):
                 pass
 
         scenario = trigger[:200] if trigger else f'处理 {p.category} 相关任务'
@@ -129,7 +128,7 @@ def generate_before_after(db: Session = Depends(get_db)):
         try:
             text = ai_chat([{'role': 'user', 'content': prompt}], max_tokens=600)
             if text:
-                data = _json.loads(_strip_json_fence(text))
+                data = json.loads(_strip_json_fence(text))
                 comparisons.append({
                     'pattern_id': p.id,
                     'pattern_name': p.name,

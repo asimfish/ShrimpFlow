@@ -99,5 +99,9 @@ export const router = createRouter({
       path: '/security',
       component: () => import('@/pages/security/security_page.vue'),
     },
+    {
+      path: '/:pathMatch(.*)*',
+      redirect: '/dashboard',
+    },
   ],
 })

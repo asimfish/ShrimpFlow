@@ -227,7 +227,7 @@ const finalConfidence = computed(() => {
       </div>
 
       <!-- 置信度演化曲线 -->
-      <div v-if="pattern.evolution.length > 1" class="bg-surface-1 rounded-xl border border-surface-3 p-6">
+      <div v-if="(pattern.evolution?.length ?? 0) > 1" class="bg-surface-1 rounded-xl border border-surface-3 p-6">
         <div class="flex items-center justify-between mb-4">
           <div class="text-sm font-medium text-gray-300">置信度演化曲线</div>
           <div class="flex items-baseline gap-1">
@@ -281,7 +281,7 @@ const finalConfidence = computed(() => {
           <!-- 垂直连接线 -->
           <div class="absolute left-[7px] top-2 bottom-2 w-0.5 bg-gradient-to-b from-red-500 via-yellow-500 to-emerald-500 rounded-full" />
           <!-- 时间线节点 -->
-          <div v-for="(snap, idx) in pattern.evolution" :key="idx" class="relative pb-5 last:pb-0">
+          <div v-for="(snap, idx) in (pattern.evolution ?? [])" :key="idx" class="relative pb-5 last:pb-0">
             <!-- 节点圆点 -->
             <div class="absolute -left-6 top-0.5 w-3.5 h-3.5 rounded-full border-2 border-surface-1" :class="confidenceBg(snap.confidence)" />
             <div class="flex items-start justify-between gap-4">
@@ -297,9 +297,9 @@ const finalConfidence = computed(() => {
 
       <!-- 子规则列表 -->
       <div class="bg-surface-1 rounded-xl border border-surface-3 p-6">
-        <div class="text-sm font-medium text-gray-300 mb-4">子规则 ({{ pattern.rules.length }})</div>
+        <div class="text-sm font-medium text-gray-300 mb-4">子规则 ({{ (pattern.rules ?? []).length }})</div>
         <div class="grid grid-cols-1 gap-3">
-          <div v-for="rule in pattern.rules" :key="rule.id" class="bg-surface-2 rounded-lg p-4 space-y-2">
+          <div v-for="rule in (pattern.rules ?? [])" :key="rule.id" class="bg-surface-2 rounded-lg p-4 space-y-2">
             <div class="text-sm font-medium text-gray-200">{{ rule.name }}</div>
             <div class="text-xs text-gray-400">{{ rule.description }}</div>
             <div class="grid grid-cols-2 gap-3 mt-2">
@@ -322,9 +322,9 @@ const finalConfidence = computed(() => {
 
       <!-- 执行日志 -->
       <div class="bg-surface-1 rounded-xl border border-surface-3 p-6">
-        <div class="text-sm font-medium text-gray-300 mb-4">执行日志 ({{ pattern.executions.length }})</div>
+        <div class="text-sm font-medium text-gray-300 mb-4">执行日志 ({{ (pattern.executions ?? []).length }})</div>
         <div class="space-y-2">
-          <div v-for="exec in pattern.executions" :key="exec.id" class="bg-surface-2 rounded-lg p-3 flex items-center gap-4">
+          <div v-for="exec in (pattern.executions ?? [])" :key="exec.id" class="bg-surface-2 rounded-lg p-3 flex items-center gap-4">
             <div class="text-[10px] text-gray-500 shrink-0 w-32">{{ formatTime(exec.timestamp) }}</div>
             <div class="flex-1 min-w-0">
               <div class="text-xs text-gray-300 truncate">{{ exec.trigger_event }}</div>
@@ -339,7 +339,7 @@ const finalConfidence = computed(() => {
       <div class="bg-surface-1 rounded-xl border border-surface-3 p-6">
         <div class="text-sm font-medium text-gray-300 mb-3">适用场景</div>
         <div class="flex flex-wrap gap-2">
-          <span v-for="scenario in pattern.applicable_scenarios" :key="scenario" class="text-xs px-3 py-1 rounded-full bg-surface-3 text-gray-400 border border-surface-3">
+          <span v-for="scenario in (pattern.applicable_scenarios ?? [])" :key="scenario" class="text-xs px-3 py-1 rounded-full bg-surface-3 text-gray-400 border border-surface-3">
             {{ scenario }}
           </span>
         </div>

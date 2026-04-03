@@ -10,6 +10,13 @@ import { mineAllPatterns } from '@/utils/pattern_mining'
 import { getEpisodesApi, getEpisodeStatsApi, getArchetypesApi, getFeatureGraphStatsApi, getEvidenceLedgerStatsApi } from '@/http_api/episodes'
 import { getAgentTasteApi, relearnAgentTasteApi, autoConfirmPatternsApi, getAutonomousSuggestionsApi, approveTaskApi } from '@/http_api/agent_taste'
 import type { TasteProfile, AutoConfirmResult, AutonomousTaskSuggestion } from '@/http_api/agent_taste'
+
+type TasteDecisionHistoryEntry = {
+  action?: string
+  task_type?: string
+  ts?: number
+  result_summary?: string
+}
 import { dayjs } from '@/libs/dayjs'
 import { generateClawsApi, getCotProfileApi, exportMarkdownApi } from '@/http_api/claw_gen'
 import type { ClawGenResult, CotProfile } from '@/http_api/claw_gen'
@@ -89,6 +96,21 @@ onMounted(async () => {
 const handleApproveTask = async (task: string) => {
   approvedTasks.value.add(task)
   await approveTaskApi(task)
+}
+
+const autonomousActionHistory = computed(() => {
+  const hist = (tasteProfile.value as (TasteProfile & { decision_history?: TasteDecisionHistoryEntry[] }) | null)
+    ?.decision_history
+  if (!Array.isArray(hist)) return []
+  return [...hist]
+    .filter((e) => e?.action === 'autonomous_executed' || e?.action === 'triggered')
+    .sort((a, b) => (b.ts ?? 0) - (a.ts ?? 0))
+    .slice(0, 10)
+})
+
+const formatTasteHistoryTs = (ts: number | undefined) => {
+  if (ts == null || !Number.isFinite(ts)) return '—'
+  return dayjs.unix(ts).format('YYYY-MM-DD HH:mm:ss')
 }
 
 // 运行挖掘算法
@@ -717,6 +739,24 @@ const copyMarkdownToClipboard = () => {
               @click="handleApproveTask(s.task)"
             >{{ approvedTasks.has(s.task) ? '已批准' : '批准' }}</button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="autonomousActionHistory.length" class="mt-4 space-y-2">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="inline-block w-2 h-2 rounded-full bg-teal-400/80" />
+        <span class="text-sm font-medium text-teal-400/90">自主执行历史</span>
+      </div>
+      <div class="space-y-2">
+        <div
+          v-for="(e, i) in autonomousActionHistory"
+          :key="i"
+          class="bg-surface-2 rounded-lg border border-surface-3 border-l-2 border-l-teal-500/40 p-3"
+        >
+          <div class="text-xs font-medium text-gray-200">{{ e.task_type ?? '—' }}</div>
+          <div class="text-[10px] text-gray-500 mt-0.5">{{ formatTasteHistoryTs(e.ts) }}</div>
+          <div v-if="e.result_summary" class="text-[10px] text-gray-400 mt-1 leading-relaxed">{{ e.result_summary }}</div>
         </div>
       </div>
     </div>

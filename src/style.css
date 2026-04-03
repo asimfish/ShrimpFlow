@@ -2,9 +2,14 @@
 
 @theme {
   --color-void: #0a0a0f;
-  --color-surface-1: #12121a;
-  --color-surface-2: #1a1a2e;
-  --color-surface-3: #242438;
+  --color-surface-1: #15151e;
+  --color-surface-2: #1c1c2e;
+  --color-surface-3: #2a2a40;
+  --color-chart-1: #818cf8;
+  --color-chart-2: #6ee7b7;
+  --color-chart-3: #fbbf24;
+  --color-chart-4: #f9a8d4;
+  --color-chart-5: #67e8f9;
   --color-accent: #7c5cfc;
   --color-accent-glow: #a78bfa;
   --color-success: #34d399;
@@ -22,10 +27,15 @@
 
 body {
   font-family: var(--font-sans);
+  color: #e5e5ea;
 }
 
 code, pre, .font-mono {
   font-family: var(--font-mono);
+}
+
+.heading-tight {
+  letter-spacing: -0.02em;
 }
 
 /* 自定义滚动条 */
@@ -46,11 +56,18 @@ code, pre, .font-mono {
 
 /* 卡片 hover 光效 */
 .glow-card {
-  transition: all 0.3s ease;
+  transition: transform 200ms ease, box-shadow 200ms ease;
 }
 .glow-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 30px -8px rgba(124, 92, 252, 0.15);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 30px -8px rgba(124, 92, 252, 0.08);
+}
+
+/* Hero / 摘要卡：玻璃材质（仅用于关键信息区） */
+.glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 /* countUp 数字动画 */
@@ -64,10 +81,13 @@ code, pre, .font-mono {
 
 /* 侧边栏选中项辉光 */
 .nav-glow {
-  box-shadow: inset 3px 0 0 var(--color-accent), 0 0 20px -8px rgba(124, 92, 252, 0.3);
+  box-shadow: inset 3px 0 0 var(--color-accent), 0 0 12px -6px rgba(124, 92, 252, 0.22);
 }
 
 /* 按钮 hover 光晕 */
+.btn-glow {
+  transition: box-shadow 200ms ease;
+}
 .btn-glow:hover {
   box-shadow: 0 0 20px -4px rgba(124, 92, 252, 0.4);
 }

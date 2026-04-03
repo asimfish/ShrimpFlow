@@ -68,9 +68,9 @@ const realtimeLabel = computed(() => {
 </script>
 
 <template>
-  <aside class="w-56 bg-surface-1 border-r border-surface-3 flex flex-col shrink-0">
+  <aside class="w-56 bg-surface-1 border-r border-surface-3/35 flex flex-col shrink-0">
     <!-- Logo -->
-    <div class="p-5 border-b border-surface-3">
+    <div class="px-5 pt-6 pb-5 border-b border-surface-3/35">
       <div class="flex items-center gap-2.5">
         <div class="w-8 h-8 relative">
           <svg viewBox="0 0 32 32" class="w-full h-full">
@@ -92,8 +92,12 @@ const realtimeLabel = computed(() => {
         v-for="item in navItems"
         :key="item.path"
         :to="item.path"
-        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200"
-        :class="isActive(item.path) ? 'bg-accent/15 text-accent-glow nav-glow' : 'text-gray-400 hover:text-white hover:bg-surface-2'"
+        class="flex items-center gap-3 pl-[10px] pr-3 py-2 rounded-md text-sm transition-colors duration-150 border-l-2 border-l-transparent"
+        :class="
+          isActive(item.path)
+            ? 'border-l-accent bg-accent/[0.07] text-gray-100'
+            : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.035]'
+        "
       >
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <template v-if="item.icon === 'grid'">
@@ -136,7 +140,7 @@ const realtimeLabel = computed(() => {
     </nav>
 
     <!-- 实时事件流 -->
-    <div class="border-t border-surface-3 p-3">
+    <div class="border-t border-surface-3/35 p-3">
       <div class="flex items-center gap-1.5 mb-2">
         <div class="w-1.5 h-1.5 rounded-full" :class="realtimeIndicatorClass" />
         <span class="text-[10px] text-gray-500">{{ realtimeLabel }}</span>
@@ -162,7 +166,7 @@ const realtimeLabel = computed(() => {
     </div>
 
     <!-- Footer -->
-    <div class="p-3 border-t border-surface-3">
+    <div class="p-3 border-t border-surface-3/35">
       <div class="flex items-center justify-between">
         <div class="text-[10px] text-gray-600">OpenClaw Hackathon</div>
         <kbd class="text-[9px] text-gray-600 bg-surface-3 px-1.5 py-0.5 rounded">Cmd+K</kbd>

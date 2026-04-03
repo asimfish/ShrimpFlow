@@ -17,6 +17,8 @@ import {
   getSkillDiscoveryApi,
   getSkillWorkflowsApi,
   recommendationFeedbackApi,
+  summarizeWorkflowsApi,
+  updateWorkflowStatusApi,
 } from '@/http_api/skills'
 import SkillGraph from './skill_graph.vue'
 import SkillDetailPanel from './skill_detail_panel.vue'
@@ -51,15 +53,48 @@ const confidenceColor = (v: number) => {
   return 'text-gray-400'
 }
 
+// Workflow tab 增强
+const workflowFilter = ref<'all' | 'draft' | 'confirmed' | 'archived'>('all')
+const summarizing = ref(false)
+const expandedWorkflow = ref<number | null>(null)
+
+const filteredMinedWorkflows = () => {
+  if (!minedWorkflows.value.length) return []
+  if (workflowFilter.value === 'all') return minedWorkflows.value
+  return minedWorkflows.value.filter(wf => wf.status === workflowFilter.value)
+}
+
+const handleSummarize = async () => {
+  summarizing.value = true
+  const res = await summarizeWorkflowsApi()
+  summarizing.value = false
+  if (res.data) {
+    const result = await getMinedWorkflowsApi()
+    if (result.data) minedWorkflows.value = [...result.data].sort((a, b) => b.frequency - a.frequency)
+  }
+}
+
+const handleWorkflowStatus = async (id: number, status: 'confirmed' | 'archived') => {
+  await updateWorkflowStatusApi(id, status)
+  const wf = minedWorkflows.value.find(w => w.id === id)
+  if (wf) wf.status = status
+}
+
+const toggleWorkflowExpand = (id: number) => {
+  expandedWorkflow.value = expandedWorkflow.value === id ? null : id
+}
+
 const recommendTypeLabel: Record<string, string> = {
   advanced: '进阶',
   gap: '缺口',
   related: '关联',
+  workflow_co: '共现',
 }
 const recommendTypeColor: Record<string, string> = {
   advanced: 'bg-openclaw/10 text-openclaw',
   gap: 'bg-red-500/10 text-red-400',
   related: 'bg-sky-500/10 text-sky-400',
+  workflow_co: 'bg-violet-500/10 text-violet-400',
 }
 
 const selectSkill = (skill: Skill) => {
@@ -75,12 +110,11 @@ const switchTab = async (tab: 'detail' | 'workflow' | 'recommend') => {
   activeTab.value = tab
   if (tab === 'workflow' && !workflowLoaded.value) {
     workflowLoading.value = true
-    const res = await getSkillWorkflowsApi()
+    const [res, minedRes] = await Promise.all([getSkillWorkflowsApi(), getMinedWorkflowsApi()])
     workflowLoading.value = false
-    if (res.data) {
-      workflows.value = res.data
-      workflowLoaded.value = true
-    }
+    if (res.data) workflows.value = res.data
+    if (minedRes.data) minedWorkflows.value = [...minedRes.data].sort((a, b) => b.frequency - a.frequency)
+    workflowLoaded.value = true
   }
   if (tab === 'recommend' && !recommendLoaded.value) {
     recommendLoading.value = true
@@ -228,28 +262,119 @@ const generatePlan = async () => {
       <template v-else-if="activeTab === 'workflow'">
         <div class="flex-1 min-h-0 overflow-y-auto">
           <div v-if="workflowLoading" class="flex items-center justify-center h-32 text-gray-500 text-sm">加载中...</div>
-          <div v-else-if="workflows.length === 0" class="flex flex-col items-center justify-center h-48 text-gray-500">
-            <div class="text-sm">暂无 Workflow 数据</div>
-            <div class="text-xs mt-1">需要采集更多 OpenClaw 调用记录</div>
-          </div>
-          <div v-else class="p-4 space-y-3">
-            <div class="text-xs text-gray-500">共发现 {{ workflows.length }} 条常见调用序列</div>
-            <div
-              v-for="wf in workflows"
-              :key="wf.name"
-              class="bg-surface-2 rounded-xl p-4 space-y-2"
-            >
-              <!-- 序列节点 -->
-              <div class="flex flex-wrap items-center gap-1">
-                <template v-for="(step, idx) in wf.sequence" :key="step">
-                  <span class="text-[11px] px-2 py-0.5 rounded-full bg-openclaw/10 text-openclaw font-mono">{{ step }}</span>
-                  <span v-if="idx < wf.sequence.length - 1" class="text-gray-600 text-[10px]">→</span>
-                </template>
+          <div v-else class="p-4 space-y-4">
+            <!-- 顶部操作栏 -->
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-1.5">
+                <button
+                  v-for="f in (['all', 'draft', 'confirmed', 'archived'] as const)"
+                  :key="f"
+                  class="px-2 py-1 rounded text-[10px] transition-colors"
+                  :class="workflowFilter === f ? 'bg-openclaw/15 text-openclaw' : 'bg-surface-3 text-gray-500 hover:text-gray-300'"
+                  @click="workflowFilter = f"
+                >{{ { all: '全部', draft: '待确认', confirmed: '已确认', archived: '已归档' }[f] }}</button>
               </div>
-              <!-- 统计信息 -->
-              <div class="flex items-center gap-4 text-[11px]">
-                <span class="text-gray-400">出现 <span class="text-gray-200 font-medium">{{ wf.count }}</span> 次</span>
-                <span class="text-gray-400">成功率 <span :class="wf.success_rate >= 0.8 ? 'text-emerald-400' : wf.success_rate >= 0.5 ? 'text-amber-400' : 'text-red-400'" class="font-medium">{{ Math.round(wf.success_rate * 100) }}%</span></span>
+              <button
+                class="px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
+                :class="summarizing ? 'bg-surface-3 text-gray-500' : 'bg-openclaw/15 text-openclaw hover:bg-openclaw/25'"
+                :disabled="summarizing"
+                @click="handleSummarize"
+              >{{ summarizing ? 'AI 提炼中...' : 'AI 提炼' }}</button>
+            </div>
+
+            <!-- 实时统计 workflow -->
+            <div v-if="workflows.length > 0" class="space-y-3">
+              <div class="text-xs text-gray-500">实时统计 · {{ workflows.length }} 条序列</div>
+              <div v-for="wf in workflows" :key="wf.name" class="bg-surface-2 rounded-xl p-4 space-y-2">
+                <div class="flex flex-wrap items-center gap-1">
+                  <template v-for="(step, idx) in wf.sequence" :key="step">
+                    <span class="text-[11px] px-2 py-0.5 rounded-full bg-openclaw/10 text-openclaw font-mono">{{ step }}</span>
+                    <span v-if="idx < wf.sequence.length - 1" class="text-gray-600 text-[10px]">→</span>
+                  </template>
+                </div>
+                <div class="flex items-center gap-4 text-[11px]">
+                  <span class="text-gray-400">出现 <span class="text-gray-200 font-medium">{{ wf.count }}</span> 次</span>
+                  <span class="text-gray-400">成功率 <span :class="wf.success_rate >= 0.8 ? 'text-emerald-400' : wf.success_rate >= 0.5 ? 'text-amber-400' : 'text-red-400'" class="font-medium">{{ Math.round(wf.success_rate * 100) }}%</span></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 持久化 mined workflows -->
+            <div class="space-y-3 pt-3 border-t border-surface-3">
+              <div class="text-xs font-semibold text-gray-200 tracking-wide">Skill Workflow 库</div>
+              <div v-if="filteredMinedWorkflows().length === 0" class="text-sm text-gray-500 py-4 text-center">
+                {{ workflowFilter === 'all' ? '暂无数据，点击「AI 提炼」生成' : '该分类暂无 workflow' }}
+              </div>
+              <div
+                v-for="wf in filteredMinedWorkflows()"
+                :key="wf.id"
+                class="bg-surface-2 rounded-xl p-4 space-y-2 cursor-pointer hover:bg-surface-2/80 transition-colors"
+                @click="toggleWorkflowExpand(wf.id)"
+              >
+                <div class="flex items-start justify-between gap-2">
+                  <div>
+                    <div class="text-sm font-medium text-gray-100">{{ wf.name }}</div>
+                    <div v-if="wf.description" class="text-[11px] text-gray-400 mt-0.5">{{ wf.description }}</div>
+                    <div v-else class="text-[11px] text-gray-600 mt-0.5 italic">待 AI 提炼</div>
+                  </div>
+                  <span
+                    class="text-[10px] px-2 py-0.5 rounded-full shrink-0"
+                    :class="{
+                      'bg-amber-500/10 text-amber-400': wf.status === 'draft' || !wf.status,
+                      'bg-emerald-500/10 text-emerald-400': wf.status === 'confirmed',
+                      'bg-gray-500/10 text-gray-500': wf.status === 'archived',
+                    }"
+                  >{{ { draft: '待确认', confirmed: '已确认', archived: '已归档' }[wf.status || 'draft'] }}</span>
+                </div>
+
+                <!-- 序列 -->
+                <div class="flex flex-wrap items-center gap-1">
+                  <template v-for="(step, idx) in wf.skill_sequence" :key="`${wf.id}-${idx}-${step}`">
+                    <span class="text-[11px] px-2 py-0.5 rounded-full bg-openclaw/10 text-openclaw font-mono">{{ step }}</span>
+                    <span v-if="idx < wf.skill_sequence.length - 1" class="text-gray-600 text-[10px]">→</span>
+                  </template>
+                </div>
+
+                <!-- 统计 + 标签 -->
+                <div class="flex items-center gap-4 text-[11px]">
+                  <span class="text-gray-400">频次 <span class="text-gray-200 font-medium">{{ wf.frequency }}</span></span>
+                  <span class="text-gray-400">成功率 <span :class="wf.success_rate >= 0.8 ? 'text-emerald-400' : wf.success_rate >= 0.5 ? 'text-amber-400' : 'text-red-400'" class="font-medium">{{ Math.round(wf.success_rate * 100) }}%</span></span>
+                  <span class="text-gray-600 text-[10px]">{{ wf.source }}</span>
+                </div>
+
+                <!-- 展开详情 -->
+                <template v-if="expandedWorkflow === wf.id">
+                  <div v-if="wf.trigger" class="bg-surface-1 rounded-lg p-3 mt-2">
+                    <div class="text-[10px] text-gray-500 mb-1">触发条件</div>
+                    <div class="text-xs text-gray-300">{{ wf.trigger }}</div>
+                  </div>
+                  <div v-if="wf.steps && wf.steps.length" class="bg-surface-1 rounded-lg p-3">
+                    <div class="text-[10px] text-gray-500 mb-2">步骤流程</div>
+                    <div class="space-y-1.5">
+                      <div v-for="(s, si) in wf.steps" :key="si" class="flex items-start gap-2 text-xs">
+                        <span class="w-5 h-5 rounded-full bg-openclaw/10 text-openclaw flex items-center justify-center text-[10px] shrink-0 mt-0.5">{{ si + 1 }}</span>
+                        <div>
+                          <span class="text-gray-200">{{ s.action }}</span>
+                          <span v-if="s.tool" class="text-gray-500 ml-1">[{{ s.tool }}]</span>
+                          <div v-if="s.checkpoint" class="text-[10px] text-gray-600 mt-0.5">✓ {{ s.checkpoint }}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-if="wf.context_tags?.length" class="flex flex-wrap gap-1">
+                    <span v-for="tag in wf.context_tags" :key="tag" class="text-[10px] px-2 py-0.5 rounded-full bg-surface-3 text-gray-400">{{ tag }}</span>
+                  </div>
+                  <div v-if="wf.status !== 'confirmed' && wf.status !== 'archived'" class="flex items-center gap-2 pt-1">
+                    <button
+                      class="px-3 py-1 rounded-lg text-[11px] bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                      @click.stop="handleWorkflowStatus(wf.id, 'confirmed')"
+                    >确认采纳</button>
+                    <button
+                      class="px-3 py-1 rounded-lg text-[11px] bg-surface-3 text-gray-400 hover:text-gray-300 transition-colors"
+                      @click.stop="handleWorkflowStatus(wf.id, 'archived')"
+                    >归档</button>
+                  </div>
+                </template>
               </div>
             </div>
           </div>

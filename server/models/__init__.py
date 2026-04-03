@@ -10,3 +10,4 @@ from models.profile import ClawProfile
 from models.invocation import OpenClawInvocationLog
 from models.agent_taste import AgentTasteProfile
 from models.skill_implicit_event import SkillImplicitEvent
+from models.meta_decision import MetaDecisionLog, MetaPolicy, MetaShadowLog

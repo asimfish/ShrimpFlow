@@ -365,6 +365,53 @@ def ensure_runtime_schema() -> None:
         conn.exec_driver_sql(
             "CREATE INDEX IF NOT EXISTS ix_skill_implicit_events_name ON skill_implicit_events(skill_name)"
         )
+        conn.exec_driver_sql(
+            """
+            CREATE TABLE IF NOT EXISTS meta_decision_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                decision_type VARCHAR NOT NULL,
+                target_id INTEGER,
+                target_name VARCHAR,
+                user_action VARCHAR NOT NULL,
+                user_reason VARCHAR,
+                system_recommendation VARCHAR,
+                context_snapshot VARCHAR,
+                taste_profile_snapshot VARCHAR,
+                created_at INTEGER NOT NULL
+            )
+            """
+        )
+        conn.exec_driver_sql(
+            """
+            CREATE TABLE IF NOT EXISTS meta_policies (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                rule VARCHAR NOT NULL,
+                conditions VARCHAR,
+                predicted_action VARCHAR NOT NULL,
+                confidence REAL DEFAULT 0.5,
+                hit_count INTEGER DEFAULT 0,
+                miss_count INTEGER DEFAULT 0,
+                supporting_decisions VARCHAR,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER
+            )
+            """
+        )
+        conn.exec_driver_sql(
+            """
+            CREATE TABLE IF NOT EXISTS meta_shadow_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pattern_id INTEGER,
+                predicted_action VARCHAR NOT NULL,
+                predicted_confidence REAL DEFAULT 0.5,
+                predicted_reason VARCHAR,
+                actual_action VARCHAR,
+                matched INTEGER,
+                created_at INTEGER NOT NULL,
+                resolved_at INTEGER
+            )
+            """
+        )
 
 
 def get_db():

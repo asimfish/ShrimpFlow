@@ -35,3 +35,17 @@ export const getAgentTasteApi = () => get<TasteProfile>('/agent-taste')
 export const relearnAgentTasteApi = () => post<TasteProfile>('/agent-taste/relearn', {})
 
 export const autoConfirmPatternsApi = () => post<AutoConfirmResult>('/agent-taste/auto-confirm', {})
+
+export type AutonomousTaskSuggestion = {
+  task: string
+  reason: string
+  confidence: number
+  frequency: string
+}
+
+export type AutonomousSuggestionsPayload = {
+  suggestions: AutonomousTaskSuggestion[]
+}
+
+export const getAutonomousSuggestionsApi = () =>
+  get<AutonomousSuggestionsPayload>('/agent-taste/autonomous-suggestions')

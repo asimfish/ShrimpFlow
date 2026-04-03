@@ -3,6 +3,7 @@ import time
 from collections import defaultdict
 from statistics import median
 
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from models.agent_taste import AgentTasteProfile
@@ -278,14 +279,12 @@ def record_task_preference(
     return profile
 
 
-def get_preferred_task_schedule(db: Session) -> dict[str, float]:
-    """Map task_type -> preference score in [0,1] from triggered vs skipped counts in decision_history."""
-    profile = get_or_create_taste_profile(db)
+def _task_trigger_skip_from_profile(profile: AgentTasteProfile) -> tuple[dict[str, int], dict[str, int]]:
     history = _loads_json(profile.decision_history, [])
-    if not isinstance(history, list):
-        return {}
     triggered: dict[str, int] = defaultdict(int)
     skipped: dict[str, int] = defaultdict(int)
+    if not isinstance(history, list):
+        return {}, {}
     for entry in history:
         if not isinstance(entry, dict):
             continue
@@ -298,6 +297,13 @@ def get_preferred_task_schedule(db: Session) -> dict[str, float]:
             triggered[key] += 1
         elif act == "skipped":
             skipped[key] += 1
+    return dict(triggered), dict(skipped)
+
+
+def get_preferred_task_schedule(db: Session) -> dict[str, float]:
+    """Map task_type -> preference score in [0,1] from triggered vs skipped counts in decision_history."""
+    profile = get_or_create_taste_profile(db)
+    triggered, skipped = _task_trigger_skip_from_profile(profile)
     scores: dict[str, float] = {}
     all_types = set(triggered) | set(skipped)
     for tt in all_types:
@@ -306,6 +312,157 @@ def get_preferred_task_schedule(db: Session) -> dict[str, float]:
         if total > 0:
             scores[tt] = round(t / total, 4)
     return scores
+
+
+# 与 scheduler 周期一致的可编排原子；仅作「建议」文案与排序，不会自动执行。
+_AUTONOMOUS_TASK_SPEC: list[dict] = [
+    {
+        "id": "mine_patterns",
+        "reason": "你经常手动触发模式挖掘，系统建议在确认预览策略后可定期自动排队此步骤",
+        "category_hint": "mining",
+    },
+    {
+        "id": "collect",
+        "reason": "你经常手动运行采集与分析流水线，系统建议将同等流程纳入可编排的定时任务",
+        "category_hint": "collection",
+    },
+    {
+        "id": "taste_auto_confirm",
+        "reason": "你多次显式参与品味相关任务，系统建议在护栏内自动预筛高置信模式供你过目",
+        "category_hint": "taste",
+    },
+    {
+        "id": "memory_decay",
+        "reason": "你关注记忆生命周期，系统建议按固定节奏运行衰减与冷却，减少手动清理",
+        "category_hint": "memory",
+    },
+    {
+        "id": "consolidation",
+        "reason": "你常驱动合并与剪枝类操作，系统建议周期性自动合并候选模式",
+        "category_hint": "consolidation",
+    },
+    {
+        "id": "relation_discovery",
+        "reason": "你多次触发关系发现，系统建议低频率后台扫描关联，结果仅作建议列表",
+        "category_hint": "relations",
+    },
+    {
+        "id": "claw_evolution",
+        "reason": "你频繁使用 Claw 进化相关能力，系统建议在窗口期自动挖掘 CoT / 工作流候选",
+        "category_hint": "evolution",
+    },
+]
+
+# 与 routes 中 create_task(task_type=...) 一致的任务，可用 background_tasks 成功次数补充「手动活跃度」。
+_BG_BACKED_TASK_TYPES = frozenset({"mine_patterns", "collect"})
+
+
+def _completed_background_task_counts(db: Session) -> dict[str, int]:
+    rows = db.execute(
+        text(
+            "SELECT task_type, COUNT(*) FROM background_tasks WHERE status = 'done' GROUP BY task_type"
+        ),
+    ).fetchall()
+    out: dict[str, int] = {}
+    for row in rows:
+        if row[0] is None:
+            continue
+        out[str(row[0])] = int(row[1])
+    return out
+
+
+def _frequency_label_from_activity(activity: int) -> str:
+    if activity >= 20:
+        return "每2小时"
+    if activity >= 10:
+        return "每6小时"
+    if activity >= 5:
+        return "每12小时"
+    if activity >= 2:
+        return "每24小时"
+    return "每3天（低频次）"
+
+
+def _top_category_line(weights: dict[str, int]) -> str:
+    if not weights:
+        return ""
+    top = sorted(weights.items(), key=lambda item: (-item[1], item[0]))[:2]
+    parts = [f"{name}" for name, w in top if w >= 55]
+    if not parts:
+        parts = [top[0][0]] if top else []
+    return "、".join(parts)
+
+
+def _suggestion_confidence(
+    schedule_score: float,
+    category_weights: dict[str, int],
+    spec: dict,
+) -> float:
+    hint = str(spec.get("category_hint") or "")
+    boost = 0.0
+    if category_weights and hint:
+        # 与模式类品味弱关联：高权重任意类别略抬升「可自动化」信心
+        top_w = max(category_weights.values(), default=50)
+        boost = min(0.12, max(0, (top_w - 50) / 400))
+    raw = 0.42 + 0.48 * schedule_score + boost
+    return min(0.95, max(0.35, raw))
+
+
+def suggest_autonomous_tasks(db: Session) -> list[dict]:
+    """
+    基于品味画像与任务偏好，列出「若开启自主编排可考虑」的步骤建议。
+    仅返回建议文案与参数，不执行任何任务；从未被用户触发过的任务类型不会入选。
+    """
+    profile = get_active_taste_profile(db)
+    category_weights = _loads_json(profile.preferred_categories, {})
+    if not isinstance(category_weights, dict):
+        category_weights = {}
+
+    hist_triggers, hist_skipped = _task_trigger_skip_from_profile(profile)
+    schedule_scores = get_preferred_task_schedule(db)
+    bg_done = _completed_background_task_counts(db)
+
+    top_cat_line = _top_category_line(
+        {str(k): int(v) for k, v in category_weights.items() if isinstance(v, (int, float))},
+    )
+
+    candidates: list[dict] = []
+    for spec in _AUTONOMOUS_TASK_SPEC:
+        tid = spec["id"]
+        h_t = hist_triggers.get(tid, 0)
+        h_s = hist_skipped.get(tid, 0)
+        bg = bg_done.get(tid, 0) if tid in _BG_BACKED_TASK_TYPES else 0
+
+        user_has_signaled = h_t >= 1 or (bg >= 1 if tid in _BG_BACKED_TASK_TYPES else False)
+        if not user_has_signaled:
+            continue
+
+        activity = h_t + bg
+        pref = schedule_scores.get(tid)
+        if pref is None:
+            total_hs = h_t + h_s
+            pref = (h_t / total_hs) if total_hs > 0 else 1.0
+
+        reason = spec["reason"]
+        if top_cat_line and tid in ("mine_patterns", "collect", "taste_auto_confirm"):
+            reason = f"{reason}；当前画像更关注类别：{top_cat_line}"
+
+        candidates.append(
+            {
+                "task": tid,
+                "reason": reason,
+                "confidence": round(_suggestion_confidence(float(pref), category_weights, spec), 2),
+                "frequency": _frequency_label_from_activity(activity),
+                "_activity": activity,
+                "_pref": float(pref),
+            },
+        )
+
+    candidates.sort(key=lambda item: (-item["_activity"], -item["_pref"]))
+    for item in candidates:
+        del item["_activity"]
+        del item["_pref"]
+    return candidates
 
 
 def evaluate_pattern_with_taste(profile: AgentTasteProfile, pattern: BehaviorPattern) -> dict:

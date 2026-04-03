@@ -11,6 +11,7 @@ from services.taste_model import (
     get_pending_pattern_recommendations,
     learn_from_history,
     serialize_taste_profile,
+    suggest_autonomous_tasks,
 )
 
 router = APIRouter(tags=["agent-taste"])
@@ -69,6 +70,12 @@ def get_agent_taste_profile(db: Session = Depends(get_db)):
     if _should_relearn(profile):
         threading.Thread(target=_background_relearn, daemon=True).start()
     return payload
+
+
+@router.get("/agent-taste/autonomous-suggestions")
+def get_autonomous_suggestions(db: Session = Depends(get_db)):
+    """Taste-driven autonomous task ideas (suggestions only; never executes)."""
+    return {"suggestions": suggest_autonomous_tasks(db)}
 
 
 @router.post("/agent-taste/auto-confirm")

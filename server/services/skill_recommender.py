@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from models.pattern import BehaviorPattern
 from models.skill import Skill
+from models.skill_workflow import SkillWorkflow
 from services.ai_provider import chat
 
 try:
@@ -223,6 +224,46 @@ def _related_pattern_candidates(db: Session, skills: list[Skill]) -> list[dict]:
     return results
 
 
+def _co_occurrence_candidates(db: Session, skills: list[Skill]) -> list[dict]:
+    user_by_norm = {_normalize_name(s.name): s for s in skills}
+    user_norms = set(user_by_norm)
+    best: dict[str, dict] = {}
+    for wf in db.query(SkillWorkflow).all():
+        raw = wf.skill_sequence
+        data = _parse_json_value(raw) if isinstance(raw, str) else raw
+        if not isinstance(data, list):
+            continue
+        seq = [str(x).strip() for x in data if str(x).strip()]
+        if len(seq) < 2:
+            continue
+        freq = int(getattr(wf, 'frequency', 1) or 1)
+        sr = float(getattr(wf, 'success_rate', 0.0) or 0.0)
+        wf_name = (wf.name or '').strip() or '未命名工作流'
+        for i, name_b in enumerate(seq):
+            norm_b = _normalize_name(name_b)
+            if not norm_b or norm_b in user_norms:
+                continue
+            for j, name_a in enumerate(seq):
+                if i == j:
+                    continue
+                norm_a = _normalize_name(name_a)
+                if norm_a not in user_norms:
+                    continue
+                a_skill = user_by_norm[norm_a]
+                conf = min(0.94, 0.38 + min(freq, 500) / 600.0 + sr * 0.35)
+                row = {
+                    'name': name_b,
+                    'category': 'workflow',
+                    'reason': f'你使用了 {a_skill.name}，在 {wf_name} 工作流中常与 {name_b} 搭配',
+                    'type': 'workflow_co',
+                    'confidence': round(conf, 2),
+                }
+                prev = best.get(norm_b)
+                if prev is None or conf > prev['confidence']:
+                    best[norm_b] = row
+    return sorted(best.values(), key=lambda r: r['confidence'], reverse=True)
+
+
 def _apply_taste_to_recommendations(items: list[dict], taste) -> list[dict]:
     if taste is None:
         return items
@@ -255,7 +296,11 @@ def recommend_skills(db: Session, limit: int = 8) -> list[dict]:
         return []
 
     existing_names = {_normalize_name(skill.name) for skill in skills}
-    candidates = [*_advanced_candidates(skills), *_related_pattern_candidates(db, skills)]
+    candidates = [
+        *_advanced_candidates(skills),
+        *_co_occurrence_candidates(db, skills),
+        *_related_pattern_candidates(db, skills),
+    ]
 
     deduped = []
     seen = set()

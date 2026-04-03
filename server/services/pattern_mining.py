@@ -9,6 +9,7 @@ from models.event import DevEvent
 from models.pattern import BehaviorPattern
 from models.skill import Skill
 from services.ai_provider import chat as ai_chat
+from services.taste_model import get_active_taste_profile
 
 
 def _confidence_to_level(score: int) -> str:
@@ -239,10 +240,26 @@ def _heuristic_semantic_refine(candidates: list[dict]) -> list[dict]:
     return results[:8]
 
 
-def _ai_semantic_refine(candidates: list[dict]) -> list[dict] | None:
+def _taste_reject_constraint_for_prompt(db: Session) -> str:
+    try:
+        tp = get_active_taste_profile(db)
+        summary = (tp.taste_summary or "").strip() if tp else ""
+        marker = "常见拒绝原因:"
+        idx = summary.find(marker)
+        return summary[idx:].strip() if idx >= 0 else ""
+    except Exception:
+        return ""
+
+
+def _ai_semantic_refine(candidates: list[dict], reject_constraint: str = "") -> list[dict] | None:
     if not candidates:
         return []
 
+    reject_block = ""
+    if reject_constraint.strip():
+        reject_block = (
+            f"用户已明确拒绝以下类型的建议，请避免生成类似内容: {reject_constraint.strip()}\n\n"
+        )
     prompt = (
         "你是资深工程行为模式提炼器。以下是从开发者行为数据中统计挖掘出的候选模式。"
         "任务:\n"
@@ -257,6 +274,7 @@ def _ai_semantic_refine(candidates: list[dict]) -> list[dict] | None:
         '"occurrences":6,"examples":["具体例子"],"trigger":"触发条件描述",'
         '"body":"## 规范\\n### 触发\\n...\\n### 执行\\n...\\n### 预期\\n...",'
         '"learned_from_data":[{"context":"数据来源","insight":"关键洞察","confidence":75}]}]}\n\n'
+        f"{reject_block}"
         f"候选模式({len(candidates)}条):\n{json.dumps(candidates[:15], ensure_ascii=False)}"
     )
 
@@ -300,9 +318,9 @@ def _ai_semantic_refine(candidates: list[dict]) -> list[dict] | None:
         return None
 
 
-def semantic_refine_patterns(patterns: list[MinedPattern]) -> list[dict]:
+def semantic_refine_patterns(patterns: list[MinedPattern], reject_constraint: str = "") -> list[dict]:
     candidates = [_build_candidate_record(pattern) for pattern in patterns]
-    return _ai_semantic_refine(candidates) or _heuristic_semantic_refine(candidates)
+    return _ai_semantic_refine(candidates, reject_constraint) or _heuristic_semantic_refine(candidates)
 
 
 # 简化 action 为类别标签
@@ -502,7 +520,8 @@ def run_mining(db: Session):
     if not events:
         return []
 
-    mined = semantic_refine_patterns(mine_all_patterns(events))
+    reject_hint = _taste_reject_constraint_for_prompt(db)
+    mined = semantic_refine_patterns(mine_all_patterns(events), reject_hint)
     skills = db.query(Skill).all()
     if skills:
         mined = _apply_skill_alignment_boost(mined, skills)

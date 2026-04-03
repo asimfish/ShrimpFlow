@@ -12,6 +12,7 @@ import { getStatsApi } from '@/http_api/stats'
 import { collectAllAndAnalyzeApi } from '@/http_api/collect'
 import { getAISettingsApi, getScheduleApi, updateAISettingsApi, updateScheduleApi } from '@/http_api/settings'
 import { getTaskApi } from '@/http_api/tasks'
+import { exportMarkdownApi } from '@/http_api/claw_gen'
 
 const router = useRouter()
 const eventsStore = useEventsStore()
@@ -215,6 +216,33 @@ const topPatterns = computed(() =>
   [...patternsStore.patterns].sort((a, b) => b.confidence - a.confidence).slice(0, 3)
 )
 
+const heroSessionCount = computed(() => {
+  const s = stats.value
+  if (!s) return 0
+  return (s.total_openclaw_sessions ?? 0) + (s.total_claude_sessions ?? 0) + (s.total_codex_sessions ?? 0)
+})
+const heroPatternCount = computed(() => patternsStore.patterns.length)
+const heroTasteConfidence = computed(() => {
+  const ps = patternsStore.patterns
+  if (!ps.length) return 0
+  return Math.round(ps.reduce((acc, p) => acc + p.confidence, 0) / ps.length)
+})
+
+const exportClaudeBusy = ref(false)
+const handleExportClaudeMd = async () => {
+  exportClaudeBusy.value = true
+  const res = await exportMarkdownApi()
+  exportClaudeBusy.value = false
+  if (!res.data?.markdown) return
+  const blob = new Blob([res.data.markdown], { type: 'text/markdown;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'CLAUDE.md'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 // AI 对话：OpenClaw + Claude Code sessions 合并，按时间排序取最近 3 条
 const recentAiSessions = computed(() =>
   [...openclawStore.sessions].sort((a, b) => b.created_at - a.created_at).slice(0, 3)
@@ -336,6 +364,32 @@ const saveAISettings = async () => {
 
 <template>
   <div class="p-6 space-y-6 overflow-y-auto h-full">
+    <section class="glass-card rounded-2xl p-6 md:p-8 space-y-4 border border-white/[0.08]">
+      <div>
+        <h2 class="text-2xl md:text-3xl font-semibold heading-tight text-gray-100">DevTwin — 你的 AI 认知副驾</h2>
+        <p class="text-sm md:text-base text-gray-400 mt-2">不是记住你做过什么，而是理解你怎么思考</p>
+      </div>
+      <p class="text-xs md:text-sm text-gray-500">
+        已分析 {{ heroSessionCount.toLocaleString() }} 次对话 · 发现 {{ heroPatternCount.toLocaleString() }} 条行为模式 · 品味准确度 {{ heroTasteConfidence }}%
+      </p>
+      <div class="flex flex-wrap gap-2">
+        <button
+          type="button"
+          class="px-4 py-2 rounded-full text-xs font-medium bg-accent text-white hover:bg-accent/90 transition-colors"
+          @click="router.push('/twin')"
+        >
+          查看我的 AI Twin
+        </button>
+        <button
+          type="button"
+          class="px-4 py-2 rounded-full text-xs font-medium border border-accent/50 text-accent hover:bg-accent/10 transition-colors disabled:opacity-50"
+          :disabled="exportClaudeBusy"
+          @click="handleExportClaudeMd"
+        >
+          {{ exportClaudeBusy ? '导出中…' : '导出 CLAUDE.md' }}
+        </button>
+      </div>
+    </section>
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
@@ -474,7 +528,7 @@ const saveAISettings = async () => {
 
     <!-- 四层架构步骤条 -->
     <div class="bg-surface-1 rounded-xl border border-surface-3 p-5 gradient-border">
-      <div class="text-sm font-medium mb-4 text-gray-300">ShrimpFlow 四层架构</div>
+      <div class="text-sm font-medium mb-4 text-gray-300">ShrimpFlow 四层架构 · 四大战略方向</div>
       <div class="grid grid-cols-4 gap-3">
         <div class="relative bg-surface-2 rounded-xl p-4 border border-accent/30 cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:shadow-accent/10 transition-all" @click="router.push('/layer/shadow')">
           <div class="flex items-center gap-2 mb-2">
@@ -483,7 +537,8 @@ const saveAISettings = async () => {
             </div>
             <span class="text-xs font-medium text-accent">Layer 1</span>
           </div>
-          <div class="text-sm font-semibold text-gray-200">Shadow</div>
+          <div class="text-[11px] font-medium text-accent/90 leading-tight">方向1 · Skill Workflow 挖掘</div>
+          <div class="text-sm font-semibold text-gray-200 mt-1">Shadow</div>
           <div class="text-xs text-gray-400 mt-1">全量记录开发行为</div>
           <div class="mt-3 h-1.5 bg-surface-3 rounded-full overflow-hidden">
             <div class="h-full bg-accent rounded-full" style="width: 95%" />
@@ -497,7 +552,8 @@ const saveAISettings = async () => {
             </div>
             <span class="text-xs font-medium text-openclaw">Layer 2</span>
           </div>
-          <div class="text-sm font-semibold text-gray-200">Mirror</div>
+          <div class="text-[11px] font-medium text-openclaw/90 leading-tight">方向2 · Skill 发掘推荐</div>
+          <div class="text-sm font-semibold text-gray-200 mt-1">Mirror</div>
           <div class="text-xs text-gray-400 mt-1">可视化开发画像</div>
           <div class="mt-3 h-1.5 bg-surface-3 rounded-full overflow-hidden">
             <div class="h-full bg-openclaw rounded-full" style="width: 80%" />
@@ -511,7 +567,8 @@ const saveAISettings = async () => {
             </div>
             <span class="text-xs font-medium text-purple-400">Layer 3</span>
           </div>
-          <div class="text-sm font-semibold text-gray-200">Brain</div>
+          <div class="text-[11px] font-medium text-purple-300/90 leading-tight">方向3 · 人参与行为建模</div>
+          <div class="text-sm font-semibold text-gray-200 mt-1">Brain</div>
           <div class="text-xs text-gray-400 mt-1">学习行为模式</div>
           <div class="mt-3 h-1.5 bg-surface-3 rounded-full overflow-hidden">
             <div class="h-full bg-purple-500 rounded-full" style="width: 60%" />
@@ -525,7 +582,8 @@ const saveAISettings = async () => {
             </div>
             <span class="text-xs font-medium text-emerald-400">Layer 4</span>
           </div>
-          <div class="text-sm font-semibold text-gray-200">Autopilot</div>
+          <div class="text-[11px] font-medium text-emerald-300/90 leading-tight">方向4 · Claw the Claw 自主体</div>
+          <div class="text-sm font-semibold text-gray-200 mt-1">Autopilot</div>
           <div class="text-xs text-gray-400 mt-1">团队 Workflow 下发</div>
           <div class="mt-3 h-1.5 bg-surface-3 rounded-full overflow-hidden">
             <div class="h-full bg-emerald-500 rounded-full" style="width: 35%" />

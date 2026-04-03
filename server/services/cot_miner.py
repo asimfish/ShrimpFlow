@@ -21,6 +21,7 @@ from services.ai_provider import chat as ai_chat
 from services.pattern_mining import (
     bayesian_update, _confidence_to_level, _name_to_slug, _strip_json_fence,
 )
+from services.taste_model import get_active_taste_profile
 from services.skill_tracker import mine_skill_workflows
 
 logger = logging.getLogger(__name__)
@@ -188,12 +189,30 @@ def aggregate_cot_profile(analyses: list[dict]) -> dict:
     }
 
 
-def _ai_extract_cot_skills(cot_profile: dict, correction_excerpts: list[str]) -> list[dict]:
+def _taste_reject_constraint_for_prompt(db: Session) -> str:
+    try:
+        tp = get_active_taste_profile(db)
+        summary = (tp.taste_summary or "").strip() if tp else ""
+        marker = "常见拒绝原因:"
+        idx = summary.find(marker)
+        return summary[idx:].strip() if idx >= 0 else ""
+    except Exception:
+        return ""
+
+
+def _ai_extract_cot_skills(
+    cot_profile: dict, correction_excerpts: list[str], reject_constraint: str = ""
+) -> list[dict]:
     """
     调用 AI 将 CoT 特征 + 修正语料 → 可执行 Skill 候选。
     这是 CatchMe 没有的核心能力。
     """
     excerpts_text = '\n'.join(f'- {e[:200]}' for e in correction_excerpts[:8]) or '(无修正样本)'
+    reject_block = ""
+    if reject_constraint.strip():
+        reject_block = (
+            f"\n用户已明确拒绝以下类型的建议，请避免生成类似内容: {reject_constraint.strip()}\n\n"
+        )
     prompt = (
         "你是开发者行为分析专家，专门从 AI 对话记录中提炼可执行的个人工作规范。\n\n"
         "以下是一位开发者在过去数周内与 AI 助手对话的行为统计:\n\n"
@@ -205,7 +224,8 @@ def _ai_extract_cot_skills(cot_profile: dict, correction_excerpts: list[str]) ->
         f"- 对 AI 的修正次数: {cot_profile.get('total_corrections', 0)}\n"
         f"- 对话轮次总计: {cot_profile.get('session_count', 0)}\n\n"
         "用户修正 AI 回答的原话样本（揭示真实偏好）:\n"
-        f"{excerpts_text}\n\n"
+        f"{excerpts_text}\n"
+        f"{reject_block}"
         "请基于以上数据，推断出 2-4 个该开发者的**高价值个人工作规范**。\n"
         "每个规范必须是**可注入 AI 提示词**的可执行指令，格式如 CLAUDE.md 规则。\n\n"
         "返回严格 JSON (不要 markdown fence):\n"
@@ -287,8 +307,9 @@ def mine_cot_skills(db: Session, lookback_hours: int = 168) -> list[dict]:
     if profile['avg_reasoning_depth'] < 10 and profile['session_count'] < 5:
         return []
 
-    # AI 提炼可执行 Skill
-    skills = _ai_extract_cot_skills(profile, profile.get('correction_excerpts', []))
+    # AI 提炼可执行 Skill（受品味摘要中的拒绝原因约束）
+    reject_hint = _taste_reject_constraint_for_prompt(db)
+    skills = _ai_extract_cot_skills(profile, profile.get('correction_excerpts', []), reject_hint)
 
     # 也返回基于统计的基础模式（不依赖 AI，快速回退）
     stat_patterns = _build_stat_patterns(profile)

@@ -1,19 +1,29 @@
+import logging
 import threading
 import time
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from db import SessionLocal, get_db
+from models.pattern import BehaviorPattern
+from services.task_runner import create_task, get_fresh_session, get_task, update_task
 from services.taste_model import (
     auto_confirm_patterns,
     get_or_create_taste_profile,
     get_pending_pattern_recommendations,
     learn_from_history,
+    log_autonomous_action,
+    record_pattern_decision,
     serialize_taste_profile,
     suggest_autonomous_tasks,
 )
+
+logger = logging.getLogger(__name__)
+
+# 批准后可后台执行的任务类型（其余仅记录偏好并记日志，不执行）
+_APPROVED_TASK_EXEC_WHITELIST = frozenset({"mine_patterns", "collect", "taste_auto_confirm"})
 
 router = APIRouter(tags=["agent-taste"])
 
@@ -88,18 +98,104 @@ class ApproveTaskRequest(BaseModel):
     task: str
 
 
-@router.post("/agent-taste/approve-task")
-def approve_autonomous_task(req: ApproveTaskRequest, db: Session = Depends(get_db)):
-    from services.taste_model import record_pattern_decision
-    from models.behavior_pattern import BehaviorPattern
+def _run_mine_patterns_background(task_id: str) -> None:
+    db = get_fresh_session()
+    try:
+        update_task(db, task_id, "running", 10, "正在挖掘模式…")
+        from services.pattern_mining import run_mining
 
+        mined = run_mining(db)
+        result = {"mining_count": len(mined)}
+        update_task(db, task_id, "done", 100, "完成", result=result)
+        log_autonomous_action(db, "mine_patterns", f"mining_count={len(mined)}")
+    except Exception as e:
+        update_task(db, task_id, "error", 0, "出错", error=str(e))
+        try:
+            log_autonomous_action(db, "mine_patterns", f"error: {e}")
+        except Exception:
+            pass
+    finally:
+        db.close()
+
+
+def _run_taste_auto_confirm_background(task_id: str) -> None:
+    db = get_fresh_session()
+    try:
+        update_task(db, task_id, "running", 30, "品味自动确认…")
+        out = auto_confirm_patterns(db)
+        update_task(db, task_id, "done", 100, "完成", result=out)
+        log_autonomous_action(
+            db,
+            "taste_auto_confirm",
+            f"confirmed={out.get('confirmed')}, deferred={out.get('deferred')}, collect_more={out.get('collect_more')}",
+        )
+    except Exception as e:
+        update_task(db, task_id, "error", 0, "出错", error=str(e))
+        try:
+            log_autonomous_action(db, "taste_auto_confirm", f"error: {e}")
+        except Exception:
+            pass
+    finally:
+        db.close()
+
+
+def _run_collect_approved_background(task_id: str) -> None:
+    from routes.collector import _run_collect_background
+
+    _run_collect_background(task_id)
+    db = get_fresh_session()
+    try:
+        row = get_task(db, task_id)
+        if row:
+            if row.get("status") == "done":
+                r = row.get("result") or {}
+                summary = (
+                    f"mining_count={r.get('mining_count')}, deep_mining_count={r.get('deep_mining_count')}, "
+                    f"patterns_pushed={r.get('patterns_pushed')}"
+                )
+            else:
+                summary = f"status={row.get('status')} error={row.get('error')}"
+            log_autonomous_action(db, "collect", summary)
+    except Exception as e:
+        logger.warning("collect approved log failed: %s", e)
+    finally:
+        db.close()
+
+
+@router.post("/agent-taste/approve-task")
+def approve_autonomous_task(
+    req: ApproveTaskRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
     pattern = db.query(BehaviorPattern).filter(BehaviorPattern.name == req.task).first()
     if not pattern:
         pattern = BehaviorPattern(name=req.task, category="autonomous", source="suggestion", confidence=60)
         db.add(pattern)
         db.flush()
     record_pattern_decision(db, pattern, "confirm", f"User approved autonomous task: {req.task}")
-    return {"status": "approved", "task": req.task}
+
+    task_id = None
+    if req.task in _APPROVED_TASK_EXEC_WHITELIST:
+        task_id = create_task(db, req.task)
+        if req.task == "mine_patterns":
+            background_tasks.add_task(_run_mine_patterns_background, task_id)
+        elif req.task == "collect":
+            background_tasks.add_task(_run_collect_approved_background, task_id)
+        elif req.task == "taste_auto_confirm":
+            background_tasks.add_task(_run_taste_auto_confirm_background, task_id)
+    else:
+        logger.info("approve-task: no execution for non-whitelisted task %s", req.task)
+        try:
+            log_autonomous_action(
+                db,
+                req.task,
+                "skipped: not whitelisted for autonomous execution",
+            )
+        except Exception:
+            pass
+
+    return {"status": "approved", "task": req.task, "task_id": task_id}
 
 
 @router.post("/agent-taste/relearn")

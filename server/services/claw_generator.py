@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from models.pattern import BehaviorPattern
 from models.profile import ClawProfile
+from models.skill_workflow import SkillWorkflow
 from services.cot_miner import mine_cot_skills
 from services.workflow_inferrer import infer_workflows_from_episodes
 from services.pattern_mining import bayesian_update, _confidence_to_level, _name_to_slug
@@ -228,6 +229,26 @@ def _build_confidence_bar(confidence: int) -> str:
     return f'[{"█" * filled}{"░" * empty}] {confidence}%'
 
 
+def _parse_skill_sequence_json(raw: str | None) -> list[str]:
+    """Parse skill_sequence JSON (string[]) safely; return empty list on failure."""
+    if not raw or not str(raw).strip():
+        return []
+    try:
+        data = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return []
+    if not isinstance(data, list):
+        return []
+    out: list[str] = []
+    for item in data:
+        if item is None:
+            continue
+        s = str(item).strip()
+        if s:
+            out.append(s)
+    return out
+
+
 def _source_badge(source: str | None) -> str:
     label_map = {
         'cot_mining': 'CoT挖掘',
@@ -351,6 +372,29 @@ def export_clawprofile_markdown(db: Session, pattern_ids: list[int] | None = Non
                 lines.append('')
 
             lines.append('---')
+            lines.append('')
+
+    workflows = (
+        db.query(SkillWorkflow)
+        .order_by(SkillWorkflow.frequency.desc())
+        .limit(10)
+        .all()
+    )
+    if workflows:
+        lines.append('## Skill Workflow 模板')
+        lines.append('')
+        lines.append('以下是从你的使用习惯中挖掘的 Skill 组合流程，可作为工作流参考。')
+        lines.append('')
+        for wf in workflows:
+            seq = _parse_skill_sequence_json(wf.skill_sequence)
+            chain = ' → '.join(seq) if seq else '（无技能链）'
+            freq = int(wf.frequency or 0)
+            sr = float(wf.success_rate or 0.0)
+            pct = int(round(sr * 100))
+            lines.append(f'### {wf.name}')
+            lines.append('')
+            lines.append(f'**频率**: {freq} 次观察 | **成功率**: {pct}%')
+            lines.append(f'**技能链**: {chain}')
             lines.append('')
 
     lines += [

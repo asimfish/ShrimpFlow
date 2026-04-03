@@ -253,6 +253,25 @@ def record_pattern_decision(
     return learn_from_history(db)
 
 
+def log_autonomous_action(db: Session, task_type: str, result_summary: str) -> None:
+    """Append one autonomous execution record to decision_history (taste action log)."""
+    profile = get_or_create_taste_profile(db)
+    history = _loads_json(profile.decision_history, [])
+    if not isinstance(history, list):
+        history = []
+    history.append(
+        {
+            "action": "autonomous_executed",
+            "task_type": task_type,
+            "result_summary": (result_summary or "")[:2000],
+            "ts": _now_ts(),
+        }
+    )
+    profile.decision_history = _dumps_json(history[-DECISION_HISTORY_LIMIT:])
+    profile.updated_at = _now_ts()
+    db.commit()
+
+
 def record_task_preference(
     db: Session,
     task_type: str,

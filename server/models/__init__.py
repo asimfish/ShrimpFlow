@@ -9,3 +9,4 @@ from models.community import SharedProfile, SharedPatternPack, SharedClawProfile
 from models.profile import ClawProfile
 from models.invocation import OpenClawInvocationLog
 from models.agent_taste import AgentTasteProfile
+from models.skill_implicit_event import SkillImplicitEvent

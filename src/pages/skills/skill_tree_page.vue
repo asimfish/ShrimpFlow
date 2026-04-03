@@ -19,6 +19,7 @@ import {
   recommendationFeedbackApi,
   summarizeWorkflowsApi,
   updateWorkflowStatusApi,
+  postImplicitEventApi,
 } from '@/http_api/skills'
 import SkillGraph from './skill_graph.vue'
 import SkillDetailPanel from './skill_detail_panel.vue'
@@ -100,6 +101,7 @@ const recommendTypeColor: Record<string, string> = {
 const selectSkill = (skill: Skill) => {
   selectedSkill.value = skill
   activeTab.value = 'detail'
+  postImplicitEventApi(skill.name, 'click').catch(() => {})
 }
 
 const closeDetail = () => {

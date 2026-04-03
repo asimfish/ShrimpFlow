@@ -108,3 +108,17 @@ export const getWorkflowTraceApi = (workflowId: number) =>
 
 export const exportWorkflowsApi = () =>
   get<string>('/skills/workflows/export')
+
+export const postImplicitEventApi = (skill_name: string, action: string, context?: Record<string, unknown>) =>
+  post<{ status: string }>('/skills/implicit-event', { skill_name, action, context })
+
+export const getImplicitSignalApi = (skill_name: string) =>
+  get<{
+    skill_name: string
+    click: number
+    view: number
+    impression: number
+    search: number
+    total: number
+    last_interaction: number
+  }>(`/skills/implicit-signal?skill_name=${encodeURIComponent(skill_name)}`)

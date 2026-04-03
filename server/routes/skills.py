@@ -22,6 +22,7 @@ from services.workflow_summarizer import (
     trace_workflow_lineage,
     export_confirmed_workflows,
 )
+from services.implicit_feedback import record_implicit_event, get_implicit_signal
 
 router = APIRouter(tags=["skills"])
 
@@ -200,6 +201,22 @@ def get_workflows_export(db: Session = Depends(get_db)):
     from fastapi.responses import PlainTextResponse
     markdown = export_confirmed_workflows(db)
     return PlainTextResponse(content=markdown, media_type="text/markdown")
+
+
+class ImplicitEventRequest(BaseModel):
+    skill_name: str
+    action: str
+    context: dict | None = None
+
+
+@router.post("/skills/implicit-event")
+def post_implicit_event(req: ImplicitEventRequest, db: Session = Depends(get_db)):
+    return record_implicit_event(db, req.skill_name, req.action, req.context)
+
+
+@router.get("/skills/implicit-signal")
+def get_skill_implicit_signal(skill_name: str, db: Session = Depends(get_db)):
+    return get_implicit_signal(db, skill_name)
 
 
 @router.post("/skills/track")

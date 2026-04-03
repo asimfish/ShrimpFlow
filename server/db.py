@@ -351,6 +351,20 @@ def ensure_runtime_schema() -> None:
             "trigger_source": "VARCHAR",
             "outcome": "VARCHAR",
         })
+        conn.exec_driver_sql(
+            """
+            CREATE TABLE IF NOT EXISTS skill_implicit_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_action VARCHAR NOT NULL,
+                skill_name VARCHAR NOT NULL,
+                context VARCHAR,
+                created_at INTEGER NOT NULL
+            )
+            """
+        )
+        conn.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_skill_implicit_events_name ON skill_implicit_events(skill_name)"
+        )
 
 
 def get_db():

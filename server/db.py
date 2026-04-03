@@ -96,6 +96,17 @@ def ensure_runtime_schema() -> None:
         )
         _sqlite_ensure_columns(
             conn,
+            "skills",
+            {
+                "cot_uses": "INTEGER DEFAULT 0",
+                "manual_uses": "INTEGER DEFAULT 0",
+                "auto_uses": "INTEGER DEFAULT 0",
+                "combo_patterns": "VARCHAR",
+                "workflow_roles": "VARCHAR",
+            },
+        )
+        _sqlite_ensure_columns(
+            conn,
             "behavior_patterns",
             {
                 "profile_id": "INTEGER",
@@ -105,6 +116,13 @@ def ensure_runtime_schema() -> None:
                 "source": "VARCHAR DEFAULT 'auto'",
                 "confidence_level": "VARCHAR",
                 "learned_from_data": "VARCHAR",
+                "skill_alignment_score": "INTEGER DEFAULT 0",
+                "user_feedback": "VARCHAR",
+                "reject_count": "INTEGER DEFAULT 0",
+                "heat_score": "REAL DEFAULT 50.0",
+                "last_accessed_at": "INTEGER DEFAULT 0",
+                "access_count": "INTEGER DEFAULT 0",
+                "lifecycle_state": "VARCHAR DEFAULT 'active'",
             },
         )
         _sqlite_ensure_columns(
@@ -131,6 +149,195 @@ def ensure_runtime_schema() -> None:
             {
                 "profile_id": "INTEGER",
             },
+        )
+        # Brain 层: EventAtom + Episode 表
+        conn.exec_driver_sql(
+            """
+            CREATE TABLE IF NOT EXISTS event_atoms (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id INTEGER NOT NULL,
+                timestamp INTEGER NOT NULL,
+                source VARCHAR NOT NULL,
+                project VARCHAR,
+                intent VARCHAR,
+                tool VARCHAR,
+                artifact VARCHAR,
+                outcome VARCHAR,
+                error_signature VARCHAR,
+                command_family VARCHAR,
+                task_hint VARCHAR,
+                context_tags VARCHAR
+            )
+            """
+        )
+        conn.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_event_atoms_event_id ON event_atoms(event_id)"
+        )
+        conn.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_event_atoms_timestamp ON event_atoms(timestamp)"
+        )
+        conn.exec_driver_sql(
+            """
+            CREATE TABLE IF NOT EXISTS episodes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project VARCHAR,
+                start_ts INTEGER NOT NULL,
+                end_ts INTEGER NOT NULL,
+                duration_seconds INTEGER,
+                task_label VARCHAR,
+                task_category VARCHAR,
+                event_count INTEGER DEFAULT 0,
+                atom_count INTEGER DEFAULT 0,
+                tool_sequence VARCHAR,
+                intent_sequence VARCHAR,
+                outcome VARCHAR,
+                features VARCHAR,
+                session_ids VARCHAR,
+                created_at INTEGER
+            )
+            """
+        )
+        conn.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_episodes_start_ts ON episodes(start_ts)"
+        )
+        # Feature Graph: EpisodeFeature + FeatureEdge
+        conn.exec_driver_sql(
+            """
+            CREATE TABLE IF NOT EXISTS episode_features (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                episode_id INTEGER NOT NULL,
+                project VARCHAR,
+                task_category VARCHAR,
+                archetype VARCHAR,
+                feature_vector VARCHAR,
+                norm_vector VARCHAR,
+                created_at INTEGER
+            )
+            """
+        )
+        conn.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_episode_features_episode_id ON episode_features(episode_id)"
+        )
+        conn.exec_driver_sql(
+            """
+            CREATE TABLE IF NOT EXISTS feature_edges (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_id INTEGER NOT NULL,
+                target_id INTEGER NOT NULL,
+                similarity REAL NOT NULL,
+                edge_type VARCHAR,
+                created_at INTEGER
+            )
+            """
+        )
+        conn.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_feature_edges_source_id ON feature_edges(source_id)"
+        )
+        conn.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_feature_edges_target_id ON feature_edges(target_id)"
+        )
+        # Evidence Ledger: 模式置信度变化审计账本
+        conn.exec_driver_sql(
+            """
+            CREATE TABLE IF NOT EXISTS evidence_ledger (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pattern_id INTEGER NOT NULL,
+                episode_id INTEGER,
+                evidence_type VARCHAR NOT NULL,
+                description VARCHAR,
+                confidence_before INTEGER,
+                confidence_after INTEGER,
+                delta INTEGER,
+                source VARCHAR,
+                created_at INTEGER
+            )
+            """
+        )
+        conn.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_evidence_ledger_pattern_id ON evidence_ledger(pattern_id)"
+        )
+        # Phase 3: 模式语义关系图
+        conn.exec_driver_sql(
+            """
+            CREATE TABLE IF NOT EXISTS pattern_relations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_pattern_id INTEGER NOT NULL,
+                target_pattern_id INTEGER NOT NULL,
+                relation_type VARCHAR NOT NULL,
+                weight REAL DEFAULT 1.0,
+                evidence_description VARCHAR,
+                created_at INTEGER,
+                updated_at INTEGER
+            )
+            """
+        )
+        conn.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_pattern_relations_source ON pattern_relations(source_pattern_id)"
+        )
+        conn.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_pattern_relations_target ON pattern_relations(target_pattern_id)"
+        )
+        conn.exec_driver_sql(
+            """
+            CREATE TABLE IF NOT EXISTS agent_taste_profiles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at INTEGER,
+                updated_at INTEGER,
+                preferred_categories VARCHAR,
+                preferred_confidence_threshold INTEGER DEFAULT 70,
+                preferred_sources VARCHAR,
+                decision_history VARCHAR,
+                taste_summary VARCHAR
+            )
+            """
+        )
+        conn.exec_driver_sql(
+            """
+            CREATE TABLE IF NOT EXISTS background_tasks (
+                id TEXT PRIMARY KEY,
+                task_type TEXT NOT NULL,
+                status TEXT DEFAULT 'pending',
+                progress INTEGER DEFAULT 0,
+                stage TEXT,
+                result TEXT,
+                error TEXT,
+                created_at INTEGER,
+                updated_at INTEGER
+            )
+            """
+        )
+        conn.exec_driver_sql(
+            """
+            CREATE TABLE IF NOT EXISTS discovered_skills (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name VARCHAR NOT NULL,
+                category VARCHAR,
+                description TEXT,
+                source VARCHAR,
+                source_url VARCHAR,
+                safety_score INTEGER DEFAULT 100,
+                safety_flags VARCHAR,
+                status VARCHAR DEFAULT 'pending',
+                adopted_skill_id INTEGER,
+                created_at INTEGER,
+                updated_at INTEGER
+            )
+            """
+        )
+        conn.exec_driver_sql(
+            """
+            CREATE TABLE IF NOT EXISTS skill_workflows (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name VARCHAR NOT NULL,
+                skill_sequence VARCHAR,
+                frequency INTEGER DEFAULT 1,
+                success_rate REAL DEFAULT 0.0,
+                source VARCHAR DEFAULT 'mined',
+                matched_pattern_ids VARCHAR,
+                created_at INTEGER,
+                updated_at INTEGER
+            )
+            """
         )
 
 

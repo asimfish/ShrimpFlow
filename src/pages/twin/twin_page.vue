@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
+import * as d3 from 'd3'
 import { generateClawsApi, exportMarkdownApi, getAlignmentScoreApi } from '@/http_api/claw_gen'
 import type { CotProfile, AlignmentScore, ClawGenResult } from '@/http_api/claw_gen'
 import { get, post } from '@/http_api/client'
-import { getMemoryHealthApi } from '@/http_api/stats'
+import { getMemoryHealthApi, getFlywheelTrendApi } from '@/http_api/stats'
+import type { FlywheelPoint } from '@/http_api/stats'
 import type { MemoryHealth } from '@/types'
 import { usePatternsStore } from '@/stores/patterns'
 
@@ -23,6 +25,8 @@ const loading = ref(true)
 const maturity = ref<Record<string, any> | null>(null)
 const beforeAfter = ref<{comparisons: any[]} | null>(null)
 const loadingBA = ref(false)
+const flywheelTrend = ref<FlywheelPoint[]>([])
+const flywheelChartRef = ref<HTMLDivElement | null>(null)
 
 // 5维度标签
 const tasteDims = [
@@ -124,24 +128,186 @@ const statusColor = (s: string) => {
   return 'text-gray-500'
 }
 
+const selectedTimelineId = ref<number | null>(null)
+const evolutionChartRef = ref<HTMLDivElement | null>(null)
+
+const toggleEvolution = (id: number) => {
+  selectedTimelineId.value = selectedTimelineId.value === id ? null : id
+}
+
 const formatDate = (ts: number) => {
   const d = new Date(ts * 1000)
   return `${d.getMonth() + 1}/${d.getDate()}`
 }
 
+const renderEvolutionChart = () => {
+  const el = evolutionChartRef.value
+  if (!el || !selectedTimelineId.value) return
+  const pattern = patternsStore.patterns.find(p => p.id === selectedTimelineId.value)
+  if (!pattern || !pattern.evolution || pattern.evolution.length < 2) return
+
+  d3.select(el).selectAll('*').remove()
+  const data = pattern.evolution
+
+  const margin = { top: 8, right: 8, bottom: 18, left: 26 }
+  const width = el.clientWidth - margin.left - margin.right
+  const height = 80 - margin.top - margin.bottom
+
+  const svg = d3.select(el).append('svg')
+    .attr('width', width + margin.left + margin.right)
+    .attr('height', height + margin.top + margin.bottom)
+    .append('g')
+    .attr('transform', `translate(${margin.left},${margin.top})`)
+
+  const x = d3.scalePoint<string>()
+    .domain(data.map(d => d.date))
+    .range([0, width])
+    .padding(0.3)
+
+  const y = d3.scaleLinear()
+    .domain([0, 100])
+    .range([height, 0])
+
+  svg.append('g')
+    .attr('transform', `translate(0,${height})`)
+    .call(d3.axisBottom(x).tickValues(data.length <= 6 ? data.map(d => d.date) : [data[0].date, data[data.length - 1].date]))
+    .selectAll('text').attr('fill', '#6b7280').attr('font-size', '8px')
+
+  svg.selectAll('.domain, .tick line').attr('stroke', '#374151')
+
+  const area = d3.area<typeof data[0]>()
+    .x(d => x(d.date)!)
+    .y0(height)
+    .y1(d => y(d.confidence))
+    .curve(d3.curveMonotoneX)
+
+  svg.append('path').datum(data)
+    .attr('d', area)
+    .attr('fill', 'rgba(16,185,129,0.1)')
+
+  svg.append('path').datum(data)
+    .attr('d', d3.line<typeof data[0]>().x(d => x(d.date)!).y(d => y(d.confidence)).curve(d3.curveMonotoneX))
+    .attr('fill', 'none').attr('stroke', '#10b981').attr('stroke-width', 1.5)
+
+  svg.selectAll('.evo-dot')
+    .data(data)
+    .join('circle')
+    .attr('cx', d => x(d.date)!)
+    .attr('cy', d => y(d.confidence))
+    .attr('r', 3)
+    .attr('fill', d => d.event_description.includes('确认') || d.event_description.toLowerCase().includes('confirm') ? '#10b981' : d.event_description.includes('拒绝') ? '#ef4444' : '#6366f1')
+
+  svg.selectAll('.evo-label')
+    .data(data)
+    .join('text')
+    .attr('x', d => x(d.date)!)
+    .attr('y', d => y(d.confidence) - 6)
+    .attr('text-anchor', 'middle')
+    .attr('font-size', '8px')
+    .attr('fill', '#9ca3af')
+    .text(d => d.confidence)
+}
+
+watch(selectedTimelineId, () => { nextTick(renderEvolutionChart) })
+
+const renderFlywheelChart = () => {
+  const el = flywheelChartRef.value
+  const data = flywheelTrend.value
+  if (!el || data.length < 2) return
+
+  d3.select(el).selectAll('*').remove()
+
+  const margin = { top: 16, right: 12, bottom: 22, left: 28 }
+  const width = el.clientWidth - margin.left - margin.right
+  const height = 130 - margin.top - margin.bottom
+
+  const svg = d3.select(el).append('svg')
+    .attr('width', width + margin.left + margin.right)
+    .attr('height', height + margin.top + margin.bottom)
+    .append('g')
+    .attr('transform', `translate(${margin.left},${margin.top})`)
+
+  const parseDate = d3.timeParse('%Y-%m-%d')
+  const parsed = data.map(d => ({ ...d, d: parseDate(d.date)! })).filter(d => d.d)
+
+  const x = d3.scaleTime()
+    .domain(d3.extent(parsed, d => d.d) as [Date, Date])
+    .range([0, width])
+
+  const yConf = d3.scaleLinear()
+    .domain([0, 100])
+    .range([height, 0])
+
+  const yCount = d3.scaleLinear()
+    .domain([0, d3.max(parsed, d => d.total) || 1])
+    .range([height, 0])
+
+  svg.append('g')
+    .attr('transform', `translate(0,${height})`)
+    .call(d3.axisBottom(x).ticks(Math.min(parsed.length, 5)).tickFormat(d3.timeFormat('%m/%d') as any))
+    .selectAll('text').attr('fill', '#6b7280').attr('font-size', '9px')
+
+  svg.selectAll('.domain, .tick line').attr('stroke', '#374151')
+
+  // confidence area + line
+  const confArea = d3.area<typeof parsed[0]>()
+    .x(d => x(d.d))
+    .y0(height)
+    .y1(d => yConf(d.avg_confidence))
+    .curve(d3.curveMonotoneX)
+
+  svg.append('path')
+    .datum(parsed)
+    .attr('d', confArea)
+    .attr('fill', 'rgba(99,102,241,0.12)')
+
+  svg.append('path')
+    .datum(parsed)
+    .attr('d', d3.line<typeof parsed[0]>().x(d => x(d.d)).y(d => yConf(d.avg_confidence)).curve(d3.curveMonotoneX))
+    .attr('fill', 'none')
+    .attr('stroke', '#6366f1')
+    .attr('stroke-width', 2)
+
+  // total patterns line (dashed)
+  svg.append('path')
+    .datum(parsed)
+    .attr('d', d3.line<typeof parsed[0]>().x(d => x(d.d)).y(d => yCount(d.total)).curve(d3.curveMonotoneX))
+    .attr('fill', 'none')
+    .attr('stroke', '#9ca3af')
+    .attr('stroke-width', 1.5)
+    .attr('stroke-dasharray', '4,3')
+
+  // confirmed patterns line
+  svg.append('path')
+    .datum(parsed)
+    .attr('d', d3.line<typeof parsed[0]>().x(d => x(d.d)).y(d => yCount(d.confirmed)).curve(d3.curveMonotoneX))
+    .attr('fill', 'none')
+    .attr('stroke', '#10b981')
+    .attr('stroke-width', 1.5)
+
+  // latest point dots
+  const last = parsed[parsed.length - 1]
+  svg.append('circle').attr('cx', x(last.d)).attr('cy', yConf(last.avg_confidence)).attr('r', 3).attr('fill', '#6366f1')
+  svg.append('circle').attr('cx', x(last.d)).attr('cy', yCount(last.confirmed)).attr('r', 3).attr('fill', '#10b981')
+}
+
+watch(flywheelTrend, () => { nextTick(renderFlywheelChart) })
+
 onMounted(async () => {
   loading.value = true
   await patternsStore.ensurePatternsLoaded()
-  const [twinRes, healthRes, alignRes, maturityRes] = await Promise.all([
+  const [twinRes, healthRes, alignRes, maturityRes, trendRes] = await Promise.all([
     get<CotProfile & Record<string, number>>('/claw/twin-snapshot'),
     getMemoryHealthApi(),
     getAlignmentScoreApi(),
     get<Record<string, any>>('/claw/twin-maturity'),
+    getFlywheelTrendApi(),
   ])
   if (twinRes.data) cotProfile.value = twinRes.data
   if (healthRes.data) memoryHealth.value = healthRes.data
   if (alignRes.data) alignmentScore.value = alignRes.data
   if (maturityRes.data) maturity.value = maturityRes.data
+  if (trendRes.data) flywheelTrend.value = trendRes.data.points
   loading.value = false
 })
 </script>
@@ -283,31 +449,33 @@ onMounted(async () => {
 
     <!-- V8: 飞轮效应 -->
         <div class="bg-surface-1 rounded-xl border border-surface-3 p-4">
-          <div class="text-sm font-medium text-gray-200 mb-2">飞轮效应</div>
-          <p class="text-[10px] text-gray-500 mb-3">越用越准 — 数据积累量化</p>
-          <div class="grid grid-cols-3 gap-2 text-center">
+          <div class="flex items-center justify-between mb-2">
             <div>
-              <div class="text-2xl font-bold text-gray-200">{{ flywheelStats.total }}</div>
-              <div class="text-[10px] text-gray-500 mt-0.5">规范总数</div>
+              <div class="text-sm font-medium text-gray-200">飞轮效应</div>
+              <p class="text-[10px] text-gray-500 mt-0.5">越用越准 — 置信度随时间增长</p>
             </div>
-            <div>
-              <div class="text-2xl font-bold text-emerald-400">{{ flywheelStats.confirmed }}</div>
-              <div class="text-[10px] text-gray-500 mt-0.5">已确认</div>
-            </div>
-            <div>
-              <div class="text-2xl font-bold text-blue-400">{{ flywheelStats.avgConfidence }}<span class="text-sm">%</span></div>
-              <div class="text-[10px] text-gray-500 mt-0.5">平均置信度</div>
+            <div class="flex items-center gap-3 text-[10px]">
+              <span class="flex items-center gap-1"><span class="w-3 h-0.5 bg-indigo-500 inline-block rounded" /> 置信度</span>
+              <span class="flex items-center gap-1"><span class="w-3 h-0.5 bg-emerald-500 inline-block rounded" /> 已确认</span>
+              <span class="flex items-center gap-1"><span class="w-3 h-0.5 bg-gray-400 inline-block rounded border-dashed" style="border-top:1px dashed #9ca3af;height:0" /> 总数</span>
             </div>
           </div>
-          <div class="mt-3 pt-3 border-t border-surface-3">
-            <div class="flex items-center justify-between text-[10px] text-gray-500">
-              <span>你 → DevTwin 观察</span>
-              <span class="text-violet-400">→</span>
-              <span>规则生成</span>
-              <span class="text-violet-400">→</span>
-              <span>AI 更懂你</span>
-              <span class="text-violet-400">→</span>
-              <span>你更信任 AI</span>
+          <div v-if="flywheelTrend.length >= 2" ref="flywheelChartRef" class="w-full" style="height:130px" />
+          <div v-else class="flex items-center justify-center h-20 text-[10px] text-gray-600">
+            数据积累中，至少需要 2 天数据
+          </div>
+          <div class="grid grid-cols-3 gap-2 text-center mt-2 pt-2 border-t border-surface-3">
+            <div>
+              <div class="text-lg font-bold text-gray-200">{{ flywheelStats.total }}</div>
+              <div class="text-[10px] text-gray-500">规范总数</div>
+            </div>
+            <div>
+              <div class="text-lg font-bold text-emerald-400">{{ flywheelStats.confirmed }}</div>
+              <div class="text-[10px] text-gray-500">已确认</div>
+            </div>
+            <div>
+              <div class="text-lg font-bold text-indigo-400">{{ flywheelStats.avgConfidence }}<span class="text-xs">%</span></div>
+              <div class="text-[10px] text-gray-500">平均置信度</div>
             </div>
           </div>
         </div>
@@ -329,33 +497,56 @@ onMounted(async () => {
         <div class="absolute left-16 top-0 bottom-0 w-px bg-surface-3" />
 
         <div class="space-y-3">
-          <div v-for="p in timelinePatterns" :key="p.id" class="flex items-start gap-3 group">
-            <!-- 日期 -->
-            <div class="w-14 text-right shrink-0">
-              <span class="text-[10px] text-gray-600">{{ p.created_at ? formatDate(p.created_at) : '--' }}</span>
-            </div>
-            <!-- 时间点 -->
-            <div class="relative z-10 mt-1.5 shrink-0">
-              <div class="w-2 h-2 rounded-full border-2 border-surface-1 transition-all group-hover:scale-150"
-                :class="p.status === 'confirmed' ? 'bg-emerald-500' : p.status === 'learning' ? 'bg-amber-400' : 'bg-gray-600'" />
-            </div>
-            <!-- 规则卡 -->
-            <div class="flex-1 bg-surface-2 rounded-lg px-3 py-2 hover:bg-surface-3 transition-colors cursor-pointer group-hover:border-accent/20 border border-transparent"
-              @click="router.push(`/patterns/${p.id}`)">
-              <div class="flex items-center justify-between">
-                <span class="text-xs text-gray-200 truncate flex-1">{{ p.name }}</span>
-                <div class="flex items-center gap-2 ml-2 shrink-0">
-                  <span class="text-[10px]" :class="statusColor(p.status)">
-                    {{ p.status === 'confirmed' ? 'confirmed' : p.status === 'learning' ? 'learning' : p.status }}
-                  </span>
-                  <!-- 置信度条 -->
-                  <div class="w-16 h-1 bg-surface-3 rounded-full overflow-hidden">
-                    <div class="h-full rounded-full" :class="confidenceColor(p.confidence)" :style="{ width: confidenceBarWidth(p.confidence) }" />
+          <div v-for="p in timelinePatterns" :key="p.id">
+            <div class="flex items-start gap-3 group">
+              <!-- 日期 -->
+              <div class="w-14 text-right shrink-0">
+                <span class="text-[10px] text-gray-600">{{ p.created_at ? formatDate(p.created_at) : '--' }}</span>
+              </div>
+              <!-- 时间点 -->
+              <div class="relative z-10 mt-1.5 shrink-0">
+                <div class="w-2 h-2 rounded-full border-2 border-surface-1 transition-all group-hover:scale-150"
+                  :class="p.status === 'confirmed' ? 'bg-emerald-500' : p.status === 'learning' ? 'bg-amber-400' : 'bg-gray-600'" />
+              </div>
+              <!-- 规则卡 -->
+              <div class="flex-1 bg-surface-2 rounded-lg px-3 py-2 hover:bg-surface-3 transition-colors cursor-pointer border"
+                :class="selectedTimelineId === p.id ? 'border-emerald-500/30' : 'border-transparent group-hover:border-accent/20'"
+                @click="toggleEvolution(p.id)">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs text-gray-200 truncate flex-1">{{ p.name }}</span>
+                  <div class="flex items-center gap-2 ml-2 shrink-0">
+                    <span v-if="p.evolution && p.evolution.length > 1" class="text-[9px] text-gray-600">{{ p.evolution.length }} 次演化</span>
+                    <span class="text-[10px]" :class="statusColor(p.status)">
+                      {{ p.status === 'confirmed' ? 'confirmed' : p.status === 'learning' ? 'learning' : p.status }}
+                    </span>
+                    <div class="w-16 h-1 bg-surface-3 rounded-full overflow-hidden">
+                      <div class="h-full rounded-full" :class="confidenceColor(p.confidence)" :style="{ width: confidenceBarWidth(p.confidence) }" />
+                    </div>
+                    <span class="text-[10px] text-gray-600 tabular-nums">{{ p.confidence }}%</span>
                   </div>
-                  <span class="text-[10px] text-gray-600 tabular-nums">{{ p.confidence }}%</span>
+                </div>
+                <div class="text-[10px] text-gray-500 mt-0.5">{{ p.category }} · {{ p.source || 'auto' }}</div>
+              </div>
+            </div>
+            <!-- evolution mini chart -->
+            <div v-if="selectedTimelineId === p.id && p.evolution && p.evolution.length >= 2"
+              class="ml-[4.75rem] mt-1.5 bg-surface-2 rounded-lg border border-emerald-500/10 p-3">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[10px] text-gray-500">置信度演化轨迹</span>
+                <button class="text-[10px] text-gray-600 hover:text-gray-300" @click.stop="router.push(`/patterns/${p.id}`)">详情 →</button>
+              </div>
+              <div ref="evolutionChartRef" class="w-full" style="height:80px" />
+              <div class="mt-2 space-y-1 max-h-20 overflow-y-auto">
+                <div v-for="(evo, i) in p.evolution.slice(-5)" :key="i" class="flex items-center gap-2 text-[9px]">
+                  <span class="text-gray-600 w-12 shrink-0">{{ evo.date }}</span>
+                  <span class="font-mono w-6 text-right" :class="evo.confidence >= 70 ? 'text-emerald-400' : 'text-amber-400'">{{ evo.confidence }}</span>
+                  <span class="text-gray-500 truncate">{{ evo.event_description }}</span>
                 </div>
               </div>
-              <div class="text-[10px] text-gray-500 mt-0.5">{{ p.category }} · {{ p.source || 'auto' }}</div>
+            </div>
+            <div v-else-if="selectedTimelineId === p.id && (!p.evolution || p.evolution.length < 2)"
+              class="ml-[4.75rem] mt-1.5 bg-surface-2 rounded-lg p-3 text-[10px] text-gray-600 text-center">
+              演化数据不足（至少需要 2 个快照）
             </div>
           </div>
         </div>

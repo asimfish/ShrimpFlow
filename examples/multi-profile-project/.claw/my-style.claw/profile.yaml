@@ -1,0 +1,8 @@
+schema: clawprofile/v1
+name: my-style
+display: 我的编码风格
+trust: local
+
+injection:
+  mode: proactive
+  budget: 3000

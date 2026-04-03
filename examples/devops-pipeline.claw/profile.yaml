@@ -1,0 +1,3 @@
+schema: clawprofile/v1
+name: devops-pipeline
+trust: local

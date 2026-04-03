@@ -1,5 +1,5 @@
 # ClawProfile Format Specification
-# Version: v50
+# Version: v53
 
 > **把你的编程习惯打包成文件，让任何 AI 工具直接理解你的风格。**
 >
@@ -22,22 +22,24 @@ name: 深夜高产期
 
 **就这样，你已经有了一个 ClawProfile pattern。**
 
-## 5 分钟上手
+## 5 分钟上手（v50 精简为 4 步）
 
-1. **创建目录**：`mkdir my-style.claw && mkdir my-style.claw/patterns`
-2. **写第一个 pattern**：在 `patterns/` 下创建 `.md` 文件，只需 `name` + 正文
-3. **让 AI 读取**（零依赖方案，v44 改进）：
+1. **创建目录 + profile**：
    ```bash
-   # 方案 A：直接拼接到 CLAUDE.md（今天就能用，无需任何工具）
+   mkdir -p my-style.claw/patterns
+   echo 'schema: clawprofile/v1
+name: my-style
+trust: local' > my-style.claw/profile.yaml
+   ```
+2. **写第一个 pattern**：在 `patterns/` 下创建 `.md` 文件，只需 `name` + 正文
+3. **让 AI 读取**（零依赖方案）：
+   ```bash
+   # 直接拼接到 CLAUDE.md（今天就能用，无需任何工具）
    cat my-style.claw/patterns/*.md >> CLAUDE.md
-
-   # 方案 B：claw export（推荐，安装 claw CLI 后）
-   claw export --target claude >> CLAUDE.md
-   claw export --target cursor > .cursorrules
    ```
 4. **验证生效**：写一个 `始终用中文回复` 的 pattern，用英文提问，如果 AI 用中文回复 → 成功
-5. **逐步丰富**：需要时添加 `confidence`、`trigger`、`severity` 等可选字段
-6. **自动生成**：`claw init --auto` 从 git log 自动挖掘你的第一个 profile（推荐）
+
+> **下一步**：需要时添加 `confidence`、`trigger`、`severity` 等可选字段。`claw init --auto` 可从 git log 自动挖掘你的第一个 profile。`claw export` 支持导出到 CLAUDE.md / .cursorrules / copilot-instructions.md。
 
 > 💡 **进阶内容**（JSON 交换格式、合并策略、版本演进）在文档后半部分。
 
@@ -185,7 +187,7 @@ injection:
 - `trust` — 信任级别，决定导入审查力度和运行时权限
 - `injection.mode` — passive=被问时参考, proactive=主动建议, autonomous=自动执行
 - `injection.budget` — 注入 AI 时的上限，裁剪时先按 severity 再按 confidence 排序
-- **budget 标准计量方式（v42）** — 默认使用 UTF-8 字符数（`chars`），跨 tokenizer 一致。使用 `tokens` 需指定 tokenizer（如 `cl100k_base`），允许 ±20% 偏差。`budget_scope: body` 只计量 pattern 正文，`full` 含 frontmatter 和隔离标签
+- **budget 标准计量方式（v42，v55 渲染后计量）** — 默认使用 UTF-8 字符数（`chars`），跨 tokenizer 一致。使用 `tokens` 需指定 tokenizer（如 `cl100k_base`），允许 ±20% 偏差。`budget_scope: body` 只计量 pattern 正文，`full` 含 frontmatter 和隔离标签。**计量时机（v55）：** 在 ClawTemplate 渲染完成后计量（渲染后），而非源文件大小。for 循环展开后的实际尺寸作为计量依据。单个 pattern 不得超过总 budget 的 80%（硬上限，防止 for 循环膨胀）
 - **body 裁剪策略（v42）** — 当 pattern body 超过 budget 剩余空间时：(1) 按 Markdown heading (`##`) 分段，保留最高级别 sections；(2) 仍超长则截断到限制并在尾部附加 `[TRUNCATED: 完整内容见 <pattern-path>]`。pattern 可声明 `truncation: deny` 表示宁可不注入也不要截断（适用于安全类 pattern）
 - **truncation:deny 跳过通知（v45 新增）** — 当 `truncation: deny` 的 pattern 因 budget 不足被跳过注入时，工具必须在 AI context 中追加一行提示：`[SKIPPED: Pattern "<name>" (severity: <severity>) requires full injection but budget insufficient. Run "claw status" to review.]`。这确保用户知晓关键 pattern 未生效
 - `injection.policy` — 三级信任的完整策略矩阵，防止 prompt injection
@@ -200,6 +202,22 @@ trust: local
 ```
 
 > 其余字段（display, description, injection 等）全部有默认值。`claw init` 会自动生成完整版本。
+
+**profile.yaml 默认值参考表（v50 新增）：**
+
+| 字段 | 默认值 | 说明 |
+|------|--------|------|
+| `display` | 同 `name` | 展示名称 |
+| `description` | 空 | 描述文本 |
+| `author` | 空 | 作者 |
+| `tags` | `[]` | 标签列表 |
+| `license` | `private` | 许可类型 |
+| `injection.mode` | `passive` | 注入模式 |
+| `injection.budget` | 无限制 | token 预算 |
+| `injection.budget_unit` | `chars` | 计量单位 |
+| `injection.budget_scope` | `body` | 计量范围 |
+| `injection.always_scope_cap` | `10` | always pattern 上限 |
+| `injection.always_budget_ratio` | `0.5` | always 占 budget 比例 |
 
 ---
 
@@ -226,7 +244,7 @@ evidence: integer                   # 证据数量（source:auto 必填，source
 source: auto|manual|imported|forked # 来源类型
 params:                             # 参数声明（v27）
   param_name:
-    type: string|number|boolean     # 参数类型
+    type: string|number|boolean|array  # 参数类型（v49 新增 array，支持 for 循环迭代）
     default: any                    # 默认值（可选）
     required: boolean               # 是否必须（默认 false）
     description: string             # 参数说明
@@ -261,6 +279,18 @@ learned_from:                       # 经验来源（pattern 独有，区别于 
 
 只需 `name` 和正文，5 行即可：
 
+**learned_from.type 判定标准（v49 新增）：**
+
+| type | 定义 | 判定标准 | 示例 |
+|------|------|---------|------|
+| `incident` | 由特定失败事件触发的学习 | 有明确的故障/错误/损失事件 | 线上数据库连接池耗尽、部署回滚 |
+| `observation` | 非失败情境下的行为观察，尚未形成共识 | 个人多次观察但团队未讨论 | "我发现晚上写代码效率更高" |
+| `convention` | 团队内已形成共识但无正式文档的惯例 | 团队成员普遍遵循，口头传承 | "我们团队都用 squash merge" |
+| `documentation` | 来自官方文档或权威教程的最佳实践 | 有明确的文档 URL 可引用 | React 官方文档推荐的 hooks 用法 |
+| `standard` | 行业标准或强制规范 | 有 RFC/ISO/行业组织背书 | OWASP Top 10、Google SRE Book |
+
+> 边界 case：React 官方文档中的"推荐做法"→ `documentation`；被 ESLint 规则强制执行的 → `standard`。团队中 3 人以上遵循但没写下来的 → `convention`；只有自己这么做的 → `observation`。
+
 ```markdown
 ---
 name: 深夜高产期
@@ -293,22 +323,35 @@ outputs:
   branch_name:
     type: string
     description: 创建的实验分支名
-    extract: regex           # 从 AI 回复中按正则提取
+    extract:
+      method: regex
+      pattern: "exp/[a-z0-9-]+"       # 作者指定的正则模式串
   test_passed:
     type: boolean
     description: 测试是否通过
-    extract: last_line       # 取最后一行作为输出值
+    extract:
+      method: last_line               # 取最后一行
+  error_details:
+    type: object
+    description: 错误详情
+    extract:
+      method: json_path
+      path: "$.errors[0]"             # 从 AI 回复的 JSON 块中提取
 ```
 
-提取方式（`extract` 字段）：
-| 方式 | 说明 | 适用场景 |
-|------|------|---------|
-| `regex` | 由工具层定义的正则表达式从 AI 回复中提取 | 结构化数据（分支名、版本号） |
-| `json_path` | 从 AI 回复的 JSON 代码块中按 JSONPath 提取 | AI 返回 JSON 格式结果 |
-| `last_line` | 取 AI 回复最后一行作为输出值 | 简单的 yes/no 或单值输出 |
+提取方式（`extract.method` 字段，v48 改进）：
+| 方式 | 必填字段 | 说明 | 适用场景 |
+|------|---------|------|---------|
+| `regex` | `pattern` | 用指定正则从 AI 回复中提取首个匹配 | 结构化数据（分支名、版本号） |
+| `json_path` | `path` | 从 AI 回复的 JSON 代码块中按 JSONPath 提取 | AI 返回 JSON 格式结果 |
+| `last_line` | 无 | 取 AI 回复最后一行作为输出值 | 简单的 yes/no 或单值输出 |
 
-> **实现者注意**：outputs 提取是 L3 能力。L0-L2 工具忽略 outputs 字段即可（不影响 pattern body 的正常注入）。outputs 的提取结果通过 `<% outputs.branch_name %>` 在同一 workflow 的后续 step 中引用。
+安全约束（v48 新增）：
+- community trust 的 pattern 中 `extract.pattern`（regex）必须通过超时沙箱执行（防止 ReDoS）
+- regex 模式串最大长度 200 字符
+- 禁止使用回溯引用（backreference）等高危特性
 
+> **实现者注意**：outputs 提取是 L3 能力。L0-L2 工具忽略 outputs 字段即可（不影响 pattern body 的正常注入）。outputs 的提取结果通过 `<% outputs.branch_name %>` 在同一 workflow 的后续 step 中引用。当 pattern 独立使用（不在 workflow 中）时，outputs 仅供工具层内部消费（如日志、统计），不影响 pattern 注入行为。
 ### category 推荐词汇表（v44 新增）
 
 以下为推荐的标准分类词汇（非强制，可同时使用自定义分类）：
@@ -397,6 +440,29 @@ related:
 - `requires` 的 pattern 不存在时：warning 日志，当前 pattern 仍可注入
 - `conflicts` 同时激活时：按 severity → confidence 排序，保留高优先的，跳过低优先的
 - `related` 仅供人类和工具参考，不影响运行时行为
+
+**名称解析规则（v52 新增）：**
+
+`requires`、`conflicts`、`related` 中引用其他 pattern 时，支持三种名称格式：
+
+```yaml
+# 短名（同 profile 内优先解析）
+requires: ["base-coding-style"]
+
+# profile 限定名（消除跨 profile 歧义）
+requires: ["frontend-standards::base-coding-style"]
+
+# FQN（跨命名空间）
+requires: ["@company/frontend-standards::base-coding-style"]
+```
+
+解析优先级（与 CCP §4.1 Discovery 一致）：
+1. 当前 profile 内的 patterns/ 目录（同 profile 优先）
+2. 项目根目录/.claw/ 下的其他 profile
+3. ~/.claw/ 下的用户级 profile
+4. claw.lock 中声明的远程依赖
+
+> 短名在多个 profile 中存在时，解析器使用优先级最高的并发出 warning。要消除歧义，使用 `profile::pattern` 限定名或 `@scope/profile::pattern` FQN。
 
 ### trigger 语法
 
@@ -570,7 +636,7 @@ context:
 
 语法清单：
 - `<%params.xxx%>` — 变量插值
-- `<% if condition %>...<% endif %>` — 条件渲染
+- `<% if condition %>...<% else %>...<% endif %>` — 条件渲染（v51 新增 else 分支）
 - `<% for item in list %>...<% endfor %>` — 列表迭代（**EXPERIMENTAL**，L2+工具支持，v45 完善）
 - `<% steps.id.outputs.name %>` — Workflow 步骤间数据引用
 
@@ -597,6 +663,13 @@ context:
 
 // Truthy 检查（布尔/存在性）
 <% if params.strict %>              // params.strict 为 true 时
+
+// else 分支（v51 新增）
+<% if params.component_type == "page" %>
+  页面组件放在 src/pages/ 下
+<% else %>
+  非页面组件放在 src/components/ 下
+<% endif %>
 ```
 
 > **实现者注意**：L0/L1 工具只需支持变量插值（`<%params.xxx%>`），条件和循环是 L2+ 能力。
@@ -653,13 +726,14 @@ injection:
 
 超出上限时按 severity → confidence 排序，低优先的 always pattern 降级为 `session` scope。
 
-**always 降级语义（v45 修正）：**
+**always 降级语义（v45 修正，v48 澄清）：**
 
-降级后的 pattern 在运行时保留 `_original_scope: always` 标记：
-- 降级 pattern 在 session 内仍然生效（不会变成死代码）
-- 当 budget 空间释放（如其他 pattern 被 trigger 过滤掉）时，自动恢复为 `always`
+降级后的 pattern 必须满足以下行为要求（具体实现方式由工具层决定）：
+- 降级 pattern 在当前 session 内仍然生效（不会变成死代码）
+- 当 budget 空间释放（如其他 pattern 被 trigger 过滤掉）时，应自动恢复为 `always` scope
 - 降级事件应记录在工具日志中：`[ClawProfile] Pattern "security-checklist" demoted: always → session (budget cap)`
 - 用户可通过 `claw status` 查看当前降级状态
+- 降级状态属于工具层运行时内部状态，不得写入 pattern 文件或序列化到 JSON 交换格式中
 
 **scope × trigger 交互矩阵（v39 新增）：**
 
@@ -752,6 +826,53 @@ params:
 - `max`/`min` 对 number 类型做范围校验
 - `enum` 对 string 类型做枚举约束
 - 所有参数值在注入前做 sanitization（去除 `<script>`、shell 注入字符等）
+- **array 类型（v49 新增，v52 修正）**：元素类型支持 string 或 object（对象元素的属性通过 `<% item.field %>` 访问），最大 50 个元素。用于 `<% for %>` 循环迭代。声明示例：
+  ```yaml
+  # 简单字符串数组
+  checklist:
+    type: array
+    default: ["命名规范", "错误处理", "安全扫描"]
+    description: 代码审查检查项列表
+
+  # 对象数组（v52，支持 for 循环中 item.field 访问）
+  review_items:
+    type: array
+    default:
+      - name: 命名规范
+        description: 检查变量和函数命名是否符合约定
+      - name: 错误处理
+        description: 检查异常是否被正确捕获和处理
+    description: 结构化检查项列表
+  ```
+
+**inputs 与 params 的关系（v54 明确）：**
+
+Workflow step 的 `inputs:` 字段在 pattern 内部通过 `params` 命名空间访问，两者共享同一引用空间：
+
+```yaml
+# workflow step 传递 inputs
+steps:
+  - id: fix
+    pattern: auto-fix
+    inputs:
+      issues: "<% steps.analyze.outputs.issues %>"
+    with:
+      language: python
+```
+
+```markdown
+<!-- auto-fix.md pattern body -->
+待修复问题：<% params.issues %>（来自 inputs）
+语言：<% params.language %>（来自 with）
+```
+
+规则：
+- `inputs:` 和 `with:` 都注入 `params` 命名空间，pattern body 用 `<%params.xxx%>` 统一访问
+- 同名冲突时：`inputs` 优先于 `with`（运行时值覆盖静态配置）
+- `with` 中声明但 pattern `params` 未定义的键：忽略，不报错
+- `inputs` 中声明但 pattern `params` 未定义的键：warning（可能是引用错误）
+
+---
 
 ### evidence — source-aware 规则（v31 新增）
 
@@ -784,12 +905,28 @@ valid_for:
 
 ## Workflow 文件规范（.md）
 
+**最简 workflow（v53 新增）：** 只需 name + steps，无需 id/outputs/inputs：
+
+```yaml
+---
+name: quick-review
+steps:
+  - pattern: code-analysis
+  - pattern: auto-fix
+    when: "issues found"
+---
+先分析代码问题，有问题再自动修复。
+```
+
+> 当你需要步骤间传递数据时，再引入 `id`、`outputs_map`、`inputs`。
+
 ### frontmatter
 
 ```yaml
 ---
 name: string                        # 工作流名称（支持 @scope/name，v29）
 steps:
+  # pattern 引用步骤
   - id: string                      # 步骤标识符（v28，用于数据流引用）
     pattern: string                 # 引用 patterns/ 下的文件名（不含 .md）
     when: string                    # 进入条件（可选）
@@ -798,15 +935,24 @@ steps:
       param_name: value
     inputs:                         # 输入声明（v28）
       input_name: "<% steps.<id>.outputs.<name> %>"
-    outputs:                        # 输出声明（v28）
-      - name: string
-        description: string
+    outputs_map:                    # 输出重命名/过滤（v51，可选）
+      pattern_output_name: exposed_name  # 将 pattern 的 output 重命名后暴露
+
+  # 内联步骤（v51 改进：outputs 必须带 extract）
   - inline: string                  # 内联指令（不引用 pattern，直接写 prompt）
     when: string
     id: string                      # 内联步骤也可以有 id
-    outputs:
-      - name: string
-  - parallel:                       # 并行步骤组
+    outputs:                        # 内联步骤必须自行声明完整 outputs（含 extract）
+      output_name:
+        type: string|number|boolean|object
+        description: string
+        extract:                    # 必填（因为没有 pattern 文件可继承）
+          method: regex|json_path|last_line
+          pattern: string           # method=regex 时必填
+          path: string              # method=json_path 时必填
+
+  # 并行步骤组
+  - parallel:
       - pattern: string
         id: string
       - pattern: string
@@ -814,17 +960,26 @@ steps:
 ---
 ```
 
-### 数据流引用语法（v28 新增）
+**outputs 解析规则（v51 新增）：**
 
-步骤间可通过 `id` + `outputs` + `inputs` 传递数据：
+| step 类型 | outputs 来源 | step 中可声明 |
+|-----------|-------------|--------------|
+| `pattern:` 引用 | 自动继承 pattern frontmatter 的 outputs | 仅 `outputs_map`（重命名/过滤），禁止重复声明 outputs |
+| `inline:` | step 自行声明 | 完整的 outputs（含 extract，必填） |
+| `parallel:` | 各子步骤分别继承 | 同上规则递归适用 |
+
+> Pattern outputs 是 source of truth（定义输出类型和提取方式）。Workflow step 不应重复声明 outputs，而是通过 `outputs_map` 做重命名或选择性暴露。未声明 `outputs_map` 时，自动继承 pattern 的全部 outputs。
+
+### 数据流引用语法（v28 新增，v51 改进）
+
+步骤间通过 `id` + pattern outputs + `inputs` 传递数据：
 
 ```yaml
 steps:
   - id: analyze
     pattern: code-analysis
-    outputs:
-      - name: issues
-        description: 发现的问题列表
+    # outputs 自动继承 code-analysis.md 的 pattern-level outputs
+    # 无需在此重复声明
   - id: fix
     pattern: auto-fix
     inputs:
@@ -840,6 +995,17 @@ steps:
 - 子目录 pattern：`pattern: debugging/memory-leak`
 - 内联步骤：`inline: "检查 GPU 显存占用"` — 轻量指令不值得单独建 pattern 时使用
 - 引用不存在的 pattern：打包时 warning，运行时跳过并记录日志
+
+**模板变量解析失败处理（v55 新增）：**
+
+| 引用来源 | 引用目标不存在时 | 示例 |
+|---------|----------------|------|
+| `<%params.xxx%>` | 有 default → 用 default；无 default → 渲染为空字符串 | `<%params.lang%>` 未传入 → `""` |
+| `<%steps.id.outputs.name%>` | 步骤 id 不存在 → 保留原始模板文本（不替换）| `<%steps.missing.outputs.x%>` 原样输出 |
+| `<%steps.id.outputs.name%>` | 步骤存在但 output name 不存在 → warning + 空字符串 | `<%steps.analyze.outputs.missing%>` → `""` |
+| workflow inputs 引用不存在的步骤 id | 打包时 error，阻止打包 | `inputs: x: "<% steps.bad_id.outputs.y %>"` |
+
+> 规则：params 宽松（兼容可选参数），workflow 引用严格（数据流断裂是逻辑错误）。
 
 ### 正文 = 工作流说明
 
@@ -867,88 +1033,42 @@ name: debug-reward
 
 ---
 
-<!-- PART 3: 实现者规范 — 给工具开发者 -->
+## claw.lock — 依赖锁定（v54 新增）
 
-## ClawProfile 消费协议（CCP，v37 新增）
+当 profile 引用远程 pattern（社区或 verified trust）时，`claw.lock` 记录精确版本，确保可复现。
 
-定义 AI 工具如何发现、读取、注入 ClawProfile pattern，确保跨工具行为一致。
+**文件位置：** `.claw/claw.lock`（与 `profile.yaml` 同级）
 
-### §4.1 Discovery — 发现机制
+**最简格式：**
 
-工具启动时按以下优先级扫描 `.claw/` 目录：
-
-```
-1. 项目根目录/.claw/          # 项目级（最高优先）
-2. ~/.claw/                    # 用户级
-3. claw.lock 中声明的远程依赖   # 已锁定的社区 pattern
-```
-
-发现步骤：
-1. 读取 `profile.yaml` 获取元信息和注入配置
-2. 扫描 `patterns/` 下所有 `.md` 文件
-3. 解析 frontmatter，构建 Pattern 索引
-4. 检查 `requires`/`conflicts` 关系图，报告冲突
-
-### §4.2 Injection — 注入协议
-
-Pattern 注入 AI 上下文的标准流程：
-
-```
-[当前上下文] → [Trigger 匹配] → [关系检查] → [Budget 裁剪] → [排序] → [隔离包装] → [注入]
+```yaml
+lockfile_version: 1
+dependencies:
+  "@community/python-style":
+    version: "1.2.3"
+    resolved: "https://registry.clawprofile.dev/@community/python-style/1.2.3"
+    integrity: sha256:abc123...
+    trust: community
+    patterns:
+      - slug: naming-conventions
+        checksum: sha256:def456...
+      - slug: type-hints
+        checksum: sha256:ghi789...
 ```
 
-1. **Trigger 匹配**：按 globs → event → when → context 逐层过滤
-2. **关系检查**：检查 requires 是否满足，conflicts 是否冲突
-3. **Budget 裁剪**：按 severity×confidence 决策矩阵和 token 预算决定保留哪些
-4. **排序**：按 6 维排序算法（见 §4.3）确定注入顺序
-5. **隔离包装**：按 trust 级别添加隔离边界标签
-6. **注入**：将包装后的 pattern body 插入 AI 上下文
+**字段说明：**
+- `version` — 语义化版本号，精确锁定（不允许范围符号 `^` `~`）
+- `resolved` — 下载源 URL（离线环境可用缓存）
+- `integrity` — 整包 SHA-256 校验，防止篡改
+- `trust` — 锁定时的 trust 级别，升级需用户确认
+- `patterns` — 各 pattern 文件的独立 checksum
 
-### §4.3 Ordering — 6 维排序算法
+**工作流程：**
+- `claw install` — 下载依赖并生成/更新 claw.lock
+- `claw install --frozen` — 严格按 claw.lock 安装，version 不匹配则报错（CI 推荐）
+- `claw update @community/python-style` — 更新单个依赖并刷新 lock
 
-多个 Pattern 同时激活时的注入顺序（优先级递减，v41 调整）：
-
-| 维度 | 排序 | 说明 |
-|------|------|------|
-| 1. severity | critical > high > medium > low | 重要性最优先（v41 提升） |
-| 2. scope_priority | file > task > session > always | 越精确越靠近用户消息（v41 反转） |
-| 3. confidence | very_high > high > medium > low | 置信度越高越优先 |
-| 4. trust | local > verified > community | 信任度越高越优先 |
-| 5. specificity | trigger 条件越多越优先 | 计分规则（v43）：globs +1, event +1, when +1, context +1，总分 0-4 |
-| 6. declaration_order | 按文件系统字母序 | 稳定排序兜底 |
-
-> **v41 变更说明**：severity 从第 2 位提升到第 1 位——重要性比范围更应决定注入优先级。scope_priority 排序方向反转为 file > always——因为 LLM 上下文中后注入的内容更接近用户 query、影响力更大（recency bias），精确匹配的 file-scope pattern 应获得更高位置。
-
-### §4.4 Conformance Levels — 一致性等级
-
-工具实现者可根据能力选择一致性等级：
-
-| 等级 | 要求 | 示例工具 |
-|------|------|---------|
-| **L0 — 声明式** | 读取 .md frontmatter + body，原样注入 | 任何支持文件读取的 AI 工具 |
-| **L1 — 触发式** | L0 + globs/event 确定性触发 | Cursor Rules, Claude Code |
-| **L2 — 模板式** | L1 + `<%%>` 变量插值 + 条件渲染 + params 传参 | 需要模板引擎的工具 |
-| **L3 — 完整式** | L2 + 语义 trigger + workflow 编排 + 6 维排序 + 依赖解析 | 专用 ClawProfile 运行时 |
-
-> **最低可用**：L0 已经有用——把 pattern body 当成额外 system prompt 注入即可。
-> **推荐目标**：L1 覆盖 80% 用例，大多数工具应以此为目标。
-
-**安全要求按一致性等级分层（v42 新增）：**
-
-| 等级 | 隔离标签 | 信任级别限制 | 内容扫描 |
-|------|---------|------------|---------|
-| L0 | 不要求 | 仅 local trust | 不要求 |
-| L1 | 必须（含 nonce） | local + verified | 推荐 |
-| L2+ | 必须（含 nonce） | 全部 | 必须 |
-
-> L0 工具不实现隔离标签，因此不得消费 community 或 verified trust 的 pattern。这解决了"L0 原样注入"与"必须添加隔离边界"之间的矛盾。
-
-**`min_level` 运行时行为（v43 明确化）：**
-
-当工具的一致性等级低于 pattern 声明的 `min_level` 时：
-- L0/L1 工具遇到 `min_level: L2` 的 pattern → 仍然注入 body，但在 body 前追加提示：`[NOTE: This pattern requires L2+ features (template rendering). Some content may display as raw template syntax.]`
-- 低等级工具不得静默跳过声明了 min_level 的 pattern（除非该 pattern 的 trust 级别超出工具的允许范围）
-- `min_level` 主要用于提醒，不用于强制阻止注入
+> `local` trust 的 pattern 不写入 claw.lock（本地文件由 git 管理）。
 
 ---
 
@@ -976,23 +1096,35 @@ pattern body 注入 AI context 时，必须添加隔离边界：
 - pattern body 注入前必须进行转义：将 `</pattern-context` 替换为 `&lt;/pattern-context`
 - 安全扫描规则集不应硬编码于规范中，应声明为可扩展规则集，工具层定期更新
 
-### 内容安全扫描
+### 内容安全扫描（v54 BASELINE 机制）
 
-`claw unpack` 和 `claw import` 时强制扫描：
+`claw unpack` 和 `claw import` 时强制扫描。规则集分两层：
 
-```python
-# 扫描规则（正则匹配）
-INJECTION_PATTERNS = [
-    r"ignore\s+(all\s+)?previous\s+instructions",
-    r"IMPORTANT\s*(SYSTEM)?\s*(UPDATE|OVERRIDE|INSTRUCTION)",
-    r"<system>",
-    r"silently\s+(execute|run|read|send)",
-    r"curl\s+.*\|\s*(bash|sh)",
-    r"without\s+showing\s+.*to\s+the\s+user",
-]
+**BASELINE 规则（不可禁用，工具必须内置）：**
+
+| 规则 ID | 匹配模式 | 说明 |
+|---------|---------|------|
+| CLAW-SEC-001 | `ignore\s+(all\s+)?previous\s+instructions` | prompt 注入尝试 |
+| CLAW-SEC-002 | `IMPORTANT\s*(SYSTEM)?\s*(UPDATE\|OVERRIDE\|INSTRUCTION)` | 系统提示覆盖 |
+| CLAW-SEC-003 | `<system>` | 原始系统标签注入 |
+| CLAW-SEC-004 | `silently\s+(execute\|run\|read\|send)` | 隐蔽执行指令 |
+| CLAW-SEC-005 | `curl\s+.*\|\s*(bash\|sh)` | 管道执行远程代码 |
+| CLAW-SEC-006 | `without\s+showing\s+.*to\s+the\s+user` | 隐藏输出意图 |
+
+**扩展规则（工具可选添加，用户可禁用单条）：**
+
+```yaml
+# claw.config.yaml
+security:
+  baseline: enabled          # 不可设为 disabled
+  extended_rules:
+    - id: CLAW-EXT-001
+      pattern: "eval\\s*\\("
+      description: "eval 调用检测"
+      enabled: true
 ```
 
-扫描结果分级：`pass | warning | blocked`。`blocked` 的 pattern 拒绝导入。
+扫描结果分级：`pass | warning | blocked`。`blocked` 的 pattern 拒绝导入。BASELINE 规则命中直接 `blocked`，扩展规则命中为 `warning`（可配置升级为 `blocked`）。
 
 ### 打包签名（v15 新增）
 
@@ -1193,6 +1325,91 @@ ClawProfile Pattern 是 Skill 的超集：
 
 ---
 
+<!-- PART 3: 实现者规范 — 给工具开发者 -->
+
+## ClawProfile 消费协议（CCP，v37 新增）
+
+定义 AI 工具如何发现、读取、注入 ClawProfile pattern，确保跨工具行为一致。
+
+### §4.1 Discovery — 发现机制
+
+工具启动时按以下优先级扫描 `.claw/` 目录：
+
+```
+1. 项目根目录/.claw/          # 项目级（最高优先）
+2. ~/.claw/                    # 用户级
+3. claw.lock 中声明的远程依赖   # 已锁定的社区 pattern
+```
+
+发现步骤：
+1. 读取 `profile.yaml` 获取元信息和注入配置
+2. 扫描 `patterns/` 下所有 `.md` 文件
+3. 解析 frontmatter，构建 Pattern 索引
+4. 检查 `requires`/`conflicts` 关系图，报告冲突
+
+### §4.2 Injection — 注入协议
+
+Pattern 注入 AI 上下文的标准流程：
+
+```
+[当前上下文] → [Trigger 匹配] → [关系检查] → [Budget 裁剪] → [排序] → [隔离包装] → [注入]
+```
+
+1. **Trigger 匹配**：按 globs → event → when → context 逐层过滤
+2. **关系检查**：检查 requires 是否满足，conflicts 是否冲突
+3. **Budget 裁剪**：按 severity×confidence 决策矩阵和 token 预算决定保留哪些
+4. **排序**：按 6 维排序算法（见 §4.3）确定注入顺序
+5. **隔离包装**：按 trust 级别添加隔离边界标签
+6. **注入**：将包装后的 pattern body 插入 AI 上下文
+
+### §4.3 Ordering — 6 维排序算法
+
+多个 Pattern 同时激活时的注入顺序（优先级递减，v41 调整）：
+
+| 维度 | 排序 | 说明 |
+|------|------|------|
+| 1. severity | critical > high > medium > low | 重要性最优先（v41 提升） |
+| 2. scope_priority | file > task > session > always | 越精确越靠近用户消息（v41 反转） |
+| 3. confidence | very_high > high > medium > low | 置信度越高越优先 |
+| 4. trust | local > verified > community | 信任度越高越优先 |
+| 5. specificity | trigger 条件越多越优先 | 计分规则（v43）：globs +1, event +1, when +1, context +1，总分 0-4 |
+| 6. declaration_order | 按文件系统字母序 | 稳定排序兜底 |
+
+> **v41 变更说明**：severity 从第 2 位提升到第 1 位——重要性比范围更应决定注入优先级。scope_priority 排序方向反转为 file > always——因为 LLM 上下文中后注入的内容更接近用户 query、影响力更大（recency bias），精确匹配的 file-scope pattern 应获得更高位置。
+
+### §4.4 Conformance Levels — 一致性等级
+
+工具实现者可根据能力选择一致性等级：
+
+| 等级 | 要求 | 示例工具 |
+|------|------|---------|
+| **L0 — 声明式** | 读取 .md frontmatter + body，原样注入 | 任何支持文件读取的 AI 工具 |
+| **L1 — 触发式** | L0 + globs/event 确定性触发 | Cursor Rules, Claude Code |
+| **L2 — 模板式** | L1 + `<%%>` 变量插值 + 条件渲染 + params 传参 | 需要模板引擎的工具 |
+| **L3 — 完整式** | L2 + 语义 trigger + workflow 编排 + 6 维排序 + 依赖解析 | 专用 ClawProfile 运行时 |
+
+> **最低可用**：L0 已经有用——把 pattern body 当成额外 system prompt 注入即可。
+> **推荐目标**：L1 覆盖 80% 用例，大多数工具应以此为目标。
+
+**安全要求按一致性等级分层（v42 新增）：**
+
+| 等级 | 隔离标签 | 信任级别限制 | 内容扫描 |
+|------|---------|------------|---------|
+| L0 | 不要求 | 仅 local trust | 不要求 |
+| L1 | 必须（含 nonce） | local + verified | 推荐 |
+| L2+ | 必须（含 nonce） | 全部 | 必须 |
+
+> L0 工具不实现隔离标签，因此不得消费 community 或 verified trust 的 pattern。这解决了"L0 原样注入"与"必须添加隔离边界"之间的矛盾。
+
+**`min_level` 运行时行为（v43 明确化）：**
+
+当工具的一致性等级低于 pattern 声明的 `min_level` 时：
+- L0/L1 工具遇到 `min_level: L2` 的 pattern → 仍然注入 body，但在 body 前追加提示：`[NOTE: This pattern requires L2+ features (template rendering). Some content may display as raw template syntax.]`
+- 低等级工具不得静默跳过声明了 min_level 的 pattern（除非该 pattern 的 trust 级别超出工具的允许范围）
+- `min_level` 主要用于提醒，不用于强制阻止注入
+
+---
+
 ## 变更日志
 
 | 内部版本 | 变更 | 来源 |
@@ -1232,3 +1449,9 @@ ClawProfile Pattern 是 Skill 的超集：
 | v45 | always 降级语义修正（_original_scope 标记 + 自动恢复）+ for 循环标注 EXPERIMENTAL 并完善语法（迭代变量作用域、else 空列表、嵌套上限 2 层）+ truncation:deny 跳过通知机制 | 第八轮质疑者+实战验证 agent |
 | v46 | Pattern-level outputs 声明（type/description/extract 三字段，解决 pattern 无法声明输出的功能缺口）+ category 词汇表扩展至 5 领域 24 词（新增 observability/logging/compliance/incident-response） | 第八轮质疑者+实战验证 agent |
 | v47 | 文档物理分隔标记（`<!-- PART N -->` 注释）+ 最小 profile.yaml 示例（3 字段即可）+ 文档结构指引更新（未来拆分预告） | 第八轮 UX agent |
+| v48 | extract 改为对象结构（method+pattern/path，解决 regex 无法指定模式串）+ extract 安全约束（ReDoS 防护）+ Part 2/3 物理排列顺序修正 + _original_scope 改为行为要求（移除实现细节，符合设计原则 #5）+ outputs 独立使用语义明确化 | 第九轮质疑者+UX+实战验证 agent |
+| v49 | params 新增 array 类型（for 循环前置依赖）+ learned_from.type 边界定义（5 个枚举值的判定标准和边界 case） | 第九轮质疑者+实战验证 agent |
+| v50 | 5 分钟上手精简为 4 步（内联 profile.yaml 创建 + 移除非必要步骤）+ profile.yaml 默认值参考表（11 个字段） | 第九轮 UX agent |
+| v51 | Workflow step outputs 改为 outputs_map（Pattern outputs 为 source of truth）+ inline step outputs 必须带 extract + ClawTemplate if 增加 else 分支 | 第十轮质疑者+实战验证 agent |
+| v52 | FQN 名称解析规则（三级优先级 + profile::pattern 限定名 + @scope/profile::pattern FQN）+ array 元素类型扩展支持 object（解决 for 循环 item.field 访问） | 第十轮质疑者+实战验证 agent |
+| v53 | 最简 Workflow 过渡示例（2-step 无数据流）+ changelog 独立化预告 | 第十轮 UX agent |

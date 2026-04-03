@@ -3,7 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import type { BehaviorPattern, TeamWorkflow } from '@/types'
-import { getPatternsApi, getWorkflowsApi } from '@/http_api/patterns'
+import { createWorkflowApi, getPatternsApi, getWorkflowsApi } from '@/http_api/patterns'
 
 const router = useRouter()
 const workflows = ref<TeamWorkflow[]>([])
@@ -18,7 +18,9 @@ onMounted(async () => {
 const selectedPatterns = ref<Set<number>>(new Set())
 const workflowName = ref('')
 const targetTeam = ref('')
-const createSuccess = ref(false)
+const createBanner = ref<{ name: string; team: string } | null>(null)
+const createError = ref<string | null>(null)
+const creating = ref(false)
 
 const statusColorMap: Record<string, string> = {
   draft: 'bg-gray-500/20 text-gray-400',
@@ -48,15 +50,36 @@ const togglePattern = (id: number) => {
   else selectedPatterns.value.add(id)
 }
 
-const handleCreate = () => {
-  if (!workflowName.value || !targetTeam.value || selectedPatterns.value.size === 0) return
-  createSuccess.value = true
-  setTimeout(() => {
-    createSuccess.value = false
+const handleCreate = async () => {
+  if (!workflowName.value.trim() || !targetTeam.value.trim() || selectedPatterns.value.size === 0) return
+  createError.value = null
+  creating.value = true
+  const patternIds = [...selectedPatterns.value]
+  const names = getPatternNames(patternIds)
+  const description =
+    names.length > 0 ? `包含模式：${names.join('、')}` : 'Autopilot 创建'
+  const res = await createWorkflowApi({
+    name: workflowName.value.trim(),
+    description,
+    patterns: patternIds,
+    target_team: targetTeam.value.trim(),
+    steps: [],
+  })
+  creating.value = false
+  if (res.error) {
+    createError.value = res.error
+    return
+  }
+  if (res.data) {
+    workflows.value = [res.data, ...workflows.value.filter(w => w.id !== res.data!.id)]
+    createBanner.value = { name: res.data.name, team: res.data.target_team }
     workflowName.value = ''
     targetTeam.value = ''
     selectedPatterns.value.clear()
-  }, 3000)
+    setTimeout(() => {
+      createBanner.value = null
+    }, 3000)
+  }
 }
 
 const handleClickWorkflow = (wf: TeamWorkflow) => {
@@ -173,15 +196,18 @@ const handleClickWorkflow = (wf: TeamWorkflow) => {
         </div>
         <button
           class="px-4 py-2 rounded-lg text-xs font-medium transition-colors"
-          :class="workflowName && targetTeam && selectedPatterns.size > 0 ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 cursor-pointer' : 'bg-surface-3 text-gray-600 cursor-not-allowed'"
-          :disabled="!workflowName || !targetTeam || selectedPatterns.size === 0"
+          :class="workflowName.trim() && targetTeam.trim() && selectedPatterns.size > 0 && !creating ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 cursor-pointer' : 'bg-surface-3 text-gray-600 cursor-not-allowed'"
+          :disabled="!workflowName.trim() || !targetTeam.trim() || selectedPatterns.size === 0 || creating"
           @click="handleCreate"
         >
-          创建
+          {{ creating ? '创建中…' : '创建' }}
         </button>
       </div>
-      <div v-if="createSuccess" class="text-xs text-emerald-400 bg-emerald-500/10 rounded-lg p-2">
-        Workflow "{{ workflowName }}" 已成功创建，目标团队: {{ targetTeam }}
+      <div v-if="createError" class="text-xs text-red-400 bg-red-500/10 rounded-lg p-2">
+        {{ createError }}
+      </div>
+      <div v-if="createBanner" class="text-xs text-emerald-400 bg-emerald-500/10 rounded-lg p-2">
+        Workflow "{{ createBanner.name }}" 已成功创建，目标团队: {{ createBanner.team }}
       </div>
     </div>
   </div>

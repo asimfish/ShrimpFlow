@@ -35,8 +35,40 @@ export type Skill = {
   category: string
   level: number
   total_uses: number
+  cot_uses: number
+  manual_uses: number
+  auto_uses: number
+  combo_patterns: string[]
+  workflow_roles: string[]
   last_used: number
   first_seen: number
+}
+
+export type SkillWorkflow = {
+  name: string
+  sequence: string[]
+  count: number
+  success_rate: number
+  description: string
+}
+
+// GET /skills/workflows/mined（持久化行；JSON 字段为 sequence，前端统一为 skill_sequence）
+export type SkillWorkflowItem = {
+  id: number
+  name: string
+  skill_sequence: string[]
+  frequency: number
+  success_rate: number
+  source: string
+  created_at: number
+}
+
+export type SkillRecommendation = {
+  name: string
+  category: string
+  reason: string
+  type: 'advanced' | 'gap' | 'related'
+  confidence: number
 }
 
 export type LearningPlanPhase = {
@@ -221,6 +253,29 @@ export type BehaviorPattern = {
   source: 'auto' | 'manual' | 'imported' | 'forked' | null
   confidence_level: 'low' | 'medium' | 'high' | 'very_high' | null
   learned_from_data: PatternInsight[] | null
+  // Phase 1: 记忆衰减与强化
+  heat_score: number
+  last_accessed_at: number
+  access_count: number
+  lifecycle_state: 'active' | 'warm' | 'cool' | 'compressed' | 'archived'
+}
+
+// 记忆健康评分
+export type MemoryHealth = {
+  score: number
+  grade: 'A' | 'B' | 'C' | 'D' | 'F'
+  total: number
+  confirmed: number
+  avg_heat: number
+  by_lifecycle: Record<string, number>
+  breakdown: {
+    heat: number
+    vitality: number
+    evidence: number
+    freshness: number
+    confirmation: number
+  }
+  issues: string[]
 }
 
 // Workflow 步骤
@@ -325,4 +380,82 @@ export type OpenClawInvocationLog = {
   response_summary: string | null
   status: string | null
   created_at: number | null
+}
+
+// Brain 层: EventAtom
+export type EventAtom = {
+  id: number
+  event_id: number
+  timestamp: number
+  source: string
+  project: string
+  intent: string
+  tool: string
+  artifact: string
+  outcome: string
+  error_signature: string
+  command_family: string
+  task_hint: string
+}
+
+// Brain 层: Episode
+export type Episode = {
+  id: number
+  project: string
+  start_ts: number
+  end_ts: number
+  duration_seconds: number
+  task_label: string
+  task_category: string
+  event_count: number
+  atom_count: number
+  tool_sequence: string[]
+  intent_sequence: string[]
+  outcome: string
+  features: Record<string, unknown>
+  session_ids: number[]
+  created_at: number
+  atoms?: EventAtom[]
+}
+
+export type EpisodeStats = {
+  total_episodes: number
+  total_atoms: number
+  by_category: Record<string, number>
+  by_outcome: Record<string, number>
+}
+
+// Feature Graph
+export type ArchetypeSummary = {
+  archetype: string
+  count: number
+  top_projects: string[]
+  top_categories: string[]
+}
+
+export type FeatureGraphStats = {
+  total_nodes: number
+  total_edges: number
+  archetype_distribution: Record<string, number>
+  edge_type_distribution: Record<string, number>
+}
+
+// Evidence Ledger
+export type EvidenceEntry = {
+  id: number
+  pattern_id: number
+  episode_id: number | null
+  evidence_type: 'support' | 'conflict' | 'novelty' | 'utility'
+  description: string
+  confidence_before: number
+  confidence_after: number
+  delta: number
+  source: string
+  created_at: number
+}
+
+export type EvidenceLedgerStats = {
+  total: number
+  by_type: Record<string, number>
+  avg_delta: number
 }

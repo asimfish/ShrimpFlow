@@ -1,0 +1,36 @@
+# claw.lock — 远程 profile 依赖锁定文件
+# 由 claw install 自动生成，请勿手动编辑
+# schema: clawlock/v1
+
+lockfile_version: 1
+
+dependencies:
+  "@security-expert/owasp-patterns":
+    version: "1.2.0"
+    resolved: "https://registry.clawprofile.dev/@security-expert/owasp-patterns/1.2.0"
+    integrity: "sha256:a3f7b2c1d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1"
+    trust: verified
+    patterns:
+      - slug: strict-csp
+        checksum: "sha256:1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b"
+      - slug: sql-injection-guard
+        checksum: "sha256:2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c"
+      - slug: xss-prevention
+        checksum: "sha256:3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d"
+    signature: "-----BEGIN PGP SIGNATURE-----\n...\n-----END PGP SIGNATURE-----"
+    reviewed_by: "clawprofile-security-team"
+
+  "@team/coding-standards":
+    version: "2.0.3"
+    resolved: "https://registry.clawprofile.dev/@team/coding-standards/2.0.3"
+    integrity: "sha256:b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5"
+    trust: verified
+    patterns:
+      - slug: naming-convention
+        checksum: "sha256:4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e"
+      - slug: error-handling
+        checksum: "sha256:5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f"
+      - slug: commit-message
+        checksum: "sha256:6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a"
+    signature: "-----BEGIN PGP SIGNATURE-----\n...\n-----END PGP SIGNATURE-----"
+    reviewed_by: "team-lead"

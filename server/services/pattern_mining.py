@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from models.event import DevEvent
 from models.pattern import BehaviorPattern
+from models.skill import Skill
 from services.ai_provider import chat as ai_chat
 
 
@@ -166,6 +167,40 @@ def _normalize_candidate_key(candidate: dict) -> str:
     return f"{candidate['type']}::{candidate['name'].lower()}"
 
 
+def _compute_skill_alignment_score(candidate: dict, skills: list[Skill]) -> int:
+    haystack = f'{candidate.get("name", "")}\n{candidate.get("description", "")}'.lower()
+    matched = 0
+    category_bonus = 0
+    seen_names: set[str] = set()
+
+    for skill in skills:
+        skill_name = (skill.name or '').strip().lower()
+        if skill_name and skill_name not in seen_names and skill_name in haystack:
+            matched += 1
+            seen_names.add(skill_name)
+        if not category_bonus and skill.category == candidate.get('category'):
+            category_bonus = 10
+
+    return min(100, matched * 20 + category_bonus)
+
+
+def _apply_skill_alignment_boost(candidates: list[dict], skills: list[Skill]) -> list[dict]:
+    boosted = []
+    for candidate in candidates:
+        alignment_score = _compute_skill_alignment_score(candidate, skills)
+        boost = min(15, alignment_score // 10)
+        updated = dict(candidate)
+        updated['skill_alignment_score'] = alignment_score
+        updated['confidence'] = min(99, updated['confidence'] + boost)
+        boosted.append(updated)
+
+    return sorted(
+        boosted,
+        key=lambda item: (item.get('skill_alignment_score', 0), item['confidence'], item['occurrences']),
+        reverse=True,
+    )
+
+
 def _merge_candidates(left: dict, right: dict) -> dict:
     merged = dict(left)
     merged['confidence'] = max(left['confidence'], right['confidence'])
@@ -209,17 +244,24 @@ def _ai_semantic_refine(candidates: list[dict]) -> list[dict] | None:
         return []
 
     prompt = (
-        "你是资深工程行为模式提炼器。输入是统计挖掘出的候选模式，其中有重复、浅层时间规律和噪声。"
-        "请过滤浅层模式，聚合重复候选，只保留真正对 AI 自动开发有操作价值的模式。"
-        "返回严格 JSON，格式为 "
-        '{"patterns":[{"name":"","description":"","category":"coding|review|git|devops|collaboration","confidence":80,'
-        '"occurrences":6,"examples":["..."],"trigger":"..."或{"when":"","event":"","context":["..."]},'
-        '"body":"markdown","learned_from_data":[{"context":"","insight":"","confidence":80}]}]}。\n\n'
-        f"候选模式:\n{json.dumps(candidates, ensure_ascii=False)}"
+        "你是资深工程行为模式提炼器。以下是从开发者行为数据中统计挖掘出的候选模式。"
+        "任务:\n"
+        "1. 过滤掉浅层时间规律（如'每天X点提交'）和噪声候选\n"
+        "2. 将语义相似的候选合并为一条有价值的模式\n"
+        "3. 只保留对 AI 自动开发有操作价值的模式（具备明确的 when/do/expect 结构）\n"
+        "4. description 用中文，50字以内，聚焦行为价值而非统计事实\n"
+        "5. trigger 描述触发条件（字符串即可），body 用 Markdown 给出可执行规范\n\n"
+        "返回严格 JSON，格式为:\n"
+        '{"patterns":[{"name":"规范名(10字内)","description":"价值描述",'
+        '"category":"coding|review|git|devops|collaboration","confidence":80,'
+        '"occurrences":6,"examples":["具体例子"],"trigger":"触发条件描述",'
+        '"body":"## 规范\\n### 触发\\n...\\n### 执行\\n...\\n### 预期\\n...",'
+        '"learned_from_data":[{"context":"数据来源","insight":"关键洞察","confidence":75}]}]}\n\n'
+        f"候选模式({len(candidates)}条):\n{json.dumps(candidates[:15], ensure_ascii=False)}"
     )
 
     try:
-        text = ai_chat([{'role': 'user', 'content': prompt}], max_tokens=1200)
+        text = ai_chat([{'role': 'user', 'content': prompt}], max_tokens=2000)
         if not text:
             return None
         data = json.loads(_strip_json_fence(text))
@@ -461,6 +503,9 @@ def run_mining(db: Session):
         return []
 
     mined = semantic_refine_patterns(mine_all_patterns(events))
+    skills = db.query(Skill).all()
+    if skills:
+        mined = _apply_skill_alignment_boost(mined, skills)
 
     # 将挖掘结果写入数据库
     import time
@@ -475,6 +520,7 @@ def run_mining(db: Session):
             existing.confidence_level = _confidence_to_level(new_conf)
             existing.evidence_count += p['occurrences']
             existing.category = p['category']
+            existing.skill_alignment_score = p.get('skill_alignment_score', existing.skill_alignment_score or 0)
             existing.trigger = json.dumps(p['trigger'], ensure_ascii=False) if isinstance(p['trigger'], dict) else p['trigger']
             existing.body = p['body']
             existing.description = p['description']
@@ -495,6 +541,7 @@ def run_mining(db: Session):
                 'confidence': new_conf,
                 'occurrences': p['occurrences'],
                 'category': p['category'],
+                'skill_alignment_score': p.get('skill_alignment_score', existing.skill_alignment_score or 0),
             })
         else:
             pattern = BehaviorPattern(
@@ -517,6 +564,7 @@ def run_mining(db: Session):
                 source='auto',
                 confidence_level=_confidence_to_level(p['confidence']),
                 learned_from_data=json.dumps(p['learned_from_data'], ensure_ascii=False),
+                skill_alignment_score=p.get('skill_alignment_score', 0),
             )
             db.add(pattern)
             saved.append({
@@ -525,6 +573,7 @@ def run_mining(db: Session):
                 'confidence': p['confidence'],
                 'occurrences': p['occurrences'],
                 'category': p['category'],
+                'skill_alignment_score': p.get('skill_alignment_score', 0),
             })
 
     db.commit()

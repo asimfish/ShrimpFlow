@@ -5,23 +5,77 @@ import type { StatsOverview } from '@/types'
 import { getStatsApi } from '@/http_api/stats'
 
 import { useEventsStore } from '@/stores/events'
+import { usePatternsStore } from '@/stores/patterns'
 import { useSkillsStore } from '@/stores/skills'
 
 const eventsStore = useEventsStore()
 const skillsStore = useSkillsStore()
+const patternsStore = usePatternsStore()
 const stats = ref<StatsOverview | null>(null)
 
 onMounted(async () => {
-  const res = await getStatsApi()
-  if (res.data) stats.value = res.data
+  const [statsRes] = await Promise.all([getStatsApi(), patternsStore.fetchPatterns()])
+  if (statsRes.data) stats.value = statsRes.data
 })
 
-// 开发者画像数据
-const profile = {
-  direction: '具身智能',
-  skills: 'Python / PyTorch / ROS2',
-  activeHours: '9:00 - 22:00',
-}
+// 画像顶部三格：由事件 / 技能 / 模式 store 聚合（无数据时显示占位）
+const profileDirection = computed(() => {
+  const fromPatterns = patternsStore.patterns
+  if (fromPatterns.length) {
+    const byCat = new Map<string, number>()
+    for (const p of fromPatterns) {
+      const c = p.category || '其他'
+      byCat.set(c, (byCat.get(c) ?? 0) + 1)
+    }
+    let best = ''
+    let n = 0
+    for (const [k, v] of byCat) {
+      if (v > n) {
+        best = k
+        n = v
+      }
+    }
+    if (best) return best
+  }
+  const counts = new Map<string, number>()
+  for (const e of eventsStore.events) {
+    const proj = e.project?.trim()
+    if (!proj) continue
+    counts.set(proj, (counts.get(proj) ?? 0) + 1)
+  }
+  let top = ''
+  let topN = 0
+  for (const [k, v] of counts) {
+    if (v > topN) {
+      top = k
+      topN = v
+    }
+  }
+  return top || '暂无数据'
+})
+
+const profileSkills = computed(() => {
+  const sorted = [...skillsStore.skills].sort((a, b) => b.level - a.level).slice(0, 5)
+  if (sorted.length) return sorted.map(s => s.name).join(' · ')
+  return '暂无数据'
+})
+
+const profileActiveHours = computed(() => {
+  const hourCounts = Array(24).fill(0)
+  for (const e of eventsStore.events) {
+    hourCounts[new Date(e.timestamp * 1000).getHours()]++
+  }
+  let first = -1
+  let last = -1
+  for (let h = 0; h < 24; h++) {
+    if (hourCounts[h] > 0) {
+      if (first < 0) first = h
+      last = h
+    }
+  }
+  if (first < 0) return '暂无数据'
+  return `${first}:00 – ${last}:00`
+})
 
 // 每周每小时活跃热力图数据 (7天 x 24小时)
 const weekDays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
@@ -55,7 +109,7 @@ const heatColor = (value: number) => {
   return 'bg-[#22d3ee]'
 }
 
-// 项目参与度雷达图 (5个项目, 正五边形)
+// 项目参与度雷达图 (5个项目, 正五边形；固定轴为演示用 demo 项目集，事件按 project 字段落入对应桶)
 const radarProjects = computed(() => {
   const projectNames = ['embodied-nav', 'grasp-policy', 'ros2-workspace', 'paper-reproduce', 'sim2real-transfer']
   const projectLabels = ['导航策略', '抓取策略', 'ROS2工作区', '论文复现', 'Sim2Real']
@@ -176,15 +230,15 @@ const codingStats = computed(() => {
       <div class="grid grid-cols-3 gap-4">
         <div class="bg-surface-2 rounded-lg p-4">
           <div class="text-xs text-gray-500 mb-1">研究方向</div>
-          <div class="text-sm font-medium text-gray-200">{{ profile.direction }}</div>
+          <div class="text-sm font-medium text-gray-200">{{ profileDirection }}</div>
         </div>
         <div class="bg-surface-2 rounded-lg p-4">
           <div class="text-xs text-gray-500 mb-1">主要技能</div>
-          <div class="text-sm font-medium text-gray-200">{{ profile.skills }}</div>
+          <div class="text-sm font-medium text-gray-200">{{ profileSkills }}</div>
         </div>
         <div class="bg-surface-2 rounded-lg p-4">
           <div class="text-xs text-gray-500 mb-1">活跃时段</div>
-          <div class="text-sm font-medium text-gray-200">{{ profile.activeHours }}</div>
+          <div class="text-sm font-medium text-gray-200">{{ profileActiveHours }}</div>
         </div>
       </div>
       <div class="grid grid-cols-3 gap-4 mt-3">

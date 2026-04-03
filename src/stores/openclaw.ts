@@ -14,6 +14,7 @@ export const useOpenClawStore = defineStore('openclaw', () => {
   const documentOriginFilter = ref<'all' | OpenClawDocument['origin']>('all')
   const documentTypeFilter = ref<'all' | OpenClawDocument['type']>('all')
   const loading = ref(false)
+  const error = ref<string | null>(null)
   const analyzing = ref(false)
   const sessionsLoaded = ref(false)
   const documentsLoaded = ref(false)
@@ -25,13 +26,24 @@ export const useOpenClawStore = defineStore('openclaw', () => {
     if (!force && sessionsLoaded.value) return { data: sessions.value, error: null }
 
     loading.value = true
+    error.value = null
     sessionsPromise = (async () => {
-      const result = await getSessionsApi()
-      if (result.data) {
-        sessions.value = result.data
-        sessionsLoaded.value = true
+      try {
+        const result = await getSessionsApi()
+        if (result.data) {
+          sessions.value = result.data
+          sessionsLoaded.value = true
+        } else if (result.error) {
+          error.value = result.error
+          console.error(result.error)
+        }
+        return result
+      } catch (e) {
+        console.error(e)
+        const msg = e instanceof Error ? e.message : '会话加载失败'
+        error.value = msg
+        return { data: null, error: msg }
       }
-      return result
     })()
 
     try {
@@ -46,19 +58,32 @@ export const useOpenClawStore = defineStore('openclaw', () => {
     if (!force && documentsPromise) return documentsPromise
     if (!force && documentsLoaded.value) return { data: documents.value, error: null }
 
+    loading.value = true
+    error.value = null
     documentsPromise = (async () => {
-      const result = await getDocumentsApi()
-      if (result.data) {
-        documents.value = result.data
-        documentsLoaded.value = true
+      try {
+        const result = await getDocumentsApi()
+        if (result.data) {
+          documents.value = result.data
+          documentsLoaded.value = true
+        } else if (result.error) {
+          error.value = result.error
+          console.error(result.error)
+        }
+        return result
+      } catch (e) {
+        console.error(e)
+        const msg = e instanceof Error ? e.message : '文档加载失败'
+        error.value = msg
+        return { data: null, error: msg }
       }
-      return result
     })()
 
     try {
       return await documentsPromise
     } finally {
       documentsPromise = null
+      loading.value = false
     }
   }
 
@@ -94,12 +119,21 @@ export const useOpenClawStore = defineStore('openclaw', () => {
   const analyzeSelectedSession = async () => {
     if (!selectedSessionId.value) return null
     analyzing.value = true
+    error.value = null
     try {
       const result = await analyzeSessionApi(selectedSessionId.value)
       if (result.data) {
         await fetchSessions(true)
+      } else if (result.error) {
+        error.value = result.error
+        console.error(result.error)
       }
       return result
+    } catch (e) {
+      console.error(e)
+      const msg = e instanceof Error ? e.message : '会话分析失败'
+      error.value = msg
+      return { data: null, error: msg }
     } finally {
       analyzing.value = false
     }
@@ -123,6 +157,7 @@ export const useOpenClawStore = defineStore('openclaw', () => {
     recentSessions,
     selectSession,
     loading,
+    error,
     analyzing,
     sessionsLoaded,
     documentsLoaded,

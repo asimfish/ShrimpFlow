@@ -100,10 +100,38 @@ const loadInvocationLogs = async () => {
 }
 
 const selectedDocId = ref<number | null>(null)
+const docSortBy = ref<'date' | 'type'>('date')
 
 const selectedDocument = computed(() =>
   store.filteredDocuments.find(doc => doc.id === selectedDocId.value) ?? null
 )
+
+// 按日期分组，最新在前
+const documentsByDate = computed(() => {
+  const sorted = [...store.filteredDocuments].sort((a, b) => b.created_at - a.created_at)
+  const groups: { date: string; docs: typeof sorted }[] = []
+  const map = new Map<string, typeof sorted>()
+  for (const doc of sorted) {
+    const date = dayjs(doc.created_at * 1000).format('YYYY-MM-DD')
+    if (!map.has(date)) map.set(date, [])
+    map.get(date)!.push(doc)
+  }
+  for (const [date, docs] of map) groups.push({ date, docs })
+  return groups
+})
+
+// 按类型分组
+const documentsByType = computed(() => {
+  const sorted = [...store.filteredDocuments].sort((a, b) => b.created_at - a.created_at)
+  const groups: { type: string; label: string; docs: typeof sorted }[] = []
+  const map = new Map<string, typeof sorted>()
+  for (const doc of sorted) {
+    if (!map.has(doc.type)) map.set(doc.type, [])
+    map.get(doc.type)!.push(doc)
+  }
+  for (const [type, docs] of map) groups.push({ type, label: docTypeLabels[type] ?? type, docs })
+  return groups
+})
 
 const filteredSessionIds = computed(() => store.filteredSessions.map(session => session.id))
 const documentIds = computed(() => store.filteredDocuments.map(doc => doc.id))
@@ -233,50 +261,88 @@ watch(() => store.selectedSessionId, () => {
 
       <!-- 知识库文档列表 -->
       <template v-else>
-        <div class="px-3 py-2 border-b border-surface-3 flex items-center gap-2">
-          <select
-            v-model="store.documentOriginFilter"
-            class="flex-1 bg-surface-2 border border-surface-3 rounded-lg px-2.5 py-1.5 text-[11px] text-gray-300"
-          >
-            <option value="all">全部来源</option>
-            <option value="openclaw">OpenClaw</option>
-            <option value="claude_code">Claude Code</option>
-            <option value="codex">Codex</option>
-            <option value="cursor">Cursor</option>
-            <option value="vscode">VS Code</option>
-          </select>
-          <select
-            v-model="store.documentTypeFilter"
-            class="flex-1 bg-surface-2 border border-surface-3 rounded-lg px-2.5 py-1.5 text-[11px] text-gray-300"
-          >
-            <option value="all">全部类型</option>
-            <option v-for="(label, type) in docTypeLabels" :key="type" :value="type">{{ label }}</option>
-          </select>
+        <div class="px-3 py-2 border-b border-surface-3 space-y-2">
+          <div class="flex items-center gap-2">
+            <select
+              v-model="store.documentOriginFilter"
+              class="flex-1 bg-surface-2 border border-surface-3 rounded-lg px-2 py-1.5 text-[11px] text-gray-300"
+            >
+              <option value="all">全部来源</option>
+              <option value="openclaw">OpenClaw</option>
+              <option value="claude_code">Claude Code</option>
+              <option value="codex">Codex</option>
+              <option value="cursor">Cursor</option>
+              <option value="vscode">VS Code</option>
+            </select>
+            <select
+              v-model="store.documentTypeFilter"
+              class="flex-1 bg-surface-2 border border-surface-3 rounded-lg px-2 py-1.5 text-[11px] text-gray-300"
+            >
+              <option value="all">全部类型</option>
+              <option v-for="(label, type) in docTypeLabels" :key="type" :value="type">{{ label }}</option>
+            </select>
+          </div>
+          <div class="flex gap-1">
+            <button
+              class="flex-1 py-1 text-[11px] rounded-lg transition-colors"
+              :class="docSortBy === 'date' ? 'bg-surface-3 text-gray-200' : 'text-gray-500 hover:text-gray-300'"
+              @click="docSortBy = 'date'"
+            >按日期</button>
+            <button
+              class="flex-1 py-1 text-[11px] rounded-lg transition-colors"
+              :class="docSortBy === 'type' ? 'bg-surface-3 text-gray-200' : 'text-gray-500 hover:text-gray-300'"
+              @click="docSortBy = 'type'"
+            >按类型</button>
+          </div>
         </div>
         <div class="flex-1 overflow-y-auto">
-          <button
-            v-for="doc in store.filteredDocuments"
-            :key="doc.id"
-            class="w-full text-left p-3 border-b border-surface-3/50 transition-colors"
-            :class="selectedDocId === doc.id ? 'bg-surface-2' : 'hover:bg-surface-2/50'"
-            @click="selectedDocId = doc.id"
-          >
-            <div class="flex items-center gap-2 mb-1">
-              <span class="text-[10px] font-mono text-gray-500">{{ doc.index_label ?? `K-${String(doc.id).padStart(4, '0')}` }}</span>
-              <span class="text-[10px] px-1.5 py-0.5 rounded" :class="originColors[doc.origin ?? 'unknown'] ?? originColors.unknown">
-                {{ doc.origin_label ?? originLabels[(doc.origin ?? 'unknown') as keyof typeof originLabels] ?? '未知来源' }}
-              </span>
-              <span class="text-[10px] px-1.5 py-0.5 rounded" :class="docTypeColors[doc.type]">
-                {{ docTypeLabels[doc.type] }}
-              </span>
+          <!-- 日期分组 -->
+          <template v-if="docSortBy === 'date'">
+            <div v-for="group in documentsByDate" :key="group.date">
+              <div class="px-3 py-1.5 text-[10px] text-gray-600 bg-surface-2/50 sticky top-0 font-medium">{{ group.date }} · {{ group.docs.length }} 篇</div>
+              <button
+                v-for="doc in group.docs"
+                :key="doc.id"
+                class="w-full text-left px-3 py-2.5 border-b border-surface-3/50 transition-colors"
+                :class="selectedDocId === doc.id ? 'bg-surface-2' : 'hover:bg-surface-2/50'"
+                @click="selectedDocId = doc.id"
+              >
+                <div class="flex items-center gap-1.5 mb-1">
+                  <span class="text-[10px] px-1.5 py-0.5 rounded" :class="originColors[doc.origin ?? 'unknown'] ?? originColors.unknown">
+                    {{ doc.origin_label ?? originLabels[(doc.origin ?? 'unknown') as keyof typeof originLabels] ?? '未知' }}
+                  </span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded" :class="docTypeColors[doc.type]">{{ docTypeLabels[doc.type] }}</span>
+                  <span class="text-[10px] text-gray-600 ml-auto">{{ formatTime(doc.created_at) }}</span>
+                </div>
+                <div class="text-xs text-gray-200 leading-snug">{{ doc.display_title ?? doc.title }}</div>
+                <div class="text-[10px] text-gray-500 line-clamp-1 mt-0.5">{{ doc.preview_excerpt ?? doc.title }}</div>
+              </button>
             </div>
-            <div class="text-sm text-gray-100 leading-snug">{{ doc.display_title ?? doc.title }}</div>
-            <div class="text-[11px] text-gray-500 line-clamp-2 mt-1">{{ doc.preview_excerpt ?? doc.title }}</div>
-            <div class="text-[10px] text-gray-500 mt-2">{{ formatTime(doc.created_at) }}</div>
-          </button>
-          <div v-if="store.filteredDocuments.length === 0" class="p-6 text-center text-xs text-gray-500">
-            当前筛选下没有文档
-          </div>
+            <div v-if="store.filteredDocuments.length === 0" class="p-6 text-center text-xs text-gray-500">当前筛选下没有文档</div>
+          </template>
+          <!-- 类型分组 -->
+          <template v-else>
+            <div v-for="group in documentsByType" :key="group.type">
+              <div class="px-3 py-1.5 text-[10px] text-gray-600 bg-surface-2/50 sticky top-0 font-medium">{{ group.label }} · {{ group.docs.length }} 篇</div>
+              <button
+                v-for="doc in group.docs"
+                :key="doc.id"
+                class="w-full text-left px-3 py-2.5 border-b border-surface-3/50 transition-colors"
+                :class="selectedDocId === doc.id ? 'bg-surface-2' : 'hover:bg-surface-2/50'"
+                @click="selectedDocId = doc.id"
+              >
+                <div class="flex items-center gap-1.5 mb-1">
+                  <span class="text-[10px] px-1.5 py-0.5 rounded" :class="originColors[doc.origin ?? 'unknown'] ?? originColors.unknown">
+                    {{ doc.origin_label ?? originLabels[(doc.origin ?? 'unknown') as keyof typeof originLabels] ?? '未知' }}
+                  </span>
+                  <span class="text-[10px] text-gray-600 ml-auto">{{ formatTime(doc.created_at) }}</span>
+                </div>
+                <div class="text-xs text-gray-200 leading-snug">{{ doc.display_title ?? doc.title }}</div>
+                <div class="text-[10px] text-gray-500 line-clamp-1 mt-0.5">{{ doc.preview_excerpt ?? doc.title }}</div>
+              </button>
+            </div>
+            <div v-if="store.filteredDocuments.length === 0" class="p-6 text-center text-xs text-gray-500">当前筛选下没有文档</div>
+          </template>
         </div>
       </template>
     </div>

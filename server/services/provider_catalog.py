@@ -29,8 +29,8 @@ SAFE_DEFAULT_CLAUDE_MODELS = [
 ]
 
 STABLE_PROVIDER_PRIORITY = (
-    "claude:office3",
     "claude:aipor",
+    "claude:office3",
     "codex:crs",
 )
 

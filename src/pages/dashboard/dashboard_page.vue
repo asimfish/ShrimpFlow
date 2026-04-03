@@ -11,6 +11,7 @@ import { usePatternsStore } from '@/stores/patterns'
 import { getStatsApi } from '@/http_api/stats'
 import { collectAllAndAnalyzeApi } from '@/http_api/collect'
 import { getAISettingsApi, getScheduleApi, updateAISettingsApi, updateScheduleApi } from '@/http_api/settings'
+import { getTaskApi } from '@/http_api/tasks'
 
 const router = useRouter()
 const eventsStore = useEventsStore()
@@ -22,6 +23,55 @@ const patternsStore = usePatternsStore()
 const stats = ref<StatsOverview | null>(null)
 const collecting = ref(false)
 const collectResult = ref('')
+const collectProgress = ref(0)
+const collectStage = ref('')
+const collectTaskId = ref<string | null>(null)
+let collectPollTimer: ReturnType<typeof setInterval> | null = null
+
+const stopCollectPoll = () => {
+  if (collectPollTimer) { clearInterval(collectPollTimer); collectPollTimer = null }
+}
+
+const startCollectPoll = (taskId: string) => {
+  stopCollectPoll()
+  localStorage.setItem('collect_task_id', taskId)
+  const poll = async () => {
+    const res = await getTaskApi(taskId)
+    if (!res.data) {
+      stopCollectPoll()
+      localStorage.removeItem('collect_task_id')
+      collecting.value = false
+      return
+    }
+    const t = res.data
+    collectProgress.value = t.progress
+    collectStage.value = t.stage ?? ''
+    if (t.status === 'done') {
+      stopCollectPoll()
+      localStorage.removeItem('collect_task_id')
+      collecting.value = false
+      const d = t.result as any ?? {}
+      const total = d.results ? d.results.reduce((s: number, r: any) => s + (r.inserted ?? 0), 0) : 0
+      collectResult.value = `采集完成: +${total} 数据, ${d.mining_count ?? 0} 浅层, ${d.deep_mining_count ?? 0} 深层, ${d.session_mining_count ?? 0} 对话, ${d.atoms_extracted ?? 0} 原子, ${d.episodes_sliced ?? 0} 片段${(d.patterns_pushed ?? 0) > 0 ? `, ${d.patterns_pushed} 待确认` : ''}`
+      await Promise.all([
+        loadStats(),
+        eventsStore.fetchEvents(true),
+        skillsStore.fetchSkills(true),
+        openclawStore.fetchSessions(true),
+        digestStore.fetchSummaries(true),
+        patternsStore.fetchPatterns(undefined, true),
+      ])
+      setTimeout(() => { collectResult.value = '' }, 8000)
+    } else if (t.status === 'error') {
+      stopCollectPoll()
+      localStorage.removeItem('collect_task_id')
+      collecting.value = false
+      collectResult.value = `采集出错: ${t.error ?? '未知错误'}`
+    }
+  }
+  poll()
+  collectPollTimer = setInterval(poll, 1500)
+}
 const scheduleEnabled = ref(true)
 const scheduleInterval = ref(3)
 const scheduleLoading = ref(false)
@@ -107,6 +157,13 @@ const scheduleStatsRefresh = (delayMs = 600) => {
 }
 
 onMounted(async () => {
+  // 恢复进行中的采集任务
+  const savedTaskId = localStorage.getItem('collect_task_id')
+  if (savedTaskId) {
+    collecting.value = true
+    collectTaskId.value = savedTaskId
+    startCollectPoll(savedTaskId)
+  }
   await Promise.all([
     loadStats(),
     loadSchedule(),
@@ -121,6 +178,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (statsRefreshTimer) clearTimeout(statsRefreshTimer)
+  stopCollectPoll()
 })
 
 watch(() => eventsStore.lastRealtimeEventAt, timestamp => {
@@ -200,24 +258,15 @@ const formatTime = (ts: number) => {
 const handleCollectAll = async () => {
   collecting.value = true
   collectResult.value = ''
+  collectProgress.value = 0
+  collectStage.value = '提交任务…'
   const res = await collectAllAndAnalyzeApi()
-  collecting.value = false
-  if (res.data) {
-    const d = res.data as any
-    const total = d.results ? d.results.reduce((s: number, r: any) => s + r.inserted, 0) : 0
-    const mined = d.mining_count ?? 0
-    const pushed = d.patterns_pushed ?? 0
-    collectResult.value = `采集完成: 新增 ${total} 条数据，挖掘 ${mined} 个模式${pushed > 0 ? `，${pushed} 个模式待确认` : ''}${d.digest_updated ? '，已更新今日摘要' : ''}`
-    // 刷新所有模块
-    await Promise.all([
-      loadStats(),
-      eventsStore.fetchEvents(true),
-      skillsStore.fetchSkills(true),
-      openclawStore.fetchSessions(true),
-      digestStore.fetchSummaries(true),
-      patternsStore.fetchPatterns(undefined, true),
-    ])
-    setTimeout(() => { collectResult.value = '' }, 6000)
+  if (res.data?.task_id) {
+    collectTaskId.value = res.data.task_id
+    startCollectPoll(res.data.task_id)
+  } else {
+    collecting.value = false
+    collectResult.value = res.error ?? '提交失败'
   }
 }
 
@@ -330,6 +379,22 @@ const saveAISettings = async () => {
         >
           {{ collecting ? '采集分析中...' : '一键采集' }}
         </button>
+      </div>
+    </div>
+    <!-- 采集进度条 -->
+    <div v-if="collecting" class="bg-surface-1 rounded-lg border border-cyan-500/20 px-4 py-3 -mt-4 space-y-2">
+      <div class="flex items-center justify-between">
+        <span class="text-xs text-cyan-400">{{ collectStage }}</span>
+        <span class="text-[10px] text-gray-500">{{ Math.round(collectProgress) }}%</span>
+      </div>
+      <div class="h-2 bg-surface-3 rounded-full overflow-hidden">
+        <div
+          class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all duration-200"
+          :style="{ width: `${collectProgress}%` }"
+        />
+      </div>
+      <div class="text-[10px] text-gray-500">
+        流水线: 采集 → 统计挖掘 → AI增强 → 日报 → Atom → Episode → 深层挖掘 → 对话挖掘 → 图谱 → 证据 → 过滤 → 推送
       </div>
     </div>
     <div v-if="collectResult" class="text-xs text-cyan-400 bg-cyan-500/10 rounded-lg px-3 py-1.5 -mt-4">

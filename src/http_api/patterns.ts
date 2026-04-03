@@ -16,6 +16,14 @@ export const getWorkflowsApi = () => get<TeamWorkflow[]>('/workflows')
 
 export const getWorkflowApi = (id: number) => get<TeamWorkflow>(`/workflows/${id}`)
 
+export const createWorkflowApi = (data: {
+  name: string
+  description: string
+  patterns: number[]
+  target_team: string
+  steps?: TeamWorkflow['steps']
+}) => post<TeamWorkflow>('/workflows', data)
+
 export const createPatternApi = (data: Partial<BehaviorPattern>) =>
   post<BehaviorPattern>('/patterns', data)
 
@@ -80,8 +88,49 @@ export const importPatternsApi = (data: {
 export const confirmPatternApi = (id: number) =>
   post<{ id: number; status: string }>(`/patterns/${id}/confirm`, {})
 
-export const rejectPatternApi = (id: number) =>
-  post<{ id: number; status: string }>(`/patterns/${id}/reject`, {})
+export const rejectPatternApi = (id: number, reason = '') =>
+  post<{ id: number; status: string }>(`/patterns/${id}/reject`, { reason })
 
 export const getPendingPatternsApi = () =>
   get<BehaviorPattern[]>('/patterns/pending')
+
+export const minePatternsApi = () =>
+  post<{ patterns: { name: string; description: string; confidence: number; category: string; skill_alignment_score: number }[]; count: number }>('/patterns/mine', {})
+
+// Phase 3: 模式关系
+export type PatternRelationItem = {
+  id: number
+  other_pattern_id: number
+  other_pattern_name: string
+  relation_type: string
+  weight: number
+  direction: 'incoming' | 'outgoing'
+  evidence: string
+}
+
+export const getPatternRelationsApi = (id: number) =>
+  get<PatternRelationItem[]>(`/patterns/${id}/relations`)
+
+export const discoverRelationsApi = () =>
+  post<{ total: number; similar: number; temporal: number; confirmation: number; co_occurrence: number }>('/patterns/discover-relations', {})
+
+// Phase 4: 扩散激活召回
+export type RecallResult = {
+  query: string
+  seeds: { pattern_id: number; name: string; category: string; confidence: number }[]
+  activated: {
+    pattern_id: number
+    name: string
+    category: string
+    confidence: number
+    lifecycle_state: string
+    heat_score: number
+    activation: number
+    hop: number
+    path: string[]
+  }[]
+  total: number
+}
+
+export const recallPatternsApi = (query: string, maxHops = 2) =>
+  get<RecallResult>(`/patterns/recall?query=${encodeURIComponent(query)}&max_hops=${maxHops}`)

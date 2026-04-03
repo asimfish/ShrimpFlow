@@ -1,10 +1,1 @@
-from routes.events import router as events_router
-from routes.skills import router as skills_router
-from routes.patterns import router as patterns_router
-from routes.openclaw import router as openclaw_router
-from routes.digest import router as digest_router
-from routes.community import router as community_router
-from routes.stats import router as stats_router
-from routes.collector import router as collector_router
-from routes.search import router as search_router
-from routes.profiles import router as profiles_router
+"""Route package."""

@@ -59,6 +59,32 @@ const levelDesc = computed(() => {
   if (lv >= 20) return '初学'
   return '入门'
 })
+
+const cotRatio = computed(() => {
+  if (!props.skill || !props.skill.total_uses) return 0
+  return Math.round(((props.skill.cot_uses ?? 0) / props.skill.total_uses) * 100)
+})
+
+const manualRatio = computed(() => {
+  if (!props.skill || !props.skill.total_uses) return 0
+  return Math.round(((props.skill.manual_uses ?? 0) / props.skill.total_uses) * 100)
+})
+
+const autoRatio = computed(() => {
+  if (!props.skill || !props.skill.total_uses) return 0
+  return Math.round(((props.skill.auto_uses ?? 0) / props.skill.total_uses) * 100)
+})
+
+const workflowRoleLabels: Record<string, string> = {
+  entry: '入口',
+  core: '核心',
+  support: '辅助',
+  output: '输出',
+  debug: '调试',
+  review: '复查',
+}
+
+const roleLabel = (role: string) => workflowRoleLabels[role] ?? role
 </script>
 
 <template>
@@ -101,6 +127,56 @@ const levelDesc = computed(() => {
         <div class="bg-surface-2 rounded-lg p-3">
           <div class="text-xs text-gray-500">首次发现</div>
           <div class="text-xs text-gray-300 mt-1">{{ formatDate(skill.first_seen) }}</div>
+        </div>
+      </div>
+
+      <!-- CoT / Manual / Auto 调用比率 -->
+      <div v-if="skill.total_uses > 0" class="bg-surface-2 rounded-lg p-3 space-y-2">
+        <div class="text-xs text-gray-500 mb-2">调用来源分布</div>
+        <div class="flex items-center gap-2">
+          <span class="text-[10px] text-purple-400 w-14 shrink-0">CoT 驱动</span>
+          <div class="flex-1 h-1.5 bg-surface-3 rounded-full overflow-hidden">
+            <div class="h-full bg-purple-500 rounded-full" :style="{ width: `${cotRatio}%` }" />
+          </div>
+          <span class="text-[10px] text-gray-400 w-6 text-right">{{ skill.cot_uses ?? 0 }}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-[10px] text-cyan-400 w-14 shrink-0">手动使用</span>
+          <div class="flex-1 h-1.5 bg-surface-3 rounded-full overflow-hidden">
+            <div class="h-full bg-cyan-500 rounded-full" :style="{ width: `${manualRatio}%` }" />
+          </div>
+          <span class="text-[10px] text-gray-400 w-6 text-right">{{ skill.manual_uses ?? 0 }}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-[10px] text-emerald-400 w-14 shrink-0">自动触发</span>
+          <div class="flex-1 h-1.5 bg-surface-3 rounded-full overflow-hidden">
+            <div class="h-full bg-emerald-500 rounded-full" :style="{ width: `${autoRatio}%` }" />
+          </div>
+          <span class="text-[10px] text-gray-400 w-6 text-right">{{ skill.auto_uses ?? 0 }}</span>
+        </div>
+      </div>
+
+      <!-- combo_patterns -->
+      <div v-if="skill.combo_patterns?.length" class="space-y-1">
+        <div class="text-xs text-gray-500">协同技能</div>
+        <div class="flex flex-wrap gap-1.5">
+          <span
+            v-for="combo in skill.combo_patterns"
+            :key="combo"
+            class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20"
+          >{{ combo }}</span>
+        </div>
+      </div>
+
+      <!-- workflow_roles -->
+      <div v-if="skill.workflow_roles?.length" class="space-y-1">
+        <div class="text-xs text-gray-500">工作流角色</div>
+        <div class="flex flex-wrap gap-1.5">
+          <span
+            v-for="role in skill.workflow_roles"
+            :key="role"
+            class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20"
+          >{{ roleLabel(role) }}</span>
         </div>
       </div>
 

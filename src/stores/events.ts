@@ -53,6 +53,7 @@ export const useEventsStore = defineStore('events', () => {
   const searchQuery = ref('')
   const timeRange = ref<'today' | 'week' | 'month' | 'all'>('all')
   const loading = ref(false)
+  const error = ref<string | null>(null)
   const loaded = ref(false)
   const realtimeStatus = ref<RealtimeStatus>('idle')
   const realtimeError = ref<string | null>(null)
@@ -84,16 +85,27 @@ export const useEventsStore = defineStore('events', () => {
     if (!force && loaded.value) return { data: events.value, error: null }
 
     loading.value = true
+    error.value = null
     fetchPromise = (async () => {
-      const result = await getEventsApi()
-      if (result.data) {
-        events.value = uniqueEvents(result.data)
-        loaded.value = true
-        if (!liveEvents.value.length) {
-          liveEvents.value = events.value.slice(0, LIVE_EVENT_LIMIT)
+      try {
+        const result = await getEventsApi()
+        if (result.data) {
+          events.value = uniqueEvents(result.data)
+          loaded.value = true
+          if (!liveEvents.value.length) {
+            liveEvents.value = events.value.slice(0, LIVE_EVENT_LIMIT)
+          }
+        } else if (result.error) {
+          error.value = result.error
+          console.error(result.error)
         }
+        return result
+      } catch (e) {
+        console.error(e)
+        const msg = e instanceof Error ? e.message : '事件加载失败'
+        error.value = msg
+        return { data: null, error: msg }
       }
-      return result
     })()
 
     try {
@@ -108,17 +120,26 @@ export const useEventsStore = defineStore('events', () => {
     if (recentSyncInFlight) return
 
     recentSyncInFlight = true
-    const { data } = await getEventsApi({ limit: RECENT_SYNC_LIMIT })
-    if (data) {
-      loaded.value = true
-      const addedCount = mergeEvents(data)
-      liveEvents.value = uniqueEvents([...data, ...liveEvents.value]).slice(0, LIVE_EVENT_LIMIT)
-      if (addedCount > 0) {
-        lastRealtimeEventAt.value = Date.now()
+    try {
+      const { data, error: syncErr } = await getEventsApi({ limit: RECENT_SYNC_LIMIT })
+      if (syncErr) {
+        error.value = syncErr
+        console.error(syncErr)
       }
-      if (!liveEvents.value.length) {
-        liveEvents.value = uniqueEvents(data).slice(0, LIVE_EVENT_LIMIT)
+      if (data) {
+        loaded.value = true
+        const addedCount = mergeEvents(data)
+        liveEvents.value = uniqueEvents([...data, ...liveEvents.value]).slice(0, LIVE_EVENT_LIMIT)
+        if (addedCount > 0) {
+          lastRealtimeEventAt.value = Date.now()
+        }
+        if (!liveEvents.value.length) {
+          liveEvents.value = uniqueEvents(data).slice(0, LIVE_EVENT_LIMIT)
+        }
       }
+    } catch (e) {
+      console.error(e)
+      error.value = e instanceof Error ? e.message : '近期事件同步失败'
     }
     recentSyncInFlight = false
   }
@@ -288,6 +309,7 @@ export const useEventsStore = defineStore('events', () => {
     projects,
     eventsByDate,
     loading,
+    error,
     loaded,
     realtimeStatus,
     realtimeError,

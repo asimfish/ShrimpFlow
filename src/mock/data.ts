@@ -171,21 +171,21 @@ export const mockSummaries: DailySummary[] = Array.from({ length: 30 }, (_, i) =
 
 // 技能数据 - 具身智能研究者
 export const mockSkills: Skill[] = [
-  { id: 1, name: 'OpenClaw', category: 'openclaw', level: 85, total_uses: 420, last_used: now - 300, first_seen: now - 25 * DAY },
-  { id: 2, name: 'Python', category: 'language', level: 82, total_uses: 380, last_used: now - 600, first_seen: now - 29 * DAY },
-  { id: 3, name: 'PyTorch', category: 'framework', level: 78, total_uses: 310, last_used: now - 1200, first_seen: now - 28 * DAY },
-  { id: 4, name: 'ROS2', category: 'framework', level: 72, total_uses: 260, last_used: now - 1800, first_seen: now - 27 * DAY },
-  { id: 5, name: 'Git', category: 'vcs', level: 70, total_uses: 240, last_used: now - 900, first_seen: now - 29 * DAY },
-  { id: 6, name: 'Gazebo', category: 'tool', level: 65, total_uses: 180, last_used: now - 2 * HOUR, first_seen: now - 25 * DAY },
-  { id: 7, name: 'Habitat', category: 'tool', level: 60, total_uses: 150, last_used: now - 4 * HOUR, first_seen: now - 20 * DAY },
-  { id: 8, name: 'Docker', category: 'devops', level: 55, total_uses: 95, last_used: now - DAY, first_seen: now - 20 * DAY },
-  { id: 9, name: 'TensorBoard', category: 'tool', level: 52, total_uses: 88, last_used: now - 3 * HOUR, first_seen: now - 26 * DAY },
-  { id: 10, name: 'Claude Code', category: 'openclaw', level: 58, total_uses: 140, last_used: now - 1200, first_seen: now - 20 * DAY },
-  { id: 11, name: 'C++', category: 'language', level: 48, total_uses: 75, last_used: now - 2 * DAY, first_seen: now - 29 * DAY },
-  { id: 12, name: 'CUDA', category: 'language', level: 42, total_uses: 55, last_used: now - 3 * DAY, first_seen: now - 22 * DAY },
-  { id: 13, name: 'SSH', category: 'network', level: 45, total_uses: 60, last_used: now - 5 * HOUR, first_seen: now - 29 * DAY },
-  { id: 14, name: 'NumPy', category: 'framework', level: 68, total_uses: 200, last_used: now - 2 * HOUR, first_seen: now - 29 * DAY },
-  { id: 15, name: 'Open3D', category: 'framework', level: 35, total_uses: 30, last_used: now - 5 * DAY, first_seen: now - 15 * DAY },
+  { id: 1, name: 'OpenClaw', category: 'openclaw', level: 85, total_uses: 420, cot_uses: 0, manual_uses: 0, auto_uses: 0, combo_patterns: [], workflow_roles: [], last_used: now - 300, first_seen: now - 25 * DAY },
+  { id: 2, name: 'Python', category: 'language', level: 82, total_uses: 380, cot_uses: 0, manual_uses: 0, auto_uses: 0, combo_patterns: [], workflow_roles: [], last_used: now - 600, first_seen: now - 29 * DAY },
+  { id: 3, name: 'PyTorch', category: 'framework', level: 78, total_uses: 310, cot_uses: 0, manual_uses: 0, auto_uses: 0, combo_patterns: [], workflow_roles: [], last_used: now - 1200, first_seen: now - 28 * DAY },
+  { id: 4, name: 'ROS2', category: 'framework', level: 72, total_uses: 260, cot_uses: 0, manual_uses: 0, auto_uses: 0, combo_patterns: [], workflow_roles: [], last_used: now - 1800, first_seen: now - 27 * DAY },
+  { id: 5, name: 'Git', category: 'vcs', level: 70, total_uses: 240, cot_uses: 0, manual_uses: 0, auto_uses: 0, combo_patterns: [], workflow_roles: [], last_used: now - 900, first_seen: now - 29 * DAY },
+  { id: 6, name: 'Gazebo', category: 'tool', level: 65, total_uses: 180, cot_uses: 0, manual_uses: 0, auto_uses: 0, combo_patterns: [], workflow_roles: [], last_used: now - 2 * HOUR, first_seen: now - 25 * DAY },
+  { id: 7, name: 'Habitat', category: 'tool', level: 60, total_uses: 150, cot_uses: 0, manual_uses: 0, auto_uses: 0, combo_patterns: [], workflow_roles: [], last_used: now - 4 * HOUR, first_seen: now - 20 * DAY },
+  { id: 8, name: 'Docker', category: 'devops', level: 55, total_uses: 95, cot_uses: 0, manual_uses: 0, auto_uses: 0, combo_patterns: [], workflow_roles: [], last_used: now - DAY, first_seen: now - 20 * DAY },
+  { id: 9, name: 'TensorBoard', category: 'tool', level: 52, total_uses: 88, cot_uses: 0, manual_uses: 0, auto_uses: 0, combo_patterns: [], workflow_roles: [], last_used: now - 3 * HOUR, first_seen: now - 26 * DAY },
+  { id: 10, name: 'Claude Code', category: 'openclaw', level: 58, total_uses: 140, cot_uses: 0, manual_uses: 0, auto_uses: 0, combo_patterns: [], workflow_roles: [], last_used: now - 1200, first_seen: now - 20 * DAY },
+  { id: 11, name: 'C++', category: 'language', level: 48, total_uses: 75, cot_uses: 0, manual_uses: 0, auto_uses: 0, combo_patterns: [], workflow_roles: [], last_used: now - 2 * DAY, first_seen: now - 29 * DAY },
+  { id: 12, name: 'CUDA', category: 'language', level: 42, total_uses: 55, cot_uses: 0, manual_uses: 0, auto_uses: 0, combo_patterns: [], workflow_roles: [], last_used: now - 3 * DAY, first_seen: now - 22 * DAY },
+  { id: 13, name: 'SSH', category: 'network', level: 45, total_uses: 60, cot_uses: 0, manual_uses: 0, auto_uses: 0, combo_patterns: [], workflow_roles: [], last_used: now - 5 * HOUR, first_seen: now - 29 * DAY },
+  { id: 14, name: 'NumPy', category: 'framework', level: 68, total_uses: 200, cot_uses: 0, manual_uses: 0, auto_uses: 0, combo_patterns: [], workflow_roles: [], last_used: now - 2 * HOUR, first_seen: now - 29 * DAY },
+  { id: 15, name: 'Open3D', category: 'framework', level: 35, total_uses: 30, cot_uses: 0, manual_uses: 0, auto_uses: 0, combo_patterns: [], workflow_roles: [], last_used: now - 5 * DAY, first_seen: now - 15 * DAY },
 ]
 
 // 统计概览
@@ -559,6 +559,7 @@ export const mockPatterns: BehaviorPattern[] = [
     source: 'auto',
     confidence_level: 'very_high',
     learned_from_data: [{ context: 'pytest 调用分析', insight: '47 次观察到 test 文件先于实现文件创建', confidence: 92 }],
+    heat_score: 50, last_accessed_at: 0, access_count: 0, lifecycle_state: 'active',
   },
   {
     id: 2,
@@ -593,6 +594,7 @@ export const mockPatterns: BehaviorPattern[] = [
     ],
     applicable_scenarios: ['所有 Git 项目', '团队协作', '开源贡献', 'CI/CD 集成'],
     slug: 'conventional-commits', trigger: 'git commit 执行时', body: null, source: 'auto', confidence_level: 'high', learned_from_data: null,
+    heat_score: 50, last_accessed_at: 0, access_count: 0, lifecycle_state: 'active',
   },
   {
     id: 3,
@@ -625,6 +627,7 @@ export const mockPatterns: BehaviorPattern[] = [
     ],
     applicable_scenarios: ['RL 训练实验', '消融实验', '对比实验', '超参搜索'],
     slug: 'instant-experiment-log', trigger: '训练脚本执行完成', body: null, source: 'auto', confidence_level: 'high', learned_from_data: null,
+    heat_score: 50, last_accessed_at: 0, access_count: 0, lifecycle_state: 'active',
   },
   {
     id: 4,
@@ -658,6 +661,7 @@ export const mockPatterns: BehaviorPattern[] = [
     ],
     applicable_scenarios: ['分支合并', 'PR 审查', '算法实现验证', '性能关键代码'],
     slug: 'ai-code-review', trigger: 'git merge 或 PR 创建', body: null, source: 'auto', confidence_level: 'high', learned_from_data: null,
+    heat_score: 50, last_accessed_at: 0, access_count: 0, lifecycle_state: 'active',
   },
   {
     id: 5,
@@ -690,6 +694,7 @@ export const mockPatterns: BehaviorPattern[] = [
     ],
     applicable_scenarios: ['RL 训练', '模型评估', '大规模实验', '分布式训练'],
     slug: 'pre-train-env-check', trigger: null, body: null, source: 'auto', confidence_level: 'medium', learned_from_data: null,
+    heat_score: 50, last_accessed_at: 0, access_count: 0, lifecycle_state: 'active',
   },
   {
     id: 6,
@@ -717,6 +722,7 @@ export const mockPatterns: BehaviorPattern[] = [
     ],
     applicable_scenarios: ['新算法实现', '方案设计', '技术选型', '论文复现'],
     slug: 'paper-first-design', trigger: null, body: null, source: 'auto', confidence_level: 'medium', learned_from_data: null,
+    heat_score: 50, last_accessed_at: 0, access_count: 0, lifecycle_state: 'active',
   },
   {
     id: 7,
@@ -746,6 +752,7 @@ export const mockPatterns: BehaviorPattern[] = [
     ],
     applicable_scenarios: ['多项目开发', 'Python 项目', 'ML 实验', 'ROS2 开发'],
     slug: 'conda-env-isolation', trigger: null, body: null, source: 'auto', confidence_level: 'high', learned_from_data: null,
+    heat_score: 50, last_accessed_at: 0, access_count: 0, lifecycle_state: 'active',
   },
   {
     id: 8,
@@ -773,6 +780,7 @@ export const mockPatterns: BehaviorPattern[] = [
     ],
     applicable_scenarios: ['所有 Git 项目', '团队协作', '实验管理'],
     slug: 'branch-naming', trigger: null, body: null, source: 'auto', confidence_level: 'medium', learned_from_data: null,
+    heat_score: 50, last_accessed_at: 0, access_count: 0, lifecycle_state: 'active',
   },
   {
     id: 9,
@@ -800,6 +808,7 @@ export const mockPatterns: BehaviorPattern[] = [
     ],
     applicable_scenarios: ['RL 训练', '超参搜索', '消融实验', '可复现研究'],
     slug: 'experiment-config-yaml', trigger: null, body: null, source: 'auto', confidence_level: 'medium', learned_from_data: null,
+    heat_score: 50, last_accessed_at: 0, access_count: 0, lifecycle_state: 'active',
   },
   {
     id: 10,
@@ -826,6 +835,7 @@ export const mockPatterns: BehaviorPattern[] = [
     ],
     applicable_scenarios: ['Python 项目', '代码提交', 'CI/CD'],
     slug: 'lint-before-commit', trigger: null, body: null, source: 'auto', confidence_level: 'medium', learned_from_data: null,
+    heat_score: 50, last_accessed_at: 0, access_count: 0, lifecycle_state: 'active',
   },
   {
     id: 99,
@@ -866,6 +876,7 @@ export const mockPatterns: BehaviorPattern[] = [
     ],
     applicable_scenarios: ['新项目启动', '团队协作开发', '开源项目管理', 'CI/CD 流水线', '代码质量保障'],
     slug: 'full-dev-lifecycle', trigger: '创建新项目', body: null, source: 'auto', confidence_level: 'very_high', learned_from_data: null,
+    heat_score: 50, last_accessed_at: 0, access_count: 0, lifecycle_state: 'active',
   },
 ]
 
@@ -978,6 +989,7 @@ const sp = (id: number, name: string, cat: BehaviorPattern['category'], desc: st
   evolution: [{ date: '01-01', confidence: conf, event_description: '导入时已确认' }],
   rules: [], executions: [], applicable_scenarios: [],
   slug: null, trigger: null, body: null, source: 'imported', confidence_level: null, learned_from_data: null,
+  heat_score: 50, last_accessed_at: 0, access_count: 0, lifecycle_state: 'active' as const,
 })
 
 // 社区分享模式包

@@ -1,1 +1,0 @@
-import{i as e,r as t}from"./client-DJadsRxU.js";var n=()=>t(`/stats`),r=()=>t(`/memory/health`),i=()=>e(`/memory/full-cycle`,{});export{n,i as r,r as t};

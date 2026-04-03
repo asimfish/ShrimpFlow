@@ -1,10 +1,11 @@
 import json
 import time
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from db import get_db
+from services.task_runner import create_task, update_task, get_fresh_session
 from models.event import DevEvent
 from routes.events import notify_new_event
 
@@ -173,18 +174,207 @@ def run_collect_and_analyze(db: Session) -> dict:
     today_str = datetime.now().strftime('%Y-%m-%d')
     generate_daily_summary(db, today_str)
 
+    # Brain 深层流水线: EventAtom → Episode → DeepMining → SessionMining → FeatureGraph → EvidenceLedger
+    from services.event_atom_extractor import extract_atoms_from_events
+    from services.episode_slicer import slice_episodes
+    from services.deep_mining import run_deep_mining
+    from services.session_mining import mine_from_sessions
+    from services.feature_graph import build_feature_graph
+    from services.evidence_ledger import filter_meaningful_patterns, record_mining_evidence
+
+    atoms_count = extract_atoms_from_events(db, limit=3000)
+    episodes_count = slice_episodes(db, lookback_hours=720)
+    deep_mined = run_deep_mining(db)
+
+    # OpenClawSession 对话内容挖掘
+    session_mined = mine_from_sessions(db, lookback_hours=720)
+    # 持久化 session 挖掘结果
+    session_saved = _persist_session_patterns(db, session_mined)
+
+    # 构建 Feature Graph (处理所有历史 episodes)
+    graph_result = build_feature_graph(db, lookback_hours=8760)
+
+    # Evidence Ledger: 为深层挖掘的模式记录 support 证据
+    for item in deep_mined:
+        pattern = db.query(BehaviorPattern).filter(BehaviorPattern.name == item.get('name')).first()
+        if pattern:
+            record_mining_evidence(db, pattern.id, None, 'support', f'深层挖掘确认: {item.get("type", "deep")}')
+
+    # 有意义性过滤
+    meaningful_ids = filter_meaningful_patterns(db)
+
     # 推送高置信度待确认模式
     pushed = push_pending_patterns(db)
 
     return {
         'results': results,
         'mining_count': len(mined),
+        'deep_mining_count': len(deep_mined),
+        'session_mining_count': len(session_mined),
+        'atoms_extracted': atoms_count,
+        'episodes_sliced': episodes_count,
+        'feature_graph': graph_result,
+        'meaningful_patterns': len(meaningful_ids),
         'digest_updated': True,
         'digests_generated': generated_count,
         'patterns_pushed': pushed,
     }
 
 
+def _persist_session_patterns(db: Session, patterns: list[dict]) -> int:
+    # 持久化 session 挖掘出的模式
+    from services.pattern_mining import bayesian_update, _confidence_to_level, _name_to_slug
+    from services.evidence_ledger import record_mining_evidence
+
+    saved = 0
+    for norm in patterns:
+        name = norm.get('name', '')
+        if not name:
+            continue
+
+        existing = db.query(BehaviorPattern).filter(BehaviorPattern.name == name).first()
+        trigger = norm.get('trigger', name)
+        trigger_json = json.dumps(trigger, ensure_ascii=False) if isinstance(trigger, dict) else trigger
+        evidence_json = json.dumps(norm.get('evidence', []), ensure_ascii=False)
+
+        if existing:
+            new_conf = int(bayesian_update(existing.confidence / 100, 0.12) * 100)
+            existing.confidence = new_conf
+            existing.confidence_level = _confidence_to_level(new_conf)
+            existing.evidence_count += 1
+            if norm.get('body'):
+                existing.body = norm['body']
+            if norm.get('description'):
+                existing.description = norm['description']
+            existing.trigger = trigger_json
+            evo = json.loads(existing.evolution) if existing.evolution else []
+            evo.append({
+                'date': time.strftime('%m-%d'),
+                'confidence': new_conf,
+                'event_description': f'对话挖掘更新: {norm.get("type", "session")}',
+            })
+            existing.evolution = json.dumps(evo, ensure_ascii=False)
+            record_mining_evidence(db, existing.id, None, 'support', f'对话挖掘确认: {norm.get("type", "session")}')
+        else:
+            category = norm.get('category', 'coding')
+            if category not in ('coding', 'review', 'git', 'devops', 'collaboration'):
+                category = 'coding'
+            pattern = BehaviorPattern(
+                name=name,
+                category=category,
+                description=norm.get('description', name),
+                confidence=norm.get('confidence', 50),
+                evidence_count=1,
+                learned_from='session_mining',
+                rule='OpenClaw 对话挖掘 + AI 语义精炼',
+                created_at=int(time.time()),
+                status='learning',
+                evolution=json.dumps([{
+                    'date': time.strftime('%m-%d'),
+                    'confidence': norm.get('confidence', 50),
+                    'event_description': f'对话挖掘首次发现: {norm.get("type", "session")}',
+                }], ensure_ascii=False),
+                rules=json.dumps([]),
+                executions=json.dumps([]),
+                applicable_scenarios=json.dumps(norm.get('examples', [])[:3]),
+                slug=_name_to_slug(name),
+                trigger=trigger_json,
+                body=norm.get('body', ''),
+                source='auto',
+                confidence_level=_confidence_to_level(norm.get('confidence', 50)),
+                learned_from_data=evidence_json,
+            )
+            db.add(pattern)
+
+        saved += 1
+
+    if saved:
+        db.commit()
+    return saved
+
+
 @router.post("/collect/all-and-analyze")
-def api_collect_all_and_analyze(db: Session = Depends(get_db)):
-    return run_collect_and_analyze(db)
+def api_collect_all_and_analyze(
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    task_id = create_task(db, "collect")
+    background_tasks.add_task(_run_collect_background, task_id)
+    return {"task_id": task_id}
+
+
+def _run_collect_background(task_id: str):
+    db = get_fresh_session()
+    try:
+        update_task(db, task_id, "running", 5, "开始采集…")
+        from services.real_data_collector import collect_all
+        results = collect_all(db)
+        update_task(db, task_id, "running", 25, "采集完成，挖掘模式…")
+        from services.pattern_mining import run_mining
+        mined = run_mining(db)
+        update_task(db, task_id, "running", 45, "AI 增强描述…")
+        import json as _json
+        from services.ai_summary import generate_pattern_description, generate_daily_summary
+        from models.pattern import BehaviorPattern
+        from models.event import DevEvent
+        from datetime import datetime
+        from sqlalchemy import func
+        for p_dict in mined:
+            row = db.query(BehaviorPattern).filter(BehaviorPattern.name == p_dict['name']).first()
+            if row and row.learned_from == 'auto_mining':
+                examples = _json.loads(row.applicable_scenarios) if row.applicable_scenarios else []
+                desc = generate_pattern_description(row.name, examples)
+                if desc and desc != row.description:
+                    row.description = desc
+        db.commit()
+        update_task(db, task_id, "running", 55, "生成日报摘要…")
+        event_dates = db.query(
+            func.strftime('%Y-%m-%d', DevEvent.timestamp, 'unixepoch').label('d')
+        ).filter(~DevEvent.tags.contains('"seed"')).distinct().all()
+        generated_count = 0
+        for (date_str,) in event_dates:
+            if not date_str:
+                continue
+            generate_daily_summary(db, date_str)
+            generated_count += 1
+        generate_daily_summary(db, datetime.now().strftime('%Y-%m-%d'))
+        update_task(db, task_id, "running", 65, "Brain 深层流水线…")
+        from services.event_atom_extractor import extract_atoms_from_events
+        from services.episode_slicer import slice_episodes
+        from services.deep_mining import run_deep_mining
+        from services.session_mining import mine_from_sessions
+        from services.feature_graph import build_feature_graph
+        from services.evidence_ledger import filter_meaningful_patterns, record_mining_evidence
+        atoms_count = extract_atoms_from_events(db, limit=3000)
+        episodes_count = slice_episodes(db, lookback_hours=720)
+        deep_mined = run_deep_mining(db)
+        update_task(db, task_id, "running", 80, "对话挖掘 + 特征图…")
+        session_mined = mine_from_sessions(db, lookback_hours=720)
+        session_saved = _persist_session_patterns(db, session_mined)
+        graph_result = build_feature_graph(db, lookback_hours=8760)
+        for item in deep_mined:
+            pattern = db.query(BehaviorPattern).filter(BehaviorPattern.name == item.get('name')).first()
+            if pattern:
+                record_mining_evidence(db, pattern.id, None, 'support', f'深层挖掘确认: {item.get("type", "deep")}')
+        meaningful_ids = filter_meaningful_patterns(db)
+        update_task(db, task_id, "running", 90, "推送待确认模式…")
+        from services.pattern_confirm import push_pending_patterns
+        pushed = push_pending_patterns(db)
+        result = {
+            'results': results,
+            'mining_count': len(mined),
+            'deep_mining_count': len(deep_mined),
+            'session_mining_count': len(session_mined),
+            'atoms_extracted': atoms_count,
+            'episodes_sliced': episodes_count,
+            'feature_graph': graph_result,
+            'meaningful_patterns': len(meaningful_ids),
+            'digest_updated': True,
+            'digests_generated': generated_count,
+            'patterns_pushed': pushed,
+        }
+        update_task(db, task_id, "done", 100, "完成", result=result)
+    except Exception as e:
+        update_task(db, task_id, "error", 0, "出错", error=str(e))
+    finally:
+        db.close()

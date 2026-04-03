@@ -11,7 +11,7 @@ from models.event import DevEvent
 from models.skill import Skill
 from models.openclaw import OpenClawDocument, OpenClawSession
 from models.digest import DailySummary
-from services.content_labels import derive_project_label, infer_session_category, summarize_session_summary, summarize_session_title
+from services.content_labels import derive_project_label, infer_session_category, summarize_session_summary, summarize_session_title, ai_summarize_session_title
 from services.openclaw_runtime import analyze_recent_sessions_with_active_profile
 
 
@@ -289,7 +289,7 @@ def collect_claude_code(db):
 
                 created_at = first_ts if first_ts else int(os.path.getmtime(jsonl_file))
                 category = infer_session_category(messages, fallback='learning')
-                title = summarize_session_title(messages, f'Claude Code Session {session_id[:8]}', category)
+                title = ai_summarize_session_title(messages, f'Claude Code Session {session_id[:8]}', category)
                 project_name = derive_project_label(project_name, messages)
 
                 # 转换为 OpenClawMessage 格式
@@ -435,7 +435,7 @@ def collect_codex_sessions(db):
             created_at = first_ts or int(os.path.getmtime(jsonl_file))
             project_name = derive_project_label(os.path.basename(cwd) if cwd else 'codex', messages, cwd)
             category = infer_session_category(messages, fallback='learning')
-            title = summarize_session_title(messages, f'Codex Session {jsonl_file.stem[:8]}', category)
+            title = ai_summarize_session_title(messages, f'Codex Session {jsonl_file.stem[:8]}', category)
 
             session = OpenClawSession(
                 title=title,

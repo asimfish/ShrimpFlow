@@ -3,11 +3,10 @@ import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { usePatternsStore } from '@/stores/patterns'
-import { exportPatternsApi, importPatternsApi } from '@/http_api/patterns'
+import { exportPatternsApi, importPatternsApi, minePatternsApi } from '@/http_api/patterns'
 
 const router = useRouter()
 const store = usePatternsStore()
-const expandedPatterns = ref<Set<number>>(new Set())
 const selectedForExport = ref<Set<number>>(new Set())
 const exportSuccess = ref(false)
 const exportMsg = ref('')
@@ -18,9 +17,9 @@ const importing = ref(false)
 const importMsg = ref('')
 const importError = ref('')
 
+// 主标签: confirmed=已确认 learning=学习中 by_category=按分类 community=社区导入
+const activeTab = ref<'confirmed' | 'learning' | 'by_category' | 'community'>('confirmed')
 const categoryFilter = ref<'all' | 'git' | 'coding' | 'review' | 'devops' | 'collaboration'>('all')
-const statusFilter = ref<'all' | 'learning' | 'confirmed' | 'exportable'>('all')
-const sourceFilter = ref<'all' | 'auto' | 'manual' | 'imported' | 'forked'>('all')
 const searchQuery = ref('')
 
 const showWorkflowDemo = ref(false)
@@ -29,10 +28,6 @@ onMounted(async () => {
   await Promise.all([store.ensurePatternsLoaded(), store.ensureWorkflowsLoaded()])
 })
 
-const toggleExpand = (id: number) => {
-  if (expandedPatterns.value.has(id)) expandedPatterns.value.delete(id)
-  else expandedPatterns.value.add(id)
-}
 
 const toggleSelect = (id: number) => {
   const next = new Set(selectedForExport.value)
@@ -152,27 +147,77 @@ const sourceLabel: Record<string, string> = {
   forked: '派生模式',
 }
 
-const filteredPatterns = computed(() =>
-  store.patterns.filter(pattern => {
-    if (categoryFilter.value !== 'all' && pattern.category !== categoryFilter.value) return false
-    if (statusFilter.value !== 'all' && pattern.status !== statusFilter.value) return false
-    if (sourceFilter.value !== 'all' && pattern.source !== sourceFilter.value) return false
-    if (searchQuery.value.trim()) {
-      const q = searchQuery.value.toLowerCase()
-      return (
-        pattern.name.toLowerCase().includes(q)
-        || pattern.description.toLowerCase().includes(q)
-        || pattern.learned_from.toLowerCase().includes(q)
-      )
-    }
-    return true
-  })
-)
+const matchesSearch = (pattern: { name: string; description: string; learned_from: string }) => {
+  if (!searchQuery.value.trim()) return true
+  const q = searchQuery.value.toLowerCase()
+  return (
+    pattern.name.toLowerCase().includes(q)
+    || pattern.description.toLowerCase().includes(q)
+    || pattern.learned_from.toLowerCase().includes(q)
+  )
+}
+
+const filteredPatterns = computed(() => {
+  let base = store.patterns.filter(matchesSearch)
+  if (activeTab.value === 'confirmed') {
+    return base.filter(p => p.status === 'confirmed' || p.status === 'exportable')
+  }
+  if (activeTab.value === 'learning') {
+    return base.filter(p => p.status === 'learning')
+  }
+  if (activeTab.value === 'community') {
+    return base.filter(p => p.source === 'imported' || p.source === 'forked')
+  }
+  // by_category
+  if (categoryFilter.value !== 'all') {
+    base = base.filter(p => p.category === categoryFilter.value)
+  }
+  return base
+})
+
+// 按分类分组
+const patternsByCategory = computed(() => {
+  const cats = ['git', 'coding', 'review', 'devops', 'collaboration'] as const
+  return cats.map(cat => ({
+    cat,
+    label: categoryLabel[cat],
+    patterns: store.patterns.filter(p =>
+      p.category === cat
+      && (categoryFilter.value === 'all' || p.category === categoryFilter.value)
+      && matchesSearch(p)
+    ),
+  })).filter(g => g.patterns.length > 0)
+})
+
+// Skill-assisted mining
+const mining = ref(false)
+const miningResults = ref<{ name: string; description: string; confidence: number; category: string; skill_alignment_score: number }[]>([])
+const miningMsg = ref('')
+const miningError = ref('')
+
+const handleMine = async () => {
+  mining.value = true
+  miningMsg.value = ''
+  miningError.value = ''
+  miningResults.value = []
+  const res = await minePatternsApi()
+  mining.value = false
+  if (res.data) {
+    miningResults.value = res.data.patterns
+    miningMsg.value = `挖掘完成，新增/更新 ${res.data.count} 个模式`
+    await store.fetchPatterns(undefined, true)
+    setTimeout(() => { miningMsg.value = '' }, 5000)
+  } else {
+    miningError.value = res.error ?? '挖掘失败'
+  }
+}
 
 const patternStats = computed(() => ({
   auto: store.patterns.filter(p => p.source === 'auto').length,
-  imported: store.patterns.filter(p => p.source === 'imported').length,
+  imported: store.patterns.filter(p => p.source === 'imported' || p.source === 'forked').length,
   exportable: store.patterns.filter(p => p.status === 'exportable').length,
+  confirmed: store.patterns.filter(p => p.status === 'confirmed' || p.status === 'exportable').length,
+  learning: store.patterns.filter(p => p.status === 'learning').length,
 }))
 </script>
 
@@ -184,21 +229,63 @@ const patternStats = computed(() => ({
     </div>
 
     <div class="grid grid-cols-4 gap-4">
-      <div class="bg-surface-1 rounded-xl border border-surface-3 p-4">
-        <div class="text-[11px] text-gray-500">总模式数</div>
-        <div class="text-2xl font-semibold text-gray-100 mt-1">{{ store.patterns.length }}</div>
+      <div class="bg-surface-1 rounded-xl border border-surface-3 p-4 cursor-pointer hover:border-emerald-500/40 transition-colors" :class="activeTab === 'confirmed' ? 'border-emerald-500/40 ring-1 ring-emerald-500/20' : ''" @click="activeTab = 'confirmed'">
+        <div class="text-[11px] text-gray-500">已确认</div>
+        <div class="text-2xl font-semibold text-emerald-400 mt-1">{{ patternStats.confirmed }}</div>
       </div>
-      <div class="bg-surface-1 rounded-xl border border-surface-3 p-4">
+      <div class="bg-surface-1 rounded-xl border border-surface-3 p-4 cursor-pointer hover:border-yellow-500/40 transition-colors" :class="activeTab === 'learning' ? 'border-yellow-500/40 ring-1 ring-yellow-500/20' : ''" @click="activeTab = 'learning'">
+        <div class="text-[11px] text-gray-500">学习中</div>
+        <div class="text-2xl font-semibold text-yellow-400 mt-1">{{ patternStats.learning }}</div>
+      </div>
+      <div class="bg-surface-1 rounded-xl border border-surface-3 p-4 cursor-pointer hover:border-accent/40 transition-colors" :class="activeTab === 'by_category' ? 'border-accent/40 ring-1 ring-accent/20' : ''" @click="activeTab = 'by_category'">
         <div class="text-[11px] text-gray-500">自动挖掘</div>
         <div class="text-2xl font-semibold text-accent mt-1">{{ patternStats.auto }}</div>
       </div>
-      <div class="bg-surface-1 rounded-xl border border-surface-3 p-4">
+      <div class="bg-surface-1 rounded-xl border border-surface-3 p-4 cursor-pointer hover:border-openclaw/40 transition-colors" :class="activeTab === 'community' ? 'border-openclaw/40 ring-1 ring-openclaw/20' : ''" @click="activeTab = 'community'">
         <div class="text-[11px] text-gray-500">社区导入</div>
         <div class="text-2xl font-semibold text-openclaw mt-1">{{ patternStats.imported }}</div>
       </div>
-      <div class="bg-surface-1 rounded-xl border border-surface-3 p-4">
-        <div class="text-[11px] text-gray-500">可导出 ClawProfile</div>
-        <div class="text-2xl font-semibold text-emerald-400 mt-1">{{ patternStats.exportable }}</div>
+    </div>
+
+    <!-- Skill 辅助挖掘 -->
+    <div class="bg-surface-1 rounded-xl border border-surface-3 p-4 flex items-center justify-between gap-4">
+      <div>
+        <div class="text-sm font-medium text-gray-200">Skill 辅助 Pattern 挖掘</div>
+        <div class="text-xs text-gray-500 mt-0.5">结合技能图谱进行置信度增强，自动发现行为序列和关联规律</div>
+      </div>
+      <div class="flex items-center gap-3 shrink-0">
+        <span v-if="miningMsg" class="text-xs text-emerald-400">{{ miningMsg }}</span>
+        <span v-if="miningError" class="text-xs text-red-400">{{ miningError }}</span>
+        <button
+          class="text-xs px-4 py-1.5 rounded-lg bg-accent/20 text-accent border border-accent/30 hover:bg-accent/30 transition-colors disabled:opacity-50 flex items-center gap-2"
+          :disabled="mining"
+          @click="handleMine"
+        >
+          <span v-if="mining" class="inline-block w-3 h-3 rounded-full border-2 border-accent/40 border-t-accent animate-spin" />
+          {{ mining ? '挖掘中…' : '开始挖掘' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- 挖掘结果预览 -->
+    <div v-if="miningResults.length" class="bg-surface-1 rounded-xl border border-accent/20 p-4 space-y-3">
+      <div class="text-xs font-medium text-gray-400">本次挖掘结果（已存入学习中）</div>
+      <div class="grid grid-cols-2 gap-3">
+        <div
+          v-for="p in miningResults"
+          :key="p.name"
+          class="bg-surface-2 rounded-lg border border-surface-3 p-3 space-y-1.5"
+        >
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] px-2 py-0.5 rounded border" :class="categoryColorMap[p.category] ?? 'bg-surface-3 text-gray-400 border-surface-3'">{{ categoryLabel[p.category] ?? p.category }}</span>
+            <div class="flex items-center gap-2">
+              <span v-if="p.skill_alignment_score > 0" class="text-[10px] text-amber-400" title="技能对齐分">⚡{{ p.skill_alignment_score }}</span>
+              <span class="text-[10px] text-gray-500">{{ p.confidence }}%</span>
+            </div>
+          </div>
+          <div class="text-xs font-medium text-gray-200 line-clamp-1">{{ p.name }}</div>
+          <div class="text-[10px] text-gray-500 line-clamp-2">{{ p.description }}</div>
+        </div>
       </div>
     </div>
 
@@ -255,15 +342,33 @@ const patternStats = computed(() => ({
       <div v-if="exportError" class="text-xs text-red-400">{{ exportError }}</div>
     </div>
 
-    <div class="bg-surface-1 rounded-xl border border-surface-3 p-4 space-y-3">
-      <div class="flex items-center gap-3 flex-wrap">
+    <!-- 标签页 + 搜索 -->
+    <div class="bg-surface-1 rounded-xl border border-surface-3 overflow-hidden">
+      <div class="flex border-b border-surface-3">
+        <button
+          v-for="tab in ([['confirmed','已确认'], ['learning','学习中'], ['by_category','按分类'], ['community','社区导入']] as const)"
+          :key="tab[0]"
+          class="flex-1 py-2.5 text-xs font-medium transition-colors"
+          :class="activeTab === tab[0] ? 'text-accent border-b-2 border-accent' : 'text-gray-500 hover:text-gray-300'"
+          @click="activeTab = tab[0]"
+        >
+          {{ tab[1] }}
+          <span class="ml-1 text-[10px] opacity-60">
+            <template v-if="tab[0] === 'confirmed'">{{ patternStats.confirmed }}</template>
+            <template v-else-if="tab[0] === 'learning'">{{ patternStats.learning }}</template>
+            <template v-else-if="tab[0] === 'community'">{{ patternStats.imported }}</template>
+            <template v-else>{{ store.patterns.length }}</template>
+          </span>
+        </button>
+      </div>
+      <div class="flex items-center gap-2 p-3 border-b border-surface-3">
         <input
           v-model="searchQuery"
           type="text"
-          placeholder="搜索模式名、描述、来源..."
-          class="flex-1 min-w-56 bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 text-sm text-gray-300 outline-none focus:border-accent"
+          placeholder="搜索模式名、描述..."
+          class="flex-1 bg-surface-2 border border-surface-3 rounded-lg px-3 py-1.5 text-xs text-gray-300 outline-none focus:border-accent"
         />
-        <select v-model="categoryFilter" class="bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 text-sm text-gray-300">
+        <select v-if="activeTab === 'by_category'" v-model="categoryFilter" class="bg-surface-2 border border-surface-3 rounded-lg px-2.5 py-1.5 text-xs text-gray-300">
           <option value="all">全部分类</option>
           <option value="git">Git 规范</option>
           <option value="coding">编码习惯</option>
@@ -271,117 +376,96 @@ const patternStats = computed(() => ({
           <option value="devops">运维部署</option>
           <option value="collaboration">协作模式</option>
         </select>
-        <select v-model="statusFilter" class="bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 text-sm text-gray-300">
-          <option value="all">全部状态</option>
-          <option value="learning">学习中</option>
-          <option value="confirmed">已确认</option>
-          <option value="exportable">可导出</option>
-        </select>
-        <select v-model="sourceFilter" class="bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 text-sm text-gray-300">
-          <option value="all">全部来源</option>
-          <option value="auto">自动挖掘</option>
-          <option value="manual">手工维护</option>
-          <option value="imported">社区导入</option>
-          <option value="forked">派生模式</option>
-        </select>
       </div>
-      <div class="text-xs text-gray-500">当前显示 {{ filteredPatterns.length }} / {{ store.patterns.length }} 个模式</div>
     </div>
 
-    <!-- 已学习的行为模式 -->
+    <!-- 模式列表区域 -->
     <div>
-      <div class="text-sm font-medium mb-3 text-gray-300">已学习的行为模式 ({{ filteredPatterns.length }})</div>
-      <div class="grid grid-cols-2 gap-4">
-        <div
-          v-for="pattern in filteredPatterns"
-          :key="pattern.id"
-          class="bg-surface-1 rounded-xl border border-surface-3 p-4 space-y-3 cursor-pointer hover:border-accent/30 transition-colors"
-          :class="pattern.id === 99 ? 'border-emerald-500/40 ring-1 ring-emerald-500/20' : ''"
-          @click="pattern.id === 99 ? (showWorkflowDemo = true) : router.push(`/patterns/${pattern.id}`)"
-        >
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <span class="text-[11px] px-2 py-0.5 rounded border" :class="categoryColorMap[pattern.category]">{{ categoryLabel[pattern.category] }}</span>
-              <span class="text-[10px] px-2 py-0.5 rounded" :class="statusColorMap[pattern.status]">
-                <span v-if="pattern.status === 'learning'" class="inline-block w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse mr-1" />
-                {{ statusLabel[pattern.status] }}
-              </span>
-              <span v-if="pattern.confidence_level" class="text-[10px] px-1.5 py-0.5 rounded" :class="confidenceLevelColor[pattern.confidence_level]">{{ confidenceLevelLabel[pattern.confidence_level] }}</span>
-              <span v-if="pattern.source" class="text-[10px] px-1.5 py-0.5 rounded bg-surface-3 text-gray-500">{{ sourceLabel[pattern.source] ?? pattern.source }}</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="text-[10px] text-gray-500">{{ pattern.evidence_count }} 条证据</span>
-              <input
-                v-if="pattern.status === 'exportable'"
-                type="checkbox"
-                :checked="selectedForExport.has(pattern.id)"
-                class="w-3.5 h-3.5 rounded accent-emerald-500"
-                @click.stop
-                @change="toggleSelect(pattern.id)"
-              />
-            </div>
+      <!-- 按分类分组视图 -->
+      <template v-if="activeTab === 'by_category'">
+        <div v-for="group in patternsByCategory" :key="group.cat" class="mb-6">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-xs font-medium px-2 py-0.5 rounded border" :class="categoryColorMap[group.cat]">{{ group.label }}</span>
+            <span class="text-[10px] text-gray-600">{{ group.patterns.length }} 个</span>
           </div>
-          <div class="text-sm font-medium text-gray-200">{{ pattern.name }}</div>
-          <div class="text-xs text-gray-400 leading-relaxed">{{ pattern.description }}</div>
-          <div>
-            <div class="flex items-center justify-between mb-1">
-              <span class="text-[10px] text-gray-500">置信度</span>
-              <span class="text-[10px] text-gray-400">{{ pattern.confidence }}%</span>
-            </div>
-            <div class="h-1.5 bg-surface-3 rounded-full overflow-hidden">
-              <div class="h-full rounded-full transition-all" :class="confidenceColor(pattern.confidence)" :style="{ width: `${pattern.confidence}%` }" />
-            </div>
-          </div>
-          <div class="bg-surface-2 rounded-lg p-2.5">
-            <div class="text-[10px] text-gray-500 mb-1">可执行规则</div>
-            <div class="text-xs text-gray-300 font-mono">{{ pattern.rule }}</div>
-          </div>
-
-          <!-- trigger 展示 -->
-          <div v-if="pattern.trigger" class="bg-surface-2 rounded-lg p-2.5">
-            <div class="text-[10px] text-gray-500 mb-1">触发条件</div>
-            <template v-if="typeof pattern.trigger === 'object'">
-              <div class="text-xs text-gray-300">{{ (pattern.trigger as any).when }}</div>
-              <div v-if="(pattern.trigger as any).globs" class="flex flex-wrap gap-1 mt-1">
-                <span v-for="g in (pattern.trigger as any).globs" :key="g" class="text-[10px] px-1.5 py-0.5 rounded bg-surface-3 text-gray-500 font-mono">{{ g }}</span>
-              </div>
-            </template>
-            <div v-else class="text-xs text-gray-300">{{ pattern.trigger }}</div>
-          </div>
-
-          <!-- body 预览 -->
-          <div v-if="pattern.body && expandedPatterns.has(pattern.id)" class="bg-surface-2 rounded-lg p-2.5">
-            <div class="text-[10px] text-gray-500 mb-1">Prompt 正文</div>
-            <div class="text-xs text-gray-400 whitespace-pre-wrap leading-relaxed max-h-32 overflow-y-auto">{{ pattern.body }}</div>
-          </div>
-
-          <!-- 学习过程折叠区 -->
-          <button class="text-[10px] text-accent hover:text-accent-glow transition-colors" @click.stop="toggleExpand(pattern.id)">
-            {{ expandedPatterns.has(pattern.id) ? '收起学习过程' : '查看学习过程' }}
-          </button>
-          <div v-if="expandedPatterns.has(pattern.id)" class="space-y-2 border-t border-surface-3 pt-3">
-            <div class="text-[10px] text-gray-500 mb-2">置信度演化过程</div>
-            <div v-for="(snap, idx) in pattern.evolution" :key="idx" class="flex items-center gap-2">
-              <span class="text-[10px] text-gray-600 w-12 shrink-0">{{ snap.date }}</span>
-              <div class="flex-1 h-1 bg-surface-3 rounded-full overflow-hidden">
-                <div class="h-full rounded-full transition-all" :class="confidenceColor(snap.confidence)" :style="{ width: `${snap.confidence}%` }" />
-              </div>
-              <span class="text-[10px] text-gray-500 w-8 text-right">{{ snap.confidence }}%</span>
-            </div>
-            <div class="space-y-1.5 mt-2">
-              <div v-for="(snap, idx) in pattern.evolution" :key="'desc-'+idx" class="flex items-start gap-2">
-                <div class="w-1.5 h-1.5 rounded-full mt-1 shrink-0" :class="confidenceColor(snap.confidence)" />
-                <div class="text-[10px] text-gray-400">
-                  <span class="text-gray-500">{{ snap.date }}</span> {{ snap.event_description }}
+          <div class="grid grid-cols-2 gap-4">
+            <div
+              v-for="pattern in group.patterns"
+              :key="pattern.id"
+              class="bg-surface-1 rounded-xl border border-surface-3 p-4 space-y-3 cursor-pointer hover:border-accent/30 transition-colors"
+              :class="pattern.id === 99 ? 'border-emerald-500/40 ring-1 ring-emerald-500/20' : ''"
+              @click="pattern.id === 99 ? (showWorkflowDemo = true) : router.push(`/patterns/${pattern.id}`)"
+            >
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-[10px] px-2 py-0.5 rounded" :class="statusColorMap[pattern.status]">
+                    <span v-if="pattern.status === 'learning'" class="inline-block w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse mr-1" />
+                    {{ statusLabel[pattern.status] }}
+                  </span>
+                  <span v-if="pattern.source" class="text-[10px] px-1.5 py-0.5 rounded bg-surface-3 text-gray-500">{{ sourceLabel[pattern.source] ?? pattern.source }}</span>
                 </div>
+                <span class="text-[10px] text-gray-500">{{ pattern.evidence_count }} 条证据</span>
               </div>
+              <div class="text-sm font-medium text-gray-200">{{ pattern.name }}</div>
+              <div class="text-xs text-gray-400 line-clamp-2">{{ pattern.description }}</div>
+              <div class="flex items-center gap-2">
+                <div class="flex-1 h-1 bg-surface-3 rounded-full overflow-hidden">
+                  <div class="h-full rounded-full transition-all" :class="confidenceColor(pattern.confidence)" :style="{ width: `${pattern.confidence}%` }" />
+                </div>
+                <span class="text-[10px] text-gray-500 w-8 text-right">{{ pattern.confidence }}%</span>
+              </div>
+              <button class="text-[10px] text-red-400 hover:text-red-300 transition-colors" @click.stop="handleDelete(pattern.id)">删除</button>
             </div>
           </div>
-
-          <div class="text-[10px] text-gray-500">数据来源: {{ pattern.learned_from }}</div>
-          <button class="text-[10px] text-red-400 hover:text-red-300 transition-colors" @click.stop="handleDelete(pattern.id)">删除</button>
+          <div v-if="group.patterns.length === 0" class="text-xs text-gray-600 py-2">暂无模式</div>
         </div>
-      </div>
+      </template>
+
+      <!-- 已确认 / 学习中 / 社区导入 通用列表 -->
+      <template v-else>
+        <div class="grid grid-cols-2 gap-4">
+          <div
+            v-for="pattern in filteredPatterns"
+            :key="pattern.id"
+            class="bg-surface-1 rounded-xl border border-surface-3 p-4 space-y-3 cursor-pointer hover:border-accent/30 transition-colors"
+            :class="pattern.id === 99 ? 'border-emerald-500/40 ring-1 ring-emerald-500/20' : ''"
+            @click="pattern.id === 99 ? (showWorkflowDemo = true) : router.push(`/patterns/${pattern.id}`)"
+          >
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-[11px] px-2 py-0.5 rounded border" :class="categoryColorMap[pattern.category]">{{ categoryLabel[pattern.category] }}</span>
+                <span class="text-[10px] px-2 py-0.5 rounded" :class="statusColorMap[pattern.status]">
+                  <span v-if="pattern.status === 'learning'" class="inline-block w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse mr-1" />
+                  {{ statusLabel[pattern.status] }}
+                </span>
+                <span v-if="pattern.confidence_level" class="text-[10px] px-1.5 py-0.5 rounded" :class="confidenceLevelColor[pattern.confidence_level]">{{ confidenceLevelLabel[pattern.confidence_level] }}</span>
+                <span v-if="pattern.source" class="text-[10px] px-1.5 py-0.5 rounded bg-surface-3 text-gray-500">{{ sourceLabel[pattern.source] ?? pattern.source }}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] text-gray-500">{{ pattern.evidence_count }} 条证据</span>
+                <input
+                  v-if="pattern.status === 'exportable' || pattern.status === 'confirmed'"
+                  type="checkbox"
+                  :checked="selectedForExport.has(pattern.id)"
+                  class="w-3.5 h-3.5 accent-emerald-400"
+                  @click.stop="toggleSelect(pattern.id)"
+                />
+              </div>
+            </div>
+            <div class="font-medium text-gray-100 text-sm">{{ pattern.name }}</div>
+            <div class="text-[11px] text-gray-400 line-clamp-2">{{ pattern.description }}</div>
+            <div class="flex items-center gap-2">
+              <div class="flex-1 h-1 bg-surface-3 rounded-full overflow-hidden">
+                <div class="h-full rounded-full transition-all" :class="confidenceColor(pattern.confidence)" :style="{ width: `${pattern.confidence}%` }" />
+              </div>
+              <span class="text-[10px] text-gray-500 w-8 text-right">{{ pattern.confidence }}%</span>
+            </div>
+            <div class="text-[10px] text-gray-500">数据来源: {{ pattern.learned_from }}</div>
+            <button class="text-[10px] text-red-400 hover:text-red-300 transition-colors" @click.stop="handleDelete(pattern.id)">删除</button>
+          </div>
+        </div>
+        <div v-if="filteredPatterns.length === 0" class="text-center py-12 text-gray-600 text-sm">暂无匹配模式</div>
+      </template>
     </div>
 
     <!-- 团队 Workflow 下发 -->

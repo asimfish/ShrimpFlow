@@ -178,6 +178,33 @@ def summarize_session_title(messages: list[dict], fallback_title: str, category:
     return CATEGORY_TITLES.get(category, "未命名会话")
 
 
+def ai_summarize_session_title(messages: list[dict], fallback_title: str, category: str) -> str:
+    """Use AI to generate a concise session title (10 chars max). Falls back to rule-based."""
+    rule_title = summarize_session_title(messages, fallback_title, category)
+    # Only call AI when we have meaningful content and got a generic-ish title
+    user_msgs = [str(m.get("content", "")) for m in messages if m.get("role") == "user"]
+    useful = [c for c in user_msgs if c and not _is_noise_candidate(c)]
+    if not useful:
+        return rule_title
+    # Avoid lazy import at module level to prevent circular deps
+    try:
+        from services.ai_provider import chat as _ai_chat  # noqa: PLC0415
+        snippet = "\n".join(useful[:3])[:600]
+        prompt = (
+            f"请用不超过12个字为以下开发对话生成一个标题，直接输出标题，不要任何解释或标点符号之外的内容。"
+            f"类别参考: {CATEGORY_TITLES.get(category, category)}\n\n"
+            f"对话片段:\n{snippet}"
+        )
+        ai_title = _ai_chat([{"role": "user", "content": prompt}], max_tokens=30)
+        if ai_title:
+            ai_title = ai_title.strip().strip('"').strip("'").strip()
+            if 2 <= len(ai_title) <= 24:
+                return ai_title
+    except Exception:
+        pass
+    return rule_title
+
+
 def summarize_session_summary(messages: list[dict], fallback_summary: str, project: str, origin: str, category: str) -> str:
     meaningful = next(
         (
@@ -238,13 +265,27 @@ def summarize_document_preview(content: str, fallback: str = "") -> str:
 
 
 def infer_session_category(messages: list[dict], fallback: str = "learning") -> str:
-    text = " ".join(str(message.get("content", "")).lower() for message in messages[:8])
-    if any(token in text for token in ("bug", "fix", "error", "debug", "报错", "修复")):
+    text = " ".join(str(message.get("content", "")).lower() for message in messages[:12])
+    if any(token in text for token in ("bug", "fix", "error", "debug", "traceback", "exception", "crash",
+                                       "报错", "修复", "调试", "异常", "崩溃", "不生效", "失败")):
         return "debug"
-    if any(token in text for token in ("review", "审查", "检查", "评审")):
+    if any(token in text for token in ("review", "审查", "检查", "评审", "code review", "pr review",
+                                       "走查", "复核")):
         return "review"
-    if any(token in text for token in ("设计", "design", "架构", "architecture", "方案")):
+    if any(token in text for token in ("设计", "design", "架构", "architecture", "方案", "重构",
+                                       "refactor", "模式", "pattern", "拆分", "规范")):
         return "architecture"
-    if any(token in text for token in ("论文", "paper", "related work", "benchmark", "ablation", "实验")):
+    if any(token in text for token in ("论文", "paper", "related work", "benchmark", "ablation",
+                                       "实验", "experiment", "dataset", "metric", "accuracy",
+                                       "baseline", "evaluate", "评估")):
         return "paper"
+    if any(token in text for token in ("experiment", "实验", "训练", "train", "loss", "epoch",
+                                       "模型", "model", "推理", "inference", "finetune")):
+        return "experiment"
+    if any(token in text for token in ("deploy", "部署", "docker", "ci/cd", "pipeline", "nginx",
+                                       "容器", "k8s", "发布", "上线")):
+        return "deployment"
+    if any(token in text for token in ("test", "测试", "pytest", "unittest", "coverage",
+                                       "spec", "assert", "mock")):
+        return "testing"
     return fallback

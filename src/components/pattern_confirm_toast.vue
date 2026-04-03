@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 
 import { confirmPatternApi, rejectPatternApi, getPendingPatternsApi } from '@/http_api/patterns'
+
+const router = useRouter()
 
 type PendingCard = {
   id: number
@@ -11,9 +14,12 @@ type PendingCard = {
   description: string
   evidence_count: number
   loading: boolean
+  showRejectForm: boolean
+  rejectReason: string
 }
 
 const cards = ref<PendingCard[]>([])
+const rejectPresets = ['不准确', '不重要', '已过时', '太笼统']
 const MAX_VISIBLE = 3
 
 const categoryLabel: Record<string, string> = {
@@ -34,7 +40,7 @@ const categoryColor: Record<string, string> = {
 
 const addCard = (pattern: PendingCard) => {
   if (cards.value.some(c => c.id === pattern.id)) return
-  cards.value.push({ ...pattern, loading: false })
+  cards.value.push({ ...pattern, loading: false, showRejectForm: false, rejectReason: '' })
   // 只保留最新 MAX_VISIBLE 张
   if (cards.value.length > MAX_VISIBLE) {
     cards.value = cards.value.slice(-MAX_VISIBLE)
@@ -54,9 +60,17 @@ const handleConfirm = async (card: PendingCard) => {
   }
 }
 
-const handleReject = async (card: PendingCard) => {
+const handleRejectClick = (card: PendingCard) => {
+  card.showRejectForm = !card.showRejectForm
+}
+
+const selectPreset = (card: PendingCard, preset: string) => {
+  card.rejectReason = card.rejectReason === preset ? '' : preset
+}
+
+const submitReject = async (card: PendingCard) => {
   card.loading = true
-  const res = await rejectPatternApi(card.id)
+  const res = await rejectPatternApi(card.id, card.rejectReason)
   card.loading = false
   if (res.data) {
     removeCard(card.id)
@@ -84,6 +98,8 @@ onMounted(async () => {
         description: p.description,
         evidence_count: p.evidence_count,
         loading: false,
+        showRejectForm: false,
+        rejectReason: '',
       })
     }
   }
@@ -137,7 +153,7 @@ onUnmounted(() => {
           <div class="text-[10px] text-gray-600 mb-3">{{ card.evidence_count }} 条证据支撑</div>
 
           <!-- actions -->
-          <div class="flex gap-2">
+          <div class="flex gap-2 mb-2">
             <button
               class="flex-1 text-xs py-1.5 rounded-lg font-medium transition-colors"
               :class="card.loading ? 'bg-surface-3 text-gray-500 cursor-wait' : 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 cursor-pointer'"
@@ -148,13 +164,46 @@ onUnmounted(() => {
             </button>
             <button
               class="flex-1 text-xs py-1.5 rounded-lg font-medium transition-colors"
-              :class="card.loading ? 'bg-surface-3 text-gray-500 cursor-wait' : 'bg-surface-2 text-gray-400 hover:bg-surface-3 cursor-pointer'"
+              :class="card.showRejectForm ? 'bg-red-500/10 text-red-400' : card.loading ? 'bg-surface-3 text-gray-500 cursor-wait' : 'bg-surface-2 text-gray-400 hover:bg-surface-3 cursor-pointer'"
               :disabled="card.loading"
-              @click="handleReject(card)"
+              @click="handleRejectClick(card)"
             >
-              不是有意义的
+              拒绝
             </button>
           </div>
+
+          <!-- reject reason form -->
+          <div v-if="card.showRejectForm" class="mb-2 space-y-2">
+            <div class="flex flex-wrap gap-1.5">
+              <button
+                v-for="preset in rejectPresets"
+                :key="preset"
+                class="text-[10px] px-2 py-1 rounded-md transition-colors"
+                :class="card.rejectReason === preset ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-surface-2 text-gray-500 hover:text-gray-300 border border-transparent'"
+                @click="selectPreset(card, preset)"
+              >
+                {{ preset }}
+              </button>
+            </div>
+            <input
+              v-model="card.rejectReason"
+              class="w-full text-[11px] bg-surface-2 border border-surface-3 rounded-lg px-2.5 py-1.5 text-gray-300 placeholder-gray-600 focus:border-red-500/30 focus:outline-none"
+              placeholder="补充原因（可选）"
+            />
+            <button
+              class="w-full text-[10px] py-1.5 rounded-lg font-medium transition-colors bg-red-500/15 text-red-400 hover:bg-red-500/25"
+              :disabled="card.loading"
+              @click="submitReject(card)"
+            >
+              {{ card.loading ? '提交中...' : '确认拒绝' }}
+            </button>
+          </div>
+          <button
+            class="w-full text-[10px] py-1 rounded-lg bg-surface-2 text-gray-500 hover:text-gray-300 hover:bg-surface-3 transition-colors cursor-pointer"
+            @click="router.push(`/patterns/${card.id}`)"
+          >
+            查看完整内容
+          </button>
         </div>
       </TransitionGroup>
     </div>

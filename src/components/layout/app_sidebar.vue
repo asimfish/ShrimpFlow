@@ -14,7 +14,9 @@ const navItems = [
   { path: '/timeline', label: '时间线', icon: 'clock' },
   { path: '/digest', label: '报告', icon: 'calendar' },
   { path: '/skills', label: '技能图谱', icon: 'zap' },
+  { path: '/twin', label: 'My AI Twin', icon: 'twin' },
   { path: '/patterns', label: '行为模式', icon: 'brain' },
+  { path: '/memory', label: '记忆系统', icon: 'database' },
   { path: '/community', label: '社区', icon: 'globe' },
   { path: '/architecture', label: '架构', icon: 'layers' },
 ]
@@ -118,6 +120,12 @@ const realtimeLabel = computed(() => {
           </template>
           <template v-if="item.icon === 'user'">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+          </template>
+          <template v-if="item.icon === 'twin'">
+            <circle cx="12" cy="8" r="4" /><path d="M20 21a8 8 0 1 0-16 0" /><circle cx="19" cy="8" r="2" opacity="0.6" /><line x1="19" y1="11" x2="19" y2="14" opacity="0.6" />
+          </template>
+          <template v-if="item.icon === 'database'">
+            <ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4.03 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" />
           </template>
           <template v-if="item.icon === 'layers'">
             <polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" />

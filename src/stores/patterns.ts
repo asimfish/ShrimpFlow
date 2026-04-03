@@ -24,11 +24,18 @@ export const usePatternsStore = defineStore('patterns', () => {
     patternsError.value = null
 
     patternsPromise = (async () => {
-      const result = await patternsApi.getPatternsApi(params)
-      if (result.data) patterns.value = result.data
-      else patternsError.value = result.error ?? '行为模式加载失败'
-      if (result.data && canUseCache) patternsLoaded.value = true
-      return result
+      try {
+        const result = await patternsApi.getPatternsApi(params)
+        if (result.data) patterns.value = result.data
+        else patternsError.value = result.error ?? '行为模式加载失败'
+        if (result.data && canUseCache) patternsLoaded.value = true
+        return result
+      } catch (e) {
+        console.error(e)
+        const msg = e instanceof Error ? e.message : '行为模式加载失败'
+        patternsError.value = msg
+        return { data: null, error: msg }
+      }
     })()
 
     try {
@@ -47,11 +54,18 @@ export const usePatternsStore = defineStore('patterns', () => {
     workflowsError.value = null
 
     workflowsPromise = (async () => {
-      const result = await patternsApi.getWorkflowsApi()
-      if (result.data) workflows.value = result.data
-      else workflowsError.value = result.error ?? '工作流加载失败'
-      if (result.data) workflowsLoaded.value = true
-      return result
+      try {
+        const result = await patternsApi.getWorkflowsApi()
+        if (result.data) workflows.value = result.data
+        else workflowsError.value = result.error ?? '工作流加载失败'
+        if (result.data) workflowsLoaded.value = true
+        return result
+      } catch (e) {
+        console.error(e)
+        const msg = e instanceof Error ? e.message : '工作流加载失败'
+        workflowsError.value = msg
+        return { data: null, error: msg }
+      }
     })()
 
     try {

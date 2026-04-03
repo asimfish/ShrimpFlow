@@ -18,6 +18,6 @@ export const collectGitHistoryApi = () => post<{ count: number }>('/collect/git-
 // 采集全部
 export const collectAllApi = () => post<{ count: number }>('/collect/all', {})
 
-// 采集全部 + 分析（挖掘模式 + 生成今日摘要）
+// 采集全部 + 分析（后台任务，返回 task_id）
 export const collectAllAndAnalyzeApi = () =>
-  post<{ results: any[]; mining_count: number; digest_updated: boolean }>('/collect/all-and-analyze', {})
+  post<{ task_id: string }>('/collect/all-and-analyze', {})

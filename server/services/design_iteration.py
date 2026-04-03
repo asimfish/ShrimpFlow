@@ -12,7 +12,7 @@ from models.pattern import BehaviorPattern
 from models.workflow import TeamWorkflow
 
 DOC_PATH = Path(__file__).resolve().parents[1] / "docs" / "CLAWPROFILE_ITERATIONS.md"
-STATE_PATH = Path(__file__).resolve().parents[1] / "server" / "iteration_state.json"
+STATE_PATH = Path(__file__).resolve().parents[1] / "iteration_state.json"
 
 ITERATION_ROUNDS = {
     2: {

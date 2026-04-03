@@ -48,3 +48,6 @@ class BehaviorPatternResponse(BaseModel):
     source: str | None = None
     confidence_level: str | None = None
     learned_from_data: list[dict] | None = None
+    skill_alignment_score: int = 0
+    user_feedback: list[dict] | None = None
+    reject_count: int = 0

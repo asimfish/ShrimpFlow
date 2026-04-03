@@ -8,6 +8,8 @@ from db import get_db
 from models.pattern import BehaviorPattern
 from models.profile import ClawProfile
 from models.workflow import TeamWorkflow
+from services.evidence_ledger import is_meaningful_rule
+from services.taste_model import get_pending_pattern_recommendations
 
 router = APIRouter(tags=["patterns"])
 
@@ -28,6 +30,13 @@ def _row_to_dict(row: BehaviorPattern) -> dict:
         'source': row.source,
         'confidence_level': row.confidence_level,
         'learned_from_data': json.loads(row.learned_from_data) if row.learned_from_data else [],
+        'skill_alignment_score': row.skill_alignment_score or 0,
+        'user_feedback': json.loads(row.user_feedback) if row.user_feedback else [],
+        'reject_count': row.reject_count or 0,
+        'heat_score': round(row.heat_score, 1) if row.heat_score else 0,
+        'last_accessed_at': row.last_accessed_at or 0,
+        'access_count': row.access_count or 0,
+        'lifecycle_state': row.lifecycle_state or 'active',
     }
 
 
@@ -290,6 +299,9 @@ class PatternCreateRequest(BaseModel):
     source: str = 'manual'
     confidence_level: str | None = None
     learned_from_data: list[dict] = []
+    skill_alignment_score: int = 0
+    user_feedback: list[dict] = []
+    reject_count: int = 0
 
 
 class PatternUpdateRequest(BaseModel):
@@ -312,6 +324,9 @@ class PatternUpdateRequest(BaseModel):
     source: str | None = None
     confidence_level: str | None = None
     learned_from_data: list[dict] | None = None
+    skill_alignment_score: int | None = None
+    user_feedback: list[dict] | None = None
+    reject_count: int | None = None
 
 
 @router.post("/patterns")
@@ -330,6 +345,9 @@ def create_pattern(req: PatternCreateRequest, db: Session = Depends(get_db)):
         confidence_level=req.confidence_level,
         trigger=json.dumps(req.trigger) if isinstance(req.trigger, dict) else req.trigger,
         learned_from_data=json.dumps(req.learned_from_data),
+        skill_alignment_score=req.skill_alignment_score,
+        user_feedback=json.dumps(req.user_feedback, ensure_ascii=False),
+        reject_count=req.reject_count,
     )
     db.add(pattern)
     db.commit()
@@ -339,11 +357,27 @@ def create_pattern(req: PatternCreateRequest, db: Session = Depends(get_db)):
 
 @router.get("/patterns/pending")
 def get_pending_patterns(db: Session = Depends(get_db)):
-    rows = db.query(BehaviorPattern).filter(
-        BehaviorPattern.confidence >= 70,
-        BehaviorPattern.status == 'learning',
-    ).all()
-    return [_row_to_dict(r) for r in rows]
+    pending = []
+    for item in get_pending_pattern_recommendations(db):
+        row = item['pattern']
+        if not is_meaningful_rule(row):
+            continue
+        payload = _row_to_dict(row)
+        payload['taste_action'] = item['action']
+        payload['priority_score'] = item['priority_score']
+        payload['taste_reasons'] = item['reasons']
+        pending.append(payload)
+    return pending
+
+
+@router.get("/patterns/recall")
+def recall_patterns_api(
+    query: str = Query(..., min_length=1),
+    max_hops: int = Query(2, ge=1, le=4),
+    db: Session = Depends(get_db),
+):
+    from services.spreading_activation import recall_patterns
+    return recall_patterns(db, query, max_hops=max_hops)
 
 
 @router.get("/patterns/{pattern_id}")
@@ -351,7 +385,22 @@ def get_pattern(pattern_id: int, db: Session = Depends(get_db)):
     row = db.query(BehaviorPattern).filter(BehaviorPattern.id == pattern_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="Pattern not found")
+    # 强化: 每次查看模式详情时触发
+    from services.memory_lifecycle import record_access
+    record_access(db, pattern_id)
     return _row_to_dict(row)
+
+
+@router.get("/patterns/{pattern_id}/relations")
+def get_pattern_relations_api(pattern_id: int, db: Session = Depends(get_db)):
+    from services.relation_discovery import get_pattern_relations
+    return get_pattern_relations(db, pattern_id)
+
+
+@router.post("/patterns/discover-relations")
+def discover_relations_api(db: Session = Depends(get_db)):
+    from services.relation_discovery import run_relation_discovery
+    return run_relation_discovery(db)
 
 
 @router.put("/patterns/{pattern_id}")
@@ -395,6 +444,12 @@ def update_pattern(pattern_id: int, req: PatternUpdateRequest, db: Session = Dep
         row.confidence_level = req.confidence_level
     if req.learned_from_data is not None:
         row.learned_from_data = json.dumps(req.learned_from_data)
+    if req.skill_alignment_score is not None:
+        row.skill_alignment_score = req.skill_alignment_score
+    if req.user_feedback is not None:
+        row.user_feedback = json.dumps(req.user_feedback, ensure_ascii=False)
+    if req.reject_count is not None:
+        row.reject_count = req.reject_count
     db.commit()
     db.refresh(row)
     return _row_to_dict(row)
@@ -495,12 +550,31 @@ def delete_workflow(workflow_id: int, db: Session = Depends(get_db)):
 
 from services.pattern_mining import run_mining
 from services.pattern_confirm import confirm_pattern, reject_pattern
+from services.task_runner import create_task, update_task, get_fresh_session
+from fastapi import BackgroundTasks
 
 
 @router.post("/patterns/mine")
-def mine_patterns(db: Session = Depends(get_db)):
-    results = run_mining(db)
-    return {'patterns': results, 'count': len(results)}
+def mine_patterns(
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    task_id = create_task(db, "mine_patterns")
+    background_tasks.add_task(_run_mine_background, task_id)
+    return {"task_id": task_id}
+
+
+def _run_mine_background(task_id: str):
+    db = get_fresh_session()
+    try:
+        update_task(db, task_id, "running", 10, "挖掘行为模式…")
+        results = run_mining(db)
+        update_task(db, task_id, "running", 80, "完成挖掘，整理结果…")
+        update_task(db, task_id, "done", 100, "完成", result={"patterns": results, "count": len(results)})
+    except Exception as e:
+        update_task(db, task_id, "error", 0, "出错", error=str(e))
+    finally:
+        db.close()
 
 
 @router.post("/patterns/{pattern_id}/confirm")
@@ -508,6 +582,10 @@ def confirm_pattern_api(pattern_id: int, db: Session = Depends(get_db)):
     return confirm_pattern(db, pattern_id)
 
 
+class PatternRejectRequest(BaseModel):
+    reason: str = ''
+
+
 @router.post("/patterns/{pattern_id}/reject")
-def reject_pattern_api(pattern_id: int, db: Session = Depends(get_db)):
-    return reject_pattern(db, pattern_id)
+def reject_pattern_api(pattern_id: int, req: PatternRejectRequest, db: Session = Depends(get_db)):
+    return reject_pattern(db, pattern_id, reason=req.reason)

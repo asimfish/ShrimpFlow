@@ -41,3 +41,8 @@ server/runtime_settings.json
 # Large assets (hosted on HuggingFace)
 docs/assets/demo_video.mp4
 docs/assets/shrimpflow_logo.jpg
+
+*.db-wal
+*.db-shm
+.env
+.env.local

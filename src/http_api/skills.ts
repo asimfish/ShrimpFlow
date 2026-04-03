@@ -76,3 +76,9 @@ export const recommendationFeedbackApi = (skill_name: string, action: 'useful' |
 
 export const updateWorkflowStatusApi = (workflowId: number, status: 'draft' | 'confirmed' | 'archived') =>
   put<{ id: number; status: string }>(`/skills/workflows/${workflowId}/status`, { status })
+
+export const summarizeWorkflowsApi = () =>
+  post<{ summarized: number; workflows: SkillWorkflowItem[] }>('/skills/workflows/summarize', {})
+
+export const summarizeWorkflowApi = (workflowId: number) =>
+  post<SkillWorkflowItem>(`/skills/workflows/${workflowId}/summarize`, {})

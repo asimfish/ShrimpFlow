@@ -16,6 +16,7 @@ from services.skill_recommender import (
 )
 from services.skill_discovery import get_discovery_report, import_skills_as_patterns
 from services.skill_tracker import mine_skill_workflows, get_skill_cot_stats, track_skill_invocation
+from services.workflow_summarizer import summarize_all_draft_workflows, summarize_single_workflow
 
 router = APIRouter(tags=["skills"])
 
@@ -162,6 +163,23 @@ def get_mined_skill_workflows(db: Session = Depends(get_db)):
 @router.get("/skills/cot-stats")
 def get_skill_stats(db: Session = Depends(get_db)):
     return get_skill_cot_stats(db)
+
+
+@router.post("/skills/workflows/summarize")
+def batch_summarize_workflows(db: Session = Depends(get_db)):
+    results = summarize_all_draft_workflows(db)
+    return {"summarized": len(results), "workflows": results}
+
+
+@router.post("/skills/workflows/{workflow_id}/summarize")
+def single_summarize_workflow(workflow_id: int, db: Session = Depends(get_db)):
+    row = db.query(SkillWorkflow).filter(SkillWorkflow.id == workflow_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    result = summarize_single_workflow(db, row)
+    if not result:
+        raise HTTPException(status_code=500, detail="AI summarization failed")
+    return result
 
 
 @router.post("/skills/track")

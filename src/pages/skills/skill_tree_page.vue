@@ -90,12 +90,19 @@ const recommendTypeLabel: Record<string, string> = {
   gap: '缺口',
   related: '关联',
   workflow_co: '共现',
+  usage_based: '你用了X→Y',
 }
 const recommendTypeColor: Record<string, string> = {
   advanced: 'bg-openclaw/10 text-openclaw',
   gap: 'bg-red-500/10 text-red-400',
   related: 'bg-sky-500/10 text-sky-400',
   workflow_co: 'bg-violet-500/10 text-violet-400',
+  usage_based: 'bg-cyan-500/10 text-cyan-400',
+}
+
+const expandedRec = ref<string | null>(null)
+const toggleRecExpand = (name: string) => {
+  expandedRec.value = expandedRec.value === name ? null : name
 }
 
 const selectSkill = (skill: Skill) => {
@@ -404,13 +411,22 @@ const generatePlan = async () => {
               <div
                 v-for="rec in recommendations"
                 :key="rec.name"
-                class="bg-surface-2 rounded-xl p-4 space-y-2"
+                class="bg-surface-2 rounded-xl p-4 space-y-2 cursor-pointer"
+                @click="toggleRecExpand(rec.name)"
               >
                 <div class="flex items-start justify-between gap-2">
                   <div class="text-sm font-medium text-gray-100">{{ rec.name }}</div>
                   <span class="text-[10px] px-2 py-0.5 rounded-full shrink-0" :class="recommendTypeColor[rec.type] ?? 'bg-surface-3 text-gray-400'">{{ recommendTypeLabel[rec.type] ?? rec.type }}</span>
                 </div>
                 <div class="text-[11px] text-gray-400 leading-relaxed">{{ rec.reason }}</div>
+                <!-- 展开解释链 -->
+                <div v-if="expandedRec === rec.name && rec.explanation_chain?.length" class="bg-surface-1 rounded-lg p-2.5 space-y-1">
+                  <div class="text-[10px] text-gray-500 mb-1">推荐理由链</div>
+                  <div v-for="(step, si) in rec.explanation_chain" :key="si" class="flex items-start gap-1.5 text-[11px] text-gray-300">
+                    <span class="text-openclaw shrink-0">{{ si + 1 }}.</span>
+                    <span>{{ step }}</span>
+                  </div>
+                </div>
                 <div class="flex items-center justify-between text-[11px]">
                   <div class="flex items-center gap-3">
                     <span class="text-gray-500">置信度 <span :class="confidenceColor(rec.confidence)" class="font-medium">{{ Math.round(rec.confidence * 100) }}%</span></span>

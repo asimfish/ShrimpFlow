@@ -64,6 +64,16 @@ def _parse_json_value(raw: str | None):
         return None
 
 
+def _load_json_list(raw):
+    if not raw:
+        return []
+    try:
+        data = json.loads(raw)
+        return data if isinstance(data, list) else []
+    except (TypeError, json.JSONDecodeError):
+        return []
+
+
 def _normalize_name(value: str) -> str:
     return re.sub(r'[^a-z0-9\u4e00-\u9fff]+', '', (value or '').lower())
 
@@ -290,6 +300,52 @@ def _apply_taste_to_recommendations(items: list[dict], taste) -> list[dict]:
     return sorted(adjusted, key=lambda row: row['confidence'], reverse=True)
 
 
+def _usage_based_candidates(db: Session, skills: list) -> list[dict]:
+    """Recommend skills that frequently co-occur with user's active skills in combo_patterns."""
+    import math
+    import time as _time
+    from services.implicit_feedback import get_aggregated_signals
+
+    active_names = {s.name for s in skills if (s.total_uses or 0) >= 2}
+    if not active_names:
+        return []
+
+    implicit = get_aggregated_signals(db)
+    now = int(_time.time())
+    candidates = []
+
+    co_occur: dict[str, list[str]] = defaultdict(list)
+    for skill in skills:
+        if skill.name not in active_names:
+            continue
+        combos = _load_json_list(skill.combo_patterns)
+        for partner in combos:
+            if partner not in active_names:
+                co_occur[partner].append(skill.name)
+
+    for partner, sources in co_occur.items():
+        if len(sources) < 1:
+            continue
+        base_conf = min(0.85, 0.35 + 0.1 * len(sources))
+        sig = implicit.get(partner, {})
+        if sig.get("impression", 0) >= 5 and sig.get("click", 0) == 0:
+            base_conf *= 0.6
+        explanation = [
+            f"与你高频使用的 {', '.join(sources[:3])} 共现",
+            f"共 {len(sources)} 个 skill 关联"
+        ]
+        candidates.append({
+            "name": partner,
+            "category": "workflow",
+            "reason": f"你用了 {sources[0]}，推荐试试 {partner}",
+            "type": "usage_based",
+            "confidence": round(base_conf, 2),
+            "explanation_chain": explanation,
+        })
+
+    return sorted(candidates, key=lambda x: x["confidence"], reverse=True)[:8]
+
+
 def recommend_skills(db: Session, limit: int = 8) -> list[dict]:
     skills = db.query(Skill).order_by(Skill.level.desc(), Skill.total_uses.desc()).all()
     if not skills:
@@ -300,6 +356,7 @@ def recommend_skills(db: Session, limit: int = 8) -> list[dict]:
         *_advanced_candidates(skills),
         *_co_occurrence_candidates(db, skills),
         *_related_pattern_candidates(db, skills),
+        *_usage_based_candidates(db, skills),
     ]
 
     deduped = []

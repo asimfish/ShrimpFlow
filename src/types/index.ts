@@ -80,8 +80,9 @@ export type SkillRecommendation = {
   name: string
   category: string
   reason: string
-  type: 'advanced' | 'gap' | 'related' | 'workflow_co'
+  type: 'advanced' | 'gap' | 'related' | 'workflow_co' | 'usage_based'
   confidence: number
+  explanation_chain?: string[]
 }
 
 // GET /skills/discovery（本地 skill 库扫描 + 与 DB 比对）

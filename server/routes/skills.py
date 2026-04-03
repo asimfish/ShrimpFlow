@@ -14,7 +14,7 @@ from services.skill_recommender import (
     recommend_skills,
     suggest_skill_improvements,
 )
-from services.skill_discovery import get_discovery_report
+from services.skill_discovery import get_discovery_report, import_skills_as_patterns
 from services.skill_tracker import mine_skill_workflows, get_skill_cot_stats, track_skill_invocation
 
 router = APIRouter(tags=["skills"])
@@ -60,6 +60,12 @@ def get_skill_improvement_report(db: Session = Depends(get_db)):
 @router.get("/skills/discovery")
 def get_skill_discovery(db: Session = Depends(get_db)):
     return get_discovery_report(db)
+
+
+@router.post("/skills/import-from-library")
+def post_import_skills_from_library(db: Session = Depends(get_db)):
+    count = import_skills_as_patterns(db)
+    return {"imported": count}
 
 
 @router.get("/skills/{skill_id}/improvement")

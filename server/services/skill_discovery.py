@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
+import time
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from pathlib import Path
 
 from sqlalchemy.orm import Session
 
+from models.pattern import BehaviorPattern
 from models.skill import Skill
+from services.pattern_mining import _confidence_to_level, _name_to_slug
 from services.skill_recommender import _normalize_name, _tokenize
 
 # Paths relative to user home or project root
@@ -116,6 +121,18 @@ def _safe_read_text(path: Path, limit: int = 400_000) -> str | None:
         return None
 
 
+def _extract_skill_md_body(path: Path) -> str | None:
+    """Return Markdown body after YAML frontmatter (or full file if no frontmatter)."""
+    raw = _safe_read_text(path, limit=400_000)
+    if not raw:
+        return None
+    if raw.startswith("---"):
+        end = raw.find("\n---", 3)
+        if end != -1:
+            return raw[end + 4 :].lstrip("\n")
+    return raw
+
+
 def _parse_skill_md_frontmatter(path: Path) -> tuple[str | None, str | None]:
     raw = _safe_read_text(path, limit=120_000)
     if not raw:
@@ -212,6 +229,116 @@ def scan_local_skill_libraries() -> list[ExternalSkill]:
             continue
 
     return sorted(by_key.values(), key=lambda x: (x.source_library, x.name.lower()))
+
+
+def _skill_md_path_from_external(ext: ExternalSkill) -> Path | None:
+    for p in ext.paths:
+        if p.endswith("SKILL.md"):
+            cand = Path(p)
+            try:
+                if cand.is_file():
+                    return cand.resolve()
+            except OSError:
+                continue
+    return None
+
+
+def _category_for_pattern(category: str) -> str:
+    c = (category or "").strip().lower()
+    allowed = frozenset({"coding", "review", "git", "devops", "collaboration"})
+    if c in allowed:
+        return c
+    return "coding"
+
+
+def import_skills_as_patterns(db: Session) -> int:
+    """Import local SKILL.md entries as confirmed BehaviorPatterns for pattern mining."""
+    external = scan_local_skill_libraries()
+    now = int(time.time())
+    imported = 0
+
+    for ext in external:
+        skill_path = _skill_md_path_from_external(ext)
+        if not skill_path:
+            continue
+
+        body = _extract_skill_md_body(skill_path)
+        if not body:
+            continue
+
+        name = (ext.name or "").strip()
+        if not name:
+            continue
+
+        slug = _name_to_slug(name)
+        if not slug:
+            slug = "skill-" + hashlib.sha256(name.encode("utf-8")).hexdigest()[:12]
+
+        existing = db.query(BehaviorPattern).filter(BehaviorPattern.slug == slug).first()
+        if existing:
+            continue
+
+        desc = (ext.description or "").strip()
+        if not desc:
+            first_line = next((ln.strip() for ln in body.splitlines() if ln.strip()), "")
+            desc = first_line[:500] if first_line else name
+
+        trigger = json.dumps(
+            {
+                "when": "本地技能库 SKILL.md",
+                "event": "skill_library",
+                "context": [ext.source_library, str(skill_path)],
+            },
+            ensure_ascii=False,
+        )
+
+        learned_from_data = json.dumps(
+            [
+                {
+                    "context": str(skill_path),
+                    "insight": desc[:240],
+                    "confidence": 80,
+                }
+            ],
+            ensure_ascii=False,
+        )
+
+        pattern = BehaviorPattern(
+            name=name,
+            category=_category_for_pattern(ext.category),
+            description=desc[:500],
+            confidence=80,
+            evidence_count=1,
+            learned_from="skill_library",
+            rule="从本地技能库导入的 SKILL.md（人工策展）",
+            created_at=now,
+            status="confirmed",
+            evolution=json.dumps(
+                [
+                    {
+                        "date": time.strftime("%m-%d"),
+                        "confidence": 80,
+                        "event_description": "从本地技能库导入",
+                    }
+                ],
+                ensure_ascii=False,
+            ),
+            rules=json.dumps([]),
+            executions=json.dumps([]),
+            applicable_scenarios=json.dumps([str(skill_path)]),
+            slug=slug,
+            trigger=trigger,
+            body=body,
+            source="imported",
+            confidence_level=_confidence_to_level(80),
+            learned_from_data=learned_from_data,
+            skill_alignment_score=0,
+        )
+        db.add(pattern)
+        imported += 1
+
+    db.commit()
+    return imported
 
 
 def _similarity(a: str, b: str) -> float:

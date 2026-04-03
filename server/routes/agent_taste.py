@@ -13,6 +13,7 @@ from services.taste_model import (
     auto_confirm_patterns,
     get_or_create_taste_profile,
     get_pending_pattern_recommendations,
+    get_taste_dashboard_stats,
     learn_from_history,
     log_autonomous_action,
     record_pattern_decision,
@@ -64,6 +65,7 @@ def get_agent_taste_profile(db: Session = Depends(get_db)):
     # 立即返回缓存数据
     profile = get_or_create_taste_profile(db)
     payload = serialize_taste_profile(profile)
+    payload.update(get_taste_dashboard_stats(db))
     payload["top_pending"] = [
         {
             "id": item["pattern"].id,

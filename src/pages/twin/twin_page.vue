@@ -5,6 +5,39 @@ import { useRouter } from 'vue-router'
 import * as d3 from 'd3'
 import { generateClawsApi, exportMarkdownApi, getAlignmentScoreApi } from '@/http_api/claw_gen'
 import type { CotProfile, AlignmentScore, ClawGenResult } from '@/http_api/claw_gen'
+
+type TasteDimKey = 'rigor' | 'elegance' | 'novelty' | 'simplicity' | 'reproducibility'
+
+type BeforeAfterComparison = {
+  pattern_id: number
+  pattern_name: string
+  confidence: number
+  question: string
+  without: string
+  with: string
+}
+
+type BeforeAfterPayload = {
+  comparisons: BeforeAfterComparison[]
+  message?: string
+}
+
+type TwinMaturity = {
+  stage: string
+  stage_desc: string
+  maturity: number
+  breakdown?: { data: number; quality: number; diversity: number }
+  stats?: {
+    sessions_7d: number
+    episodes_30d: number
+    confirmed_patterns: number
+    total_patterns: number
+  }
+  insights?: Array<{ type: string; title: string; desc: string }>
+}
+
+const tasteDimScore = (profile: CotProfile | null, key: TasteDimKey): number =>
+  profile ? (profile[key] ?? 0) : 0
 import { get, post } from '@/http_api/client'
 import { getMemoryHealthApi, getFlywheelTrendApi } from '@/http_api/stats'
 import type { FlywheelPoint } from '@/http_api/stats'
@@ -14,7 +47,7 @@ import { usePatternsStore } from '@/stores/patterns'
 const router = useRouter()
 const patternsStore = usePatternsStore()
 
-const cotProfile = ref<CotProfile & Record<string, number> | null>(null)
+const cotProfile = ref<CotProfile | null>(null)
 const alignmentScore = ref<AlignmentScore | null>(null)
 const memoryHealth = ref<MemoryHealth | null>(null)
 const genResult = ref<ClawGenResult | null>(null)
@@ -22,14 +55,14 @@ const markdownOutput = ref('')
 const showMarkdown = ref(false)
 const generating = ref(false)
 const loading = ref(true)
-const maturity = ref<Record<string, any> | null>(null)
-const beforeAfter = ref<{comparisons: any[]} | null>(null)
+const maturity = ref<TwinMaturity | null>(null)
+const beforeAfter = ref<BeforeAfterPayload | null>(null)
 const loadingBA = ref(false)
 const flywheelTrend = ref<FlywheelPoint[]>([])
 const flywheelChartRef = ref<HTMLDivElement | null>(null)
 
 // 5维度标签
-const tasteDims = [
+const tasteDims: { key: TasteDimKey; label: string; icon: string; color: string; desc: string }[] = [
   { key: 'rigor', label: '理论严谨', icon: '⚖', color: '#6366f1', desc: '对形式化/证明/baseline的重视程度' },
   { key: 'elegance', label: '解法优雅', icon: '✨', color: '#ec4899', desc: '偏好简洁、最优解而非复杂方案' },
   { key: 'novelty', label: '创新导向', icon: '🔭', color: '#f59e0b', desc: '关注研究空白与新贡献的程度' },
@@ -52,7 +85,7 @@ const getPoint = (index: number, total: number, ratio: number) => {
 
 const radarPolygon = computed(() => {
   if (!cotProfile.value) return ''
-  const dims = tasteDims.map(d => ((cotProfile.value as any)[d.key] ?? 0) / 100)
+  const dims = tasteDims.map(d => tasteDimScore(cotProfile.value, d.key) / 100)
   return dims.map((v, i) => {
     const p = getPoint(i, tasteDims.length, v)
     return `${p.x},${p.y}`
@@ -106,7 +139,7 @@ const handleExport = async () => {
 const handleBeforeAfter = async () => {
   loadingBA.value = true
   beforeAfter.value = null
-  const res = await post<{comparisons: any[]}>('/claw/before-after', {})
+  const res = await post<BeforeAfterPayload>('/claw/before-after', {})
   if (res.data) beforeAfter.value = res.data
   loadingBA.value = false
 }
@@ -217,9 +250,12 @@ const renderFlywheelChart = () => {
 
   d3.select(el).selectAll('*').remove()
 
-  const margin = { top: 16, right: 12, bottom: 22, left: 28 }
+  const margin = { top: 18, right: 14, bottom: 24, left: 30 }
   const width = el.clientWidth - margin.left - margin.right
-  const height = 130 - margin.top - margin.bottom
+  const height = 148 - margin.top - margin.bottom
+  const rootStyle = getComputedStyle(document.documentElement)
+  const chart1 = rootStyle.getPropertyValue('--color-chart-1').trim() || '#818cf8'
+  const chart2 = rootStyle.getPropertyValue('--color-chart-2').trim() || '#6ee7b7'
 
   const svg = d3.select(el).append('svg')
     .attr('width', width + margin.left + margin.right)
@@ -244,7 +280,9 @@ const renderFlywheelChart = () => {
 
   svg.append('g')
     .attr('transform', `translate(0,${height})`)
-    .call(d3.axisBottom(x).ticks(Math.min(parsed.length, 5)).tickFormat(d3.timeFormat('%m/%d') as any))
+    .call(
+      d3.axisBottom(x).ticks(Math.min(parsed.length, 5)).tickFormat((d) => d3.timeFormat('%m/%d')(d as Date)),
+    )
     .selectAll('text').attr('fill', '#6b7280').attr('font-size', '9px')
 
   svg.selectAll('.domain, .tick line').attr('stroke', '#374151')
@@ -259,13 +297,14 @@ const renderFlywheelChart = () => {
   svg.append('path')
     .datum(parsed)
     .attr('d', confArea)
-    .attr('fill', 'rgba(99,102,241,0.12)')
+    .attr('fill', chart1)
+    .attr('fill-opacity', 0.14)
 
   svg.append('path')
     .datum(parsed)
     .attr('d', d3.line<typeof parsed[0]>().x(d => x(d.d)).y(d => yConf(d.avg_confidence)).curve(d3.curveMonotoneX))
     .attr('fill', 'none')
-    .attr('stroke', '#6366f1')
+    .attr('stroke', chart1)
     .attr('stroke-width', 2)
 
   // total patterns line (dashed)
@@ -282,13 +321,13 @@ const renderFlywheelChart = () => {
     .datum(parsed)
     .attr('d', d3.line<typeof parsed[0]>().x(d => x(d.d)).y(d => yCount(d.confirmed)).curve(d3.curveMonotoneX))
     .attr('fill', 'none')
-    .attr('stroke', '#10b981')
+    .attr('stroke', chart2)
     .attr('stroke-width', 1.5)
 
   // latest point dots
   const last = parsed[parsed.length - 1]
-  svg.append('circle').attr('cx', x(last.d)).attr('cy', yConf(last.avg_confidence)).attr('r', 3).attr('fill', '#6366f1')
-  svg.append('circle').attr('cx', x(last.d)).attr('cy', yCount(last.confirmed)).attr('r', 3).attr('fill', '#10b981')
+  svg.append('circle').attr('cx', x(last.d)).attr('cy', yConf(last.avg_confidence)).attr('r', 3).attr('fill', chart1)
+  svg.append('circle').attr('cx', x(last.d)).attr('cy', yCount(last.confirmed)).attr('r', 3).attr('fill', chart2)
 }
 
 watch(flywheelTrend, () => { nextTick(renderFlywheelChart) })
@@ -297,10 +336,10 @@ onMounted(async () => {
   loading.value = true
   await patternsStore.ensurePatternsLoaded()
   const [twinRes, healthRes, alignRes, maturityRes, trendRes] = await Promise.all([
-    get<CotProfile & Record<string, number>>('/claw/twin-snapshot'),
+    get<CotProfile>('/claw/twin-snapshot'),
     getMemoryHealthApi(),
     getAlignmentScoreApi(),
-    get<Record<string, any>>('/claw/twin-maturity'),
+    get<TwinMaturity>('/claw/twin-maturity'),
     getFlywheelTrendApi(),
   ])
   if (twinRes.data) cotProfile.value = twinRes.data
@@ -318,7 +357,7 @@ onMounted(async () => {
     <!-- Header: 核心叙事 -->
     <div class="flex items-end justify-between">
       <div>
-        <h1 class="text-2xl font-semibold">My AI Twin</h1>
+        <h1 class="text-2xl font-semibold heading-tight">My AI Twin</h1>
         <p class="text-sm text-gray-400 mt-0.5">AI 正在学习你的思维方式，而不只是记住你做过什么</p>
       </div>
       <div class="flex gap-2">
@@ -354,12 +393,20 @@ onMounted(async () => {
               :y2="getPoint(i, tasteDims.length, 1).y"
               stroke="#374151" stroke-width="1" />
             <!-- 数据区域 -->
-            <polygon v-if="cotProfile" :points="radarPolygon" fill="rgba(139,92,246,0.2)" stroke="#8b5cf6" stroke-width="2" stroke-linejoin="round" />
+            <polygon
+              v-if="cotProfile"
+              :points="radarPolygon"
+              fill="var(--color-chart-1)"
+              fill-opacity="0.22"
+              stroke="var(--color-chart-1)"
+              stroke-width="2"
+              stroke-linejoin="round"
+            />
             <!-- 数据点 -->
             <template v-if="cotProfile">
               <circle v-for="(dim, i) in tasteDims" :key="dim.key"
-                :cx="getPoint(i, tasteDims.length, ((cotProfile as any)[dim.key] ?? 0) / 100).x"
-                :cy="getPoint(i, tasteDims.length, ((cotProfile as any)[dim.key] ?? 0) / 100).y"
+                :cx="getPoint(i, tasteDims.length, tasteDimScore(cotProfile, dim.key) / 100).x"
+                :cy="getPoint(i, tasteDims.length, tasteDimScore(cotProfile, dim.key) / 100).y"
                 r="4" :fill="dim.color" />
             </template>
             <!-- 轴标签 -->
@@ -380,12 +427,12 @@ onMounted(async () => {
                   <span class="text-[11px] text-gray-300">{{ dim.label }}</span>
                 </div>
                 <span class="text-[11px] font-mono" :style="{ color: dim.color }">
-                  {{ cotProfile ? ((cotProfile as any)[dim.key] ?? 0) : 0 }}
+                  {{ tasteDimScore(cotProfile, dim.key) }}
                 </span>
               </div>
               <div class="h-1.5 bg-surface-3 rounded-full overflow-hidden">
                 <div class="h-full rounded-full transition-all duration-700"
-                  :style="{ width: cotProfile ? `${(cotProfile as any)[dim.key] ?? 0}%` : '0%', background: dim.color, opacity: '0.7' }" />
+                  :style="{ width: `${tasteDimScore(cotProfile, dim.key)}%`, background: dim.color, opacity: '0.7' }" />
               </div>
             </div>
           </div>
@@ -448,23 +495,23 @@ onMounted(async () => {
         </div>
 
     <!-- V8: 飞轮效应 -->
-        <div class="bg-surface-1 rounded-xl border border-surface-3 p-4">
-          <div class="flex items-center justify-between mb-2">
+        <div class="bg-surface-1 rounded-xl border border-surface-3 p-5">
+          <div class="flex flex-wrap items-end justify-between gap-3 mb-4">
             <div>
               <div class="text-sm font-medium text-gray-200">飞轮效应</div>
-              <p class="text-[10px] text-gray-500 mt-0.5">越用越准 — 置信度随时间增长</p>
+              <p class="text-[10px] text-gray-500 mt-1">越用越准 — 置信度随时间增长</p>
             </div>
-            <div class="flex items-center gap-3 text-[10px]">
-              <span class="flex items-center gap-1"><span class="w-3 h-0.5 bg-indigo-500 inline-block rounded" /> 置信度</span>
-              <span class="flex items-center gap-1"><span class="w-3 h-0.5 bg-emerald-500 inline-block rounded" /> 已确认</span>
-              <span class="flex items-center gap-1"><span class="w-3 h-0.5 bg-gray-400 inline-block rounded border-dashed" style="border-top:1px dashed #9ca3af;height:0" /> 总数</span>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] shrink-0">
+              <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 rounded bg-[var(--color-chart-1)] inline-block" /> 置信度</span>
+              <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 rounded bg-[var(--color-chart-2)] inline-block" /> 已确认</span>
+              <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 bg-gray-400 inline-block rounded border-dashed" style="border-top:1px dashed #9ca3af;height:0" /> 总数</span>
             </div>
           </div>
-          <div v-if="flywheelTrend.length >= 2" ref="flywheelChartRef" class="w-full" style="height:130px" />
-          <div v-else class="flex items-center justify-center h-20 text-[10px] text-gray-600">
+          <div v-if="flywheelTrend.length >= 2" ref="flywheelChartRef" class="w-full min-h-[148px]" style="height:148px" />
+          <div v-else class="flex items-center justify-center min-h-[5.5rem] py-4 text-[10px] text-gray-600">
             数据积累中，至少需要 2 天数据
           </div>
-          <div class="grid grid-cols-3 gap-2 text-center mt-2 pt-2 border-t border-surface-3">
+          <div class="grid grid-cols-3 gap-3 text-center mt-4 pt-4 border-t border-surface-3">
             <div>
               <div class="text-lg font-bold text-gray-200">{{ flywheelStats.total }}</div>
               <div class="text-[10px] text-gray-500">规范总数</div>
@@ -474,7 +521,7 @@ onMounted(async () => {
               <div class="text-[10px] text-gray-500">已确认</div>
             </div>
             <div>
-              <div class="text-lg font-bold text-indigo-400">{{ flywheelStats.avgConfidence }}<span class="text-xs">%</span></div>
+              <div class="text-lg font-bold text-[var(--color-chart-1)]">{{ flywheelStats.avgConfidence }}<span class="text-xs">%</span></div>
               <div class="text-[10px] text-gray-500">平均置信度</div>
             </div>
           </div>
@@ -684,7 +731,7 @@ onMounted(async () => {
       </div>
 
       <div v-if="beforeAfter && beforeAfter.comparisons.length === 0" class="text-center py-6">
-        <div class="text-xs text-gray-500">{{ (beforeAfter as any).message || '暂无对比数据' }}</div>
+        <div class="text-xs text-gray-500">{{ beforeAfter.message || '暂无对比数据' }}</div>
       </div>
     </div>
 

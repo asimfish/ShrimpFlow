@@ -588,6 +588,33 @@ def auto_confirm_patterns(db: Session) -> dict:
     }
 
 
+def get_taste_dashboard_stats(db: Session) -> dict:
+    profile = get_or_create_taste_profile(db)
+    history = _loads_json(profile.decision_history, [])
+    autonomous_count = 0
+    latest_auto_ts = None
+    task_trigger_counts: dict[str, int] = defaultdict(int)
+    if isinstance(history, list):
+        for entry in history:
+            if not isinstance(entry, dict):
+                continue
+            act = str(entry.get("action") or "").lower()
+            if act == "autonomous_executed":
+                autonomous_count += 1
+                ts = entry.get("ts")
+                if ts is not None:
+                    tsi = int(ts)
+                    if latest_auto_ts is None or tsi > latest_auto_ts:
+                        latest_auto_ts = tsi
+            elif act == "triggered" and entry.get("task_type") is not None:
+                task_trigger_counts[str(entry["task_type"])] += 1
+    return {
+        "autonomous_action_count": autonomous_count,
+        "latest_autonomous_ts": latest_auto_ts,
+        "task_trigger_counts": dict(task_trigger_counts),
+    }
+
+
 def serialize_taste_profile(profile: AgentTasteProfile) -> dict:
     history = _loads_json(profile.decision_history, [])
     return {

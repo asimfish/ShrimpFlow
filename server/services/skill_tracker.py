@@ -120,7 +120,15 @@ def _skill_payload(skill):
     }
 
 
-def track_skill_invocation(db, skill_name: str, invoke_type: str, combo_skills: list[str] = None):
+def track_skill_invocation(
+    db,
+    skill_name: str,
+    invoke_type: str,
+    combo_skills: list[str] = None,
+    session_id: int | None = None,
+    trigger_source: str | None = None,
+    outcome: str | None = None,
+):
     name = (skill_name or "").strip()
     if not name:
         raise ValueError("skill_name is required")
@@ -151,6 +159,18 @@ def track_skill_invocation(db, skill_name: str, invoke_type: str, combo_skills: 
     skill.workflow_roles = _dump_json_list(merged_roles)
 
     db.add(skill)
+
+    if session_id or trigger_source or outcome:
+        log = OpenClawInvocationLog(
+            session_id=session_id or 0,
+            selected_pattern_slugs=_dump_json_list(sequence),
+            trigger_source=trigger_source or normalized_type,
+            outcome=outcome or "success",
+            status="ok" if outcome in (None, "success") else outcome,
+            created_at=now,
+        )
+        db.add(log)
+
     db.commit()
     db.refresh(skill)
     return _skill_payload(skill)

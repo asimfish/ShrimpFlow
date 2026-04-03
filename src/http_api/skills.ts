@@ -5,9 +5,10 @@ import type {
   SkillRecommendation,
   SkillWorkflow,
   SkillWorkflowItem,
+  WorkflowStepDetail,
 } from '@/types'
 
-import { get, post } from './client'
+import { get, post, put } from './client'
 
 export type { SkillWorkflowItem }
 
@@ -19,6 +20,13 @@ type MinedWorkflowResponseRow = {
   success_rate: number
   source: string
   created_at: number
+  updated_at?: number
+  description?: string | null
+  trigger?: string | null
+  steps?: WorkflowStepDetail[]
+  status?: string
+  context_tags?: string[]
+  confirmed_by?: string | null
 }
 
 export const getSkillsApi = () => get<Skill[]>('/skills')
@@ -40,6 +48,13 @@ export const getMinedWorkflowsApi = async () => {
     success_rate: row.success_rate,
     source: row.source,
     created_at: row.created_at,
+    updated_at: row.updated_at,
+    description: row.description,
+    trigger: row.trigger,
+    steps: row.steps ?? [],
+    status: (row.status as SkillWorkflowItem['status']) ?? 'draft',
+    context_tags: row.context_tags ?? [],
+    confirmed_by: row.confirmed_by,
   }))
 
   return { data, error: null }
@@ -49,8 +64,15 @@ export const getSkillRecommendationsApi = () => get<SkillRecommendation[]>('/ski
 
 export const getSkillDiscoveryApi = () => get<SkillDiscoveryReport>('/skills/discovery')
 
-export const trackSkillApi = (name: string, invocation_type: string) =>
-  post<{ status: string }>('/skills/track', { name, invocation_type })
+export const trackSkillApi = (
+  name: string,
+  invocation_type: string,
+  options?: { session_id?: number; trigger_source?: string; outcome?: string },
+) =>
+  post<{ status: string }>('/skills/track', { name, invocation_type, ...options })
 
 export const recommendationFeedbackApi = (skill_name: string, action: 'useful' | 'dismiss') =>
   post<{ status: string }>('/skills/recommendations/feedback', { skill_name, action })
+
+export const updateWorkflowStatusApi = (workflowId: number, status: 'draft' | 'confirmed' | 'archived') =>
+  put<{ id: number; status: string }>(`/skills/workflows/${workflowId}/status`, { status })

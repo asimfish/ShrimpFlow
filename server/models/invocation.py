@@ -17,3 +17,5 @@ class OpenClawInvocationLog(Base):
     response_summary = Column(String)
     status = Column(String)
     created_at = Column(Integer)
+    trigger_source = Column(String, nullable=True)  # cot | manual | auto | scheduler
+    outcome = Column(String, nullable=True)  # success | fail | partial

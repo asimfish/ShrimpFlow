@@ -339,6 +339,18 @@ def ensure_runtime_schema() -> None:
             )
             """
         )
+        _sqlite_ensure_columns(conn, "skill_workflows", {
+            "description": "VARCHAR",
+            "trigger": "VARCHAR",
+            "steps": "VARCHAR",
+            "status": "VARCHAR DEFAULT 'draft'",
+            "context_tags": "VARCHAR",
+            "confirmed_by": "VARCHAR",
+        })
+        _sqlite_ensure_columns(conn, "openclaw_invocation_logs", {
+            "trigger_source": "VARCHAR",
+            "outcome": "VARCHAR",
+        })
 
 
 def get_db():

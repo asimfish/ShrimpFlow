@@ -61,13 +61,26 @@ export type SkillWorkflowItem = {
   success_rate: number
   source: string
   created_at: number
+  updated_at?: number
+  description?: string | null
+  trigger?: string | null
+  steps?: WorkflowStepDetail[]
+  status?: 'draft' | 'confirmed' | 'archived'
+  context_tags?: string[]
+  confirmed_by?: string | null
+}
+
+export type WorkflowStepDetail = {
+  action: string
+  tool?: string
+  checkpoint?: string
 }
 
 export type SkillRecommendation = {
   name: string
   category: string
   reason: string
-  type: 'advanced' | 'gap' | 'related'
+  type: 'advanced' | 'gap' | 'related' | 'workflow_co'
   confidence: number
 }
 

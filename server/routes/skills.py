@@ -110,6 +110,9 @@ class TrackSkillRequest(BaseModel):
     name: str
     invocation_type: str
     combo_skills: list[str] = Field(default_factory=list)
+    session_id: int | None = None
+    trigger_source: str | None = None
+    outcome: str | None = None
 
 
 @router.get("/skills/workflows")
@@ -145,6 +148,12 @@ def get_mined_skill_workflows(db: Session = Depends(get_db)):
             "matched_pattern_ids": _safe_json_list(r.matched_pattern_ids),
             "created_at": r.created_at,
             "updated_at": r.updated_at,
+            "description": r.description,
+            "trigger": r.trigger,
+            "steps": _safe_json_list(r.steps) if r.steps else [],
+            "status": r.status or "draft",
+            "context_tags": _safe_json_list(r.context_tags) if r.context_tags else [],
+            "confirmed_by": r.confirmed_by,
         }
         for r in rows
     ]
@@ -162,4 +171,26 @@ def track_skill(req: TrackSkillRequest, db: Session = Depends(get_db)):
         req.name.strip(),
         req.invocation_type.strip(),
         [item.strip() for item in req.combo_skills if item and item.strip()],
+        session_id=req.session_id,
+        trigger_source=req.trigger_source,
+        outcome=req.outcome,
     )
+
+
+class WorkflowStatusRequest(BaseModel):
+    status: str = Field(..., pattern=r"^(draft|confirmed|archived)$")
+
+
+@router.put("/skills/workflows/{workflow_id}/status")
+def update_workflow_status(workflow_id: int, req: WorkflowStatusRequest, db: Session = Depends(get_db)):
+    row = db.query(SkillWorkflow).filter(SkillWorkflow.id == workflow_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    import time
+    row.status = req.status
+    row.updated_at = int(time.time())
+    if req.status == "confirmed":
+        row.confirmed_by = "user"
+    db.add(row)
+    db.commit()
+    return {"id": row.id, "status": row.status}

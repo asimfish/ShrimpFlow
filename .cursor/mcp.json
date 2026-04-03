@@ -1,0 +1,364 @@
+{
+  "mcpServers": {
+    "spark-mcp-1": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "1",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-2": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "2",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-3": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "3",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-4": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "4",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-5": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "5",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-6": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "6",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-7": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "7",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-8": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "8",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-9": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "9",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-10": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "10",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-11": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "11",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-12": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "12",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-13": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "13",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-14": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "14",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-15": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "15",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-16": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "16",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-17": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "17",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-18": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "18",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-19": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "19",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-20": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "20",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-21": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "21",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-22": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "22",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-23": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "23",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-24": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "24",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-25": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "25",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-26": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "26",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-27": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "27",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-28": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "28",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-29": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "29",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    },
+    "spark-mcp-30": {
+      "command": "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)",
+      "args": [
+        "/Users/liyufeng/.cursor/extensions/sparkmcp.spark-mcp-1.5.3/mcp-server/index.mjs"
+      ],
+      "env": {
+        "SPARK_SESSION": "30",
+        "WORKSPACE_DIR": "/Users/liyufeng/Desktop/比赛/devtwin",
+        "PLATFORM_URL": "https://memory.whalent.com",
+        "PLATFORM_TOKEN": "tk-93tzq9qe5e6prs0uljmxbtwk6-418b994d"
+      }
+    }
+  }
+}

@@ -173,3 +173,78 @@ def summarize_all_draft_workflows(db: Session) -> list[dict]:
         if result:
             results.append(result)
     return results
+
+
+def trace_workflow_lineage(db: Session, workflow: SkillWorkflow) -> dict:
+    """Trace back which invocation logs and sessions contributed to this workflow."""
+    sequence = _load_json(workflow.skill_sequence)
+    if not sequence:
+        return {"invocations": [], "sessions": [], "coverage": {}}
+
+    context = _gather_workflow_context(db, sequence, limit=20)
+
+    session_ids = list({c["session_id"] for c in context if c.get("session_id")})
+    cot_count = sum(1 for c in context if c.get("trigger_source") == "cot")
+    total = len(context)
+
+    return {
+        "workflow_id": workflow.id,
+        "skill_sequence": sequence,
+        "invocations": context,
+        "sessions": session_ids,
+        "coverage": {
+            "total_invocations": total,
+            "cot_derived": cot_count,
+            "cot_ratio": round(cot_count / total, 3) if total else 0,
+            "unique_sessions": len(session_ids),
+        },
+    }
+
+
+def export_confirmed_workflows(db: Session) -> str:
+    """Export confirmed workflows as Markdown for injection into CLAUDE.md."""
+    rows = (
+        db.query(SkillWorkflow)
+        .filter(SkillWorkflow.status == "confirmed")
+        .order_by(SkillWorkflow.frequency.desc())
+        .all()
+    )
+    if not rows:
+        return "<!-- No confirmed workflows yet -->"
+
+    lines = ["## Skill Workflows", ""]
+    for wf in rows:
+        seq = _load_json(wf.skill_sequence)
+        lines.append(f"### {wf.name}")
+        if wf.description:
+            lines.append(f"_{wf.description}_")
+        lines.append("")
+        if wf.trigger:
+            lines.append(f"**触发**: {wf.trigger}")
+        lines.append(f"**序列**: {' → '.join(seq)}")
+        lines.append(f"**频次**: {wf.frequency}  **成功率**: {int((wf.success_rate or 0) * 100)}%")
+        steps = _load_json(wf.steps) if wf.steps else []
+        if steps:
+            lines.append("")
+            for i, step in enumerate(steps, 1):
+                action = step.get("action", "")
+                tool = step.get("tool", "")
+                cp = step.get("checkpoint", "")
+                line = f"{i}. {action}"
+                if tool:
+                    line += f" [{tool}]"
+                if cp:
+                    line += f" — ✓ {cp}"
+                lines.append(line)
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+def should_re_summarize(workflow: SkillWorkflow) -> bool:
+    """Check if a workflow needs re-summarization due to frequency change."""
+    if not workflow.description:
+        return True
+    if workflow.source != "ai_summarized":
+        return True
+    return False

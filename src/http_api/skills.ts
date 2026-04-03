@@ -82,3 +82,29 @@ export const summarizeWorkflowsApi = () =>
 
 export const summarizeWorkflowApi = (workflowId: number) =>
   post<SkillWorkflowItem>(`/skills/workflows/${workflowId}/summarize`, {})
+
+export type WorkflowTrace = {
+  workflow_id: number
+  skill_sequence: string[]
+  invocations: Array<{
+    log_id: number
+    session_id: number
+    trigger_source: string | null
+    outcome: string | null
+    session_summary: string | null
+    created_at: number | null
+  }>
+  sessions: number[]
+  coverage: {
+    total_invocations: number
+    cot_derived: number
+    cot_ratio: number
+    unique_sessions: number
+  }
+}
+
+export const getWorkflowTraceApi = (workflowId: number) =>
+  get<WorkflowTrace>(`/skills/workflows/${workflowId}/trace`)
+
+export const exportWorkflowsApi = () =>
+  get<string>('/skills/workflows/export')

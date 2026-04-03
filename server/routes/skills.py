@@ -16,7 +16,12 @@ from services.skill_recommender import (
 )
 from services.skill_discovery import get_discovery_report, import_skills_as_patterns
 from services.skill_tracker import mine_skill_workflows, get_skill_cot_stats, track_skill_invocation
-from services.workflow_summarizer import summarize_all_draft_workflows, summarize_single_workflow
+from services.workflow_summarizer import (
+    summarize_all_draft_workflows,
+    summarize_single_workflow,
+    trace_workflow_lineage,
+    export_confirmed_workflows,
+)
 
 router = APIRouter(tags=["skills"])
 
@@ -180,6 +185,21 @@ def single_summarize_workflow(workflow_id: int, db: Session = Depends(get_db)):
     if not result:
         raise HTTPException(status_code=500, detail="AI summarization failed")
     return result
+
+
+@router.get("/skills/workflows/{workflow_id}/trace")
+def get_workflow_trace(workflow_id: int, db: Session = Depends(get_db)):
+    row = db.query(SkillWorkflow).filter(SkillWorkflow.id == workflow_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    return trace_workflow_lineage(db, row)
+
+
+@router.get("/skills/workflows/export")
+def get_workflows_export(db: Session = Depends(get_db)):
+    from fastapi.responses import PlainTextResponse
+    markdown = export_confirmed_workflows(db)
+    return PlainTextResponse(content=markdown, media_type="text/markdown")
 
 
 @router.post("/skills/track")

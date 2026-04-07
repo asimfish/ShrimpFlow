@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { dayjs } from '@/libs/dayjs'
 
 interface TopPattern {
   id: number
@@ -20,6 +19,33 @@ interface Preview {
   top_patterns: TopPattern[]
 }
 
+interface MentorInfo {
+  key: string
+  name: string
+  repo: string
+  tagline: string
+  focus: string[]
+  cached: boolean
+}
+
+interface MentorPattern {
+  name: string
+  description: string
+  evidence: string[]
+  confidence: string
+  category: string
+}
+
+interface MentorResult {
+  key: string
+  name: string
+  tagline: string
+  repo: string
+  commits_analyzed: number
+  error: string
+  patterns: MentorPattern[]
+}
+
 const preview = ref<Preview | null>(null)
 const loading = ref(false)
 const exporting = ref(false)
@@ -33,6 +59,16 @@ const minConfidence = ref(30)
 const lifecycle = ref('active,warm')
 const includeBody = ref(true)
 const exportName = ref('me')
+
+// 向大牛学习
+const mentorCatalog = ref<MentorInfo[]>([])
+const selectedMentors = ref<Set<string>>(new Set(['yyx990803', 'antirez', 'sindresorhus']))
+const learnLoading = ref(false)
+const learnResults = ref<MentorResult[]>([])
+const learnError = ref('')
+const learnMd = ref('')
+const learnMdCopied = ref(false)
+const showLearnMd = ref(false)
 
 const fetchPreview = async () => {
   loading.value = true
@@ -109,7 +145,87 @@ const topCategories = computed(() => {
     .slice(0, 6)
 })
 
-onMounted(fetchPreview)
+const fetchMentorCatalog = async () => {
+  try {
+    const res = await fetch('/api/workprint/mentors')
+    if (res.ok) mentorCatalog.value = await res.json()
+  } catch {}
+}
+
+const toggleMentor = (key: string) => {
+  const s = new Set(selectedMentors.value)
+  if (s.has(key)) s.delete(key)
+  else s.add(key)
+  selectedMentors.value = s
+}
+
+const learnFromMentors = async () => {
+  if (selectedMentors.value.size === 0) return
+  learnLoading.value = true
+  learnError.value = ''
+  learnResults.value = []
+  showLearnMd.value = false
+  try {
+    const keys = [...selectedMentors.value].join(',')
+    const res = await fetch(`/api/workprint/learn-from?mentors=${keys}&max_commits=60`)
+    if (!res.ok) throw new Error(await res.text())
+    const data = await res.json()
+    learnResults.value = data.mentors
+  } catch (e: any) {
+    learnError.value = e.message
+  } finally {
+    learnLoading.value = false
+  }
+}
+
+const generateLearnSkillMd = async () => {
+  learnLoading.value = true
+  try {
+    const keys = [...selectedMentors.value].join(',')
+    const res = await fetch(`/api/workprint/learn-from/skill-md?mentors=${keys}&your_name=${exportName.value}`)
+    if (!res.ok) throw new Error(await res.text())
+    learnMd.value = await res.text()
+    showLearnMd.value = true
+  } catch (e: any) {
+    learnError.value = e.message
+  } finally {
+    learnLoading.value = false
+  }
+}
+
+const copyLearnMd = async () => {
+  await navigator.clipboard.writeText(learnMd.value)
+  learnMdCopied.value = true
+  setTimeout(() => { learnMdCopied.value = false }, 2000)
+}
+
+const downloadLearnMd = () => {
+  const blob = new Blob([learnMd.value], { type: 'text/markdown' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${exportName.value}_learned_from_giants.md`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+const confIcon = (level: string) => ({ high: '●', medium: '◑', low: '○' }[level] ?? '○')
+const confColor = (level: string) => {
+  if (level === 'high') return 'text-emerald-400'
+  if (level === 'medium') return 'text-amber-400'
+  return 'text-gray-500'
+}
+const categoryColor = (cat: string): string => ({
+  style: 'bg-violet-500/20 text-violet-300',
+  workflow: 'bg-cyan-500/20 text-cyan-300',
+  decision: 'bg-amber-500/20 text-amber-300',
+  tool: 'bg-emerald-500/20 text-emerald-300',
+} as Record<string, string>)[cat] ?? 'bg-gray-500/20 text-gray-400'
+
+onMounted(() => {
+  fetchPreview()
+  fetchMentorCatalog()
+})
 </script>
 
 <template>
@@ -315,6 +431,149 @@ onMounted(fetchPreview)
           </div>
         </div>
         <pre class="p-4 text-xs text-gray-300 font-mono overflow-x-auto max-h-[500px] overflow-y-auto leading-relaxed">{{ exportedMd }}</pre>
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- 向大牛学习 -->
+      <!-- ============================================================ -->
+      <div class="border-t border-[#252535] pt-6">
+        <div class="flex items-center gap-2 mb-1">
+          <svg class="w-5 h-5 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+          <h2 class="text-lg font-semibold text-white">向开源大牛学习</h2>
+        </div>
+        <p class="text-sm text-gray-400 mb-5">
+          分析顶尖开源工程师的真实 GitHub commit 行为，提取可学习的工作模式。
+          不是读他们写的书，而是看他们<strong class="text-gray-200">真正怎么做事</strong>。
+        </p>
+
+        <!-- 大牛选择器 -->
+        <div v-if="mentorCatalog.length" class="grid grid-cols-2 gap-2 mb-5">
+          <button
+            v-for="m in mentorCatalog"
+            :key="m.key"
+            class="flex items-start gap-3 p-3 rounded-lg border transition-all text-left"
+            :class="selectedMentors.has(m.key)
+              ? 'border-amber-500/50 bg-amber-500/[0.07]'
+              : 'border-[#252535] bg-[#12121a] hover:border-[#353545]'"
+            @click="toggleMentor(m.key)"
+          >
+            <div class="mt-0.5 w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors"
+              :class="selectedMentors.has(m.key) ? 'border-amber-400 bg-amber-400' : 'border-gray-600'">
+              <svg v-if="selectedMentors.has(m.key)" class="w-2.5 h-2.5 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </div>
+            <div class="min-w-0">
+              <div class="text-sm font-medium text-gray-200 truncate">{{ m.name }}</div>
+              <div class="text-[10px] text-gray-500 truncate">{{ m.repo }}</div>
+              <div class="flex flex-wrap gap-1 mt-1">
+                <span v-for="f in m.focus.slice(0, 3)" :key="f"
+                  class="text-[9px] px-1.5 py-0.5 bg-[#1e1e2e] text-gray-500 rounded-full">{{ f }}</span>
+              </div>
+            </div>
+          </button>
+        </div>
+        <div v-else class="text-sm text-gray-600 mb-5">加载大牛名录中…</div>
+
+        <!-- 操作按钮 -->
+        <div class="flex items-center gap-3 mb-5">
+          <button
+            class="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-sm rounded-lg transition-colors font-medium disabled:opacity-50"
+            :disabled="learnLoading || selectedMentors.size === 0"
+            @click="learnFromMentors"
+          >
+            <svg class="w-3.5 h-3.5" :class="learnLoading ? 'animate-spin' : ''" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+            {{ learnLoading ? '分析中（需要几秒）…' : `分析 ${selectedMentors.size} 位大牛` }}
+          </button>
+          <button
+            v-if="learnResults.length"
+            class="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm rounded-lg transition-colors font-medium"
+            @click="generateLearnSkillMd"
+          >
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+            </svg>
+            生成师承 SKILL.md
+          </button>
+        </div>
+
+        <div v-if="learnError" class="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-sm text-red-400 mb-4">
+          {{ learnError }}
+        </div>
+
+        <!-- 结果卡片 -->
+        <div v-if="learnResults.length" class="space-y-4">
+          <div
+            v-for="mentor in learnResults"
+            :key="mentor.key"
+            class="bg-[#12121a] border border-[#252535] rounded-xl overflow-hidden"
+          >
+            <!-- 大牛 header -->
+            <div class="flex items-start justify-between px-5 py-4 border-b border-[#1e1e2e]">
+              <div>
+                <div class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                  </svg>
+                  <span class="font-medium text-gray-100">{{ mentor.name }}</span>
+                  <span v-if="mentor.error" class="text-xs text-red-400">— {{ mentor.error }}</span>
+                </div>
+                <div class="text-xs text-gray-500 mt-0.5 italic">{{ mentor.tagline }}</div>
+              </div>
+              <div class="text-right shrink-0 ml-4">
+                <div class="text-sm font-mono text-amber-400">{{ mentor.commits_analyzed }}</div>
+                <div class="text-[10px] text-gray-600">commits 分析</div>
+                <a :href="`https://github.com/${mentor.repo}`" target="_blank"
+                  class="text-[10px] text-violet-400 hover:underline">{{ mentor.repo }}</a>
+              </div>
+            </div>
+
+            <!-- 挖掘到的模式 -->
+            <div v-if="mentor.patterns.length" class="divide-y divide-[#1e1e2e]">
+              <div v-for="p in mentor.patterns" :key="p.name" class="px-5 py-3">
+                <div class="flex items-start gap-2 mb-1">
+                  <span :class="confColor(p.confidence)" class="text-xs font-mono mt-0.5 shrink-0">{{ confIcon(p.confidence) }}</span>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <span class="text-sm text-gray-200">{{ p.name }}</span>
+                      <span class="text-[10px] px-1.5 py-0.5 rounded-full" :class="categoryColor(p.category)">{{ p.category }}</span>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1 leading-relaxed">{{ p.description }}</p>
+                    <div v-if="p.evidence.length" class="mt-2 space-y-1">
+                      <div v-for="ev in p.evidence.slice(0, 3)" :key="ev"
+                        class="text-[10px] font-mono text-gray-500 bg-[#0e0e18] px-2 py-1 rounded truncate">
+                        {{ ev }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else-if="!mentor.error" class="px-5 py-4 text-xs text-gray-600">
+              未能提取到有效模式（可能是 GitHub API 限速，请稍后再试）
+            </div>
+          </div>
+        </div>
+
+        <!-- 师承 SKILL.md 预览 -->
+        <div v-if="showLearnMd && learnMd" class="mt-4 bg-[#0e0e18] border border-[#252535] rounded-xl overflow-hidden">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-[#252535]">
+            <span class="text-sm text-gray-300 font-mono">{{ exportName }}_learned_from_giants.md</span>
+            <div class="flex items-center gap-2">
+              <button class="flex items-center gap-1.5 px-3 py-1 text-xs text-gray-400 hover:text-gray-200 border border-[#252535] rounded-md" @click="copyLearnMd">
+                {{ learnMdCopied ? '已复制' : '复制' }}
+              </button>
+              <button class="flex items-center gap-1.5 px-3 py-1 text-xs bg-violet-600 hover:bg-violet-500 text-white rounded-md" @click="downloadLearnMd">
+                下载
+              </button>
+            </div>
+          </div>
+          <pre class="p-4 text-xs text-gray-300 font-mono overflow-x-auto max-h-[400px] overflow-y-auto leading-relaxed">{{ learnMd }}</pre>
+        </div>
       </div>
 
       <!-- 使用说明 -->

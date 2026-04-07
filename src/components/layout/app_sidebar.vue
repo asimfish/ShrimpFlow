@@ -16,6 +16,7 @@ const navItems = [
   { path: '/skills', label: '技能图谱', icon: 'zap' },
   { path: '/twin', label: 'My AI Twin', icon: 'twin' },
   { path: '/patterns', label: '行为模式', icon: 'brain' },
+  { path: '/workprint', label: 'Workprint', icon: 'workprint' },
   { path: '/memory', label: '记忆系统', icon: 'database' },
   { path: '/community', label: '社区', icon: 'globe' },
   { path: '/architecture', label: '架构', icon: 'layers' },
@@ -133,6 +134,9 @@ const realtimeLabel = computed(() => {
           </template>
           <template v-if="item.icon === 'layers'">
             <polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" />
+          </template>
+          <template v-if="item.icon === 'workprint'">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
           </template>
         </svg>
         {{ item.label }}

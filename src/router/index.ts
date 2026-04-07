@@ -92,6 +92,12 @@ export const router = createRouter({
       component: () => import('@/pages/profile/profile_page.vue'),
     },
     {
+      path: '/workprint',
+      name: 'workprint',
+      meta: { keepAlive: true },
+      component: () => import('@/pages/workprint/workprint_page.vue'),
+    },
+    {
       path: '/architecture',
       component: () => import('@/pages/architecture/architecture_page.vue'),
     },

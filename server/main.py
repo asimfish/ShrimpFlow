@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from db import engine, Base, ensure_runtime_schema
-from routes import agent_taste, events, skills, patterns, openclaw, digest, community, stats, collector, search, profiles, settings, episodes, tasks, claw_gen, meta_agent
+from routes import agent_taste, events, skills, patterns, openclaw, digest, community, stats, collector, search, profiles, settings, episodes, tasks, claw_gen, meta_agent, workprint
 
 app = FastAPI(title="ShrimpFlow API", version="0.1.0")
 
@@ -33,6 +33,7 @@ app.include_router(agent_taste.router, prefix="/api")
 app.include_router(tasks.router, prefix="/api")
 app.include_router(claw_gen.router, prefix="/api")
 app.include_router(meta_agent.router, prefix="/api")
+app.include_router(workprint.router, prefix="/api")
 
 
 @app.on_event("startup")

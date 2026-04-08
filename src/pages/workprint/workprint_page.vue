@@ -25,6 +25,7 @@ interface MentorInfo {
   repo: string
   tagline: string
   focus: string[]
+  domain: string
   cached: boolean
 }
 
@@ -140,6 +141,16 @@ const lifecycleColor = (state: string) => {
   return 'bg-gray-500/20 text-gray-400'
 }
 
+const mentorsByDomain = computed(() => {
+  const groups: Record<string, MentorInfo[]> = {}
+  for (const m of mentorCatalog.value) {
+    const d = m.domain || '其他'
+    if (!groups[d]) groups[d] = []
+    groups[d].push(m)
+  }
+  return groups
+})
+
 const topCategories = computed(() => {
   if (!preview.value) return []
   return Object.entries(preview.value.by_category)
@@ -159,6 +170,14 @@ const toggleMentor = (key: string) => {
   if (s.has(key)) s.delete(key)
   else s.add(key)
   selectedMentors.value = s
+}
+
+const selectAllMentors = () => {
+  selectedMentors.value = new Set(mentorCatalog.value.map(m => m.key))
+}
+
+const clearMentors = () => {
+  selectedMentors.value = new Set()
 }
 
 const learnFromMentors = async () => {
@@ -454,32 +473,47 @@ onMounted(() => {
           不是读他们写的书，而是看他们<strong class="text-gray-200">真正怎么做事</strong>。
         </p>
 
-        <!-- 大牛选择器 -->
-        <div v-if="mentorCatalog.length" class="grid grid-cols-2 gap-2 mb-5">
-          <button
-            v-for="m in mentorCatalog"
-            :key="m.key"
-            class="flex items-start gap-3 p-3 rounded-lg border transition-all text-left"
-            :class="selectedMentors.has(m.key)
-              ? 'border-amber-500/50 bg-amber-500/[0.07]'
-              : 'border-[#252535] bg-[#12121a] hover:border-[#353545]'"
-            @click="toggleMentor(m.key)"
-          >
-            <div class="mt-0.5 w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors"
-              :class="selectedMentors.has(m.key) ? 'border-amber-400 bg-amber-400' : 'border-gray-600'">
-              <svg v-if="selectedMentors.has(m.key)" class="w-2.5 h-2.5 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
+        <!-- 大牛选择器（按领域分组） -->
+        <div v-if="mentorCatalog.length" class="space-y-4 mb-5">
+          <!-- 全选/全不选 -->
+          <div class="flex items-center gap-3">
+            <button class="text-xs text-amber-400 hover:underline" @click="selectAllMentors">全选</button>
+            <button class="text-xs text-gray-500 hover:underline" @click="clearMentors">清空</button>
+            <span class="text-xs text-gray-600">已选 {{ selectedMentors.size }} / {{ mentorCatalog.length }} 位</span>
+          </div>
+
+          <div v-for="(members, domain) in mentorsByDomain" :key="domain">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-[10px] font-medium text-gray-500 uppercase tracking-wider">{{ domain }}</span>
+              <div class="flex-1 h-px bg-[#252535]"/>
             </div>
-            <div class="min-w-0">
-              <div class="text-sm font-medium text-gray-200 truncate">{{ m.name }}</div>
-              <div class="text-[10px] text-gray-500 truncate">{{ m.repo }}</div>
-              <div class="flex flex-wrap gap-1 mt-1">
-                <span v-for="f in m.focus.slice(0, 3)" :key="f"
-                  class="text-[9px] px-1.5 py-0.5 bg-[#1e1e2e] text-gray-500 rounded-full">{{ f }}</span>
-              </div>
+            <div class="grid grid-cols-2 gap-2">
+              <button
+                v-for="m in members"
+                :key="m.key"
+                class="flex items-start gap-3 p-3 rounded-lg border transition-all text-left"
+                :class="selectedMentors.has(m.key)
+                  ? 'border-amber-500/50 bg-amber-500/[0.07]'
+                  : 'border-[#252535] bg-[#12121a] hover:border-[#353545]'"
+                @click="toggleMentor(m.key)"
+              >
+                <div class="mt-0.5 w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors"
+                  :class="selectedMentors.has(m.key) ? 'border-amber-400 bg-amber-400' : 'border-gray-600'">
+                  <svg v-if="selectedMentors.has(m.key)" class="w-2.5 h-2.5 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </div>
+                <div class="min-w-0">
+                  <div class="text-sm font-medium text-gray-200 truncate">{{ m.name }}</div>
+                  <div class="text-[10px] text-gray-500 truncate">{{ m.repo }}</div>
+                  <div class="flex flex-wrap gap-1 mt-1">
+                    <span v-for="f in m.focus.slice(0, 3)" :key="f"
+                      class="text-[9px] px-1.5 py-0.5 bg-[#1e1e2e] text-gray-500 rounded-full">{{ f }}</span>
+                  </div>
+                </div>
+              </button>
             </div>
-          </button>
+          </div>
         </div>
         <div v-else class="text-sm text-gray-600 mb-5">加载大牛名录中…</div>
 

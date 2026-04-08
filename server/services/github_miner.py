@@ -20,12 +20,14 @@ from dataclasses import dataclass, field
 # ---------------------------------------------------------------------------
 
 MENTOR_CATALOG: dict[str, dict] = {
+    # ── 系统/基础设施 ─────────────────────────────────────────────────────
     "torvalds": {
         "name": "Linus Torvalds",
         "repo": "torvalds/linux",
         "github_login": "torvalds",
         "tagline": "Linux 内核创始人 — 极度简洁、直接、不妥协的工程哲学",
         "focus": ["kernel", "C", "os"],
+        "domain": "系统工程",
     },
     "antirez": {
         "name": "Salvatore Sanfilippo (antirez)",
@@ -33,48 +35,7 @@ MENTOR_CATALOG: dict[str, dict] = {
         "github_login": "antirez",
         "tagline": "Redis 作者 — 追求极致简洁、拒绝过度工程",
         "focus": ["redis", "C", "database"],
-    },
-    "gvanrossum": {
-        "name": "Guido van Rossum",
-        "repo": "python/cpython",
-        "github_login": "gvanrossum",
-        "tagline": "Python 之父 — 可读性优先，明确优于隐晦",
-        "focus": ["python", "language-design"],
-    },
-    "dhh": {
-        "name": "David Heinemeier Hansson (DHH)",
-        "repo": "rails/rails",
-        "github_login": "dhh",
-        "tagline": "Ruby on Rails 作者 — 约定优于配置，开发者幸福感优先",
-        "focus": ["rails", "ruby", "web"],
-    },
-    "yyx990803": {
-        "name": "Evan You",
-        "repo": "vuejs/core",
-        "github_login": "yyx990803",
-        "tagline": "Vue.js 作者 — 渐进式设计，开发体验与性能并重",
-        "focus": ["vue", "javascript", "frontend"],
-    },
-    "tj": {
-        "name": "TJ Holowaychuk",
-        "repo": "expressjs/express",
-        "github_login": "tj",
-        "tagline": "Express/Koa 作者 — 极简主义，小而美",
-        "focus": ["node", "javascript", "minimalism"],
-    },
-    "sindresorhus": {
-        "name": "Sindre Sorhus",
-        "repo": "sindresorhus/got",
-        "github_login": "sindresorhus",
-        "tagline": "npm 之王 — 单一职责，模块化极致，TypeScript-first",
-        "focus": ["npm", "typescript", "open-source"],
-    },
-    "jaredpalmer": {
-        "name": "Jared Palmer",
-        "repo": "jaredpalmer/formik",
-        "github_login": "jaredpalmer",
-        "tagline": "Formik/Turborepo 作者 — DX 优先，工具链思维",
-        "focus": ["react", "typescript", "dx"],
+        "domain": "数据库",
     },
     "mitchellh": {
         "name": "Mitchell Hashimoto",
@@ -82,6 +43,58 @@ MENTOR_CATALOG: dict[str, dict] = {
         "github_login": "mitchellh",
         "tagline": "HashiCorp 创始人 — 基础设施即代码，长期主义",
         "focus": ["go", "infrastructure", "devops"],
+        "domain": "基础设施",
+    },
+    # ── 编程语言 ──────────────────────────────────────────────────────────
+    "gvanrossum": {
+        "name": "Guido van Rossum",
+        "repo": "python/cpython",
+        "github_login": "gvanrossum",
+        "tagline": "Python 之父 — 可读性优先，明确优于隐晦",
+        "focus": ["python", "language-design"],
+        "domain": "编程语言",
+    },
+    # ── Web 框架 ──────────────────────────────────────────────────────────
+    "dhh": {
+        "name": "David Heinemeier Hansson (DHH)",
+        "repo": "rails/rails",
+        "github_login": "dhh",
+        "tagline": "Ruby on Rails 作者 — 约定优于配置，开发者幸福感优先",
+        "focus": ["rails", "ruby", "web"],
+        "domain": "Web 框架",
+    },
+    "yyx990803": {
+        "name": "Evan You",
+        "repo": "vuejs/core",
+        "github_login": "yyx990803",
+        "tagline": "Vue.js 作者 — 渐进式设计，开发体验与性能并重",
+        "focus": ["vue", "javascript", "frontend"],
+        "domain": "前端框架",
+    },
+    "tj": {
+        "name": "TJ Holowaychuk",
+        "repo": "expressjs/express",
+        "github_login": "tj",
+        "tagline": "Express/Koa 作者 — 极简主义，小而美",
+        "focus": ["node", "javascript", "minimalism"],
+        "domain": "Web 框架",
+    },
+    # ── 工具链/生态 ───────────────────────────────────────────────────────
+    "sindresorhus": {
+        "name": "Sindre Sorhus",
+        "repo": "sindresorhus/got",
+        "github_login": "sindresorhus",
+        "tagline": "npm 之王 — 单一职责，模块化极致，TypeScript-first",
+        "focus": ["npm", "typescript", "open-source"],
+        "domain": "开源工具",
+    },
+    "jaredpalmer": {
+        "name": "Jared Palmer",
+        "repo": "jaredpalmer/formik",
+        "github_login": "jaredpalmer",
+        "tagline": "Formik/Turborepo 作者 — DX 优先，工具链思维",
+        "focus": ["react", "typescript", "dx"],
+        "domain": "开发工具",
     },
     "dan_abramov": {
         "name": "Dan Abramov",
@@ -89,6 +102,72 @@ MENTOR_CATALOG: dict[str, dict] = {
         "github_login": "gaearon",
         "tagline": "Redux/React Hooks 作者 — 教育优先，每个 commit 都是教程",
         "focus": ["react", "javascript", "open-source"],
+        "domain": "前端框架",
+    },
+    # ── AI / ML ───────────────────────────────────────────────────────────
+    "karpathy": {
+        "name": "Andrej Karpathy",
+        "repo": "karpathy/nanoGPT",
+        "github_login": "karpathy",
+        "tagline": "前 OpenAI/Tesla AI 负责人 — 极简实现，教学即代码",
+        "focus": ["AI", "LLM", "education", "python"],
+        "domain": "AI 教育",
+    },
+    "geohot": {
+        "name": "George Hotz (geohot)",
+        "repo": "tinygrad/tinygrad",
+        "github_login": "geohot",
+        "tagline": "tinygrad 作者 — 极速迭代，用最少代码挑战巨头",
+        "focus": ["AI", "ML-framework", "hacking", "python"],
+        "domain": "AI 框架",
+    },
+    "fchollet": {
+        "name": "François Chollet",
+        "repo": "keras-team/keras",
+        "github_login": "fchollet",
+        "tagline": "Keras 作者 — 用户友好的 API 设计，AI 民主化先驱",
+        "focus": ["AI", "keras", "python", "api-design"],
+        "domain": "AI 框架",
+    },
+    "rasbt": {
+        "name": "Sebastian Raschka",
+        "repo": "rasbt/LLMs-from-scratch",
+        "github_login": "rasbt",
+        "tagline": "《从零构建LLM》作者 — 教育优先，代码即教材",
+        "focus": ["AI", "LLM", "education", "python"],
+        "domain": "AI 教育",
+    },
+    "lucidrains": {
+        "name": "Phil Wang (lucidrains)",
+        "repo": "lucidrains/denoising-diffusion-pytorch",
+        "github_login": "lucidrains",
+        "tagline": "ML 论文复现之王 — 最快将论文变成可用代码",
+        "focus": ["AI", "diffusion", "pytorch", "open-source"],
+        "domain": "AI 研究复现",
+    },
+    "simonw": {
+        "name": "Simon Willison",
+        "repo": "simonw/llm",
+        "github_login": "simonw",
+        "tagline": "Datasette/LLM CLI 作者 — AI 工具化先锋，写作与代码并重",
+        "focus": ["AI", "python", "cli", "blogging"],
+        "domain": "AI 工具",
+    },
+    "thomwolf": {
+        "name": "Thomas Wolf",
+        "repo": "huggingface/transformers",
+        "github_login": "thomwolf",
+        "tagline": "HuggingFace CTO — 开放 AI 生态建设者",
+        "focus": ["AI", "transformers", "python", "open-source"],
+        "domain": "AI 生态",
+    },
+    "jph00": {
+        "name": "Jeremy Howard",
+        "repo": "fastai/fastai",
+        "github_login": "jph00",
+        "tagline": "fast.ai 创始人 — 实用主义 AI 教育，顶向下学习法",
+        "focus": ["AI", "fastai", "python", "education"],
+        "domain": "AI 教育",
     },
 }
 
@@ -438,6 +517,284 @@ def _build_prefetch() -> dict[str, "MentorInsight"]:
                   ["`feat: improve TypeScript inference for field arrays`",
                    "`docs: add more examples for validation`"],
                   cat="decision"),
+            ],
+        ),
+        # ── AI / ML 大牛 ──────────────────────────────────────────────────
+        "karpathy": MentorInsight(
+            mentor_key="karpathy", mentor_name="Andrej Karpathy",
+            mentor_tagline="前 OpenAI/Tesla AI 负责人 — 极简实现，教学即代码",
+            repo="karpathy/nanoGPT", commits_analyzed=0,
+            error="[预置数据] GitHub API 限速，展示基于历史分析的预置模式",
+            patterns=[
+                p("初始大爆炸式发布",
+                  "项目通常以一个大型初始 commit 发布完整实现，"
+                  "之后再做增量精简。如 nanoGPT 的 `initial_release`、"
+                  "micrograd 的 `initial commit`。"
+                  "先让代码完整跑通，再考虑拆分。",
+                  ["`initial_release`", "`initial commit`",
+                   "`first commit, training gpt on shakespeare`"],
+                  conf="high", cat="workflow"),
+                p("commit 消息极简，代码自解释",
+                  "消息往往只有 2-5 个词：`clean up`、`add comments`、`small fix`。"
+                  "认为代码本身就是最好的文档，README 比 commit message 重要得多。",
+                  ["`clean up`", "`add comments`", "`small fix`",
+                   "`update readme`", "`few fixes`"],
+                  conf="high", cat="style"),
+                p("教育性 README 远比代码注释重要",
+                  "nanoGPT/micrograd 的 README 堪称教科书，"
+                  "大量 commit 专门改善文档和注释的教育价值。"
+                  "代码是载体，教育是目的。",
+                  ["`update readme`", "`add detailed comments to attention`",
+                   "`improve readme with diagram`"],
+                  conf="high", cat="decision"),
+                p("不追求工程完美，追求概念清晰",
+                  "刻意避免过度抽象，用最直白的方式实现。"
+                  "nanoGPT 不到 300 行实现完整 GPT，"
+                  "宁可有重复代码，也不引入让初学者困惑的抽象层。",
+                  [], conf="high", cat="decision"),
+            ],
+        ),
+        "geohot": MentorInsight(
+            mentor_key="geohot", mentor_name="George Hotz (geohot)",
+            mentor_tagline="tinygrad 作者 — 极速迭代，用最少代码挑战巨头",
+            repo="tinygrad/tinygrad", commits_analyzed=0,
+            error="[预置数据] GitHub API 限速，展示基于历史分析的预置模式",
+            patterns=[
+                p("极高频率的小 commit，随性风格",
+                  "每天数十个 commit，消息极度随意：`lol`、`it works`、"
+                  "`cleanup`、`wtf`、`oops`。"
+                  "速度远大于规范，想到就提交。",
+                  ["`lol`", "`it works`", "`cleanup`", "`wtf`",
+                   "`oops, fix bug`", "`more cleanup`"],
+                  conf="high", cat="style"),
+                p("激进的代码删除哲学",
+                  "tinygrad 的核心指标是代码行数，越少越好。"
+                  "大量 commit 专门用于删代码：`remove X`、`simplify Y`、`clean up Z`。"
+                  "好代码是不存在的代码。",
+                  ["`remove dead code`", "`simplify ops`",
+                   "`we don't need this`", "`delete unnecessary abstraction`"],
+                  conf="high", cat="decision"),
+                p("直接修 production，边跑边改",
+                  "不存在 feature branch，直接在 main 上迭代。"
+                  "错了就再 commit 修，`revert`、`fix the fix`、`oops` 屡见不鲜。"
+                  "速度是第一生产力。",
+                  ["`fix the fix`", "`revert that`", "`oops`",
+                   "`actually this works better`"],
+                  conf="high", cat="workflow"),
+                p("竞争性驱动 — 以打败 CUDA 为目标",
+                  "commit 里经常出现 benchmark 数字对比。"
+                  "每次性能提升都会记录和庆祝。"
+                  "工程决策以能否打败现有方案为第一标准。",
+                  ["`faster than pytorch on this benchmark`",
+                   "`2x speedup on matmul`"],
+                  conf="medium", cat="decision"),
+            ],
+        ),
+        "fchollet": MentorInsight(
+            mentor_key="fchollet", mentor_name="François Chollet",
+            mentor_tagline="Keras 作者 — 用户友好的 API 设计，AI 民主化先驱",
+            repo="keras-team/keras", commits_analyzed=0,
+            error="[预置数据] GitHub API 限速，展示基于历史分析的预置模式",
+            patterns=[
+                p("API 可用性优先于实现效率",
+                  "commit 消息频繁出现 `improve UX`、`better error message`、"
+                  "`simplify API`。"
+                  "Keras 的核心哲学：API 的清晰度比运行速度更重要。",
+                  ["`improve error message for invalid input shape`",
+                   "`simplify layer API`", "`better UX for model.fit`"],
+                  conf="high", cat="decision"),
+                p("标准规范的 commit 消息",
+                  "平均 55 字符，动词开头，格式统一。"
+                  "如 `Add support for X`、`Fix bug in Y`、`Update Z documentation`。"
+                  "专业、可读、不随意。",
+                  ["`Add support for mixed precision training`",
+                   "`Fix issue with batch normalization in inference mode`",
+                   "`Update documentation for custom layers`"],
+                  conf="high", cat="style"),
+                p("大量文档和示例 commit",
+                  "docs 类 commit 占 25%+，为每个新功能配套写示例。"
+                  "好的 API 需要好的文档，文档是产品的一部分。",
+                  ["`Add notebook example for text classification`",
+                   "`Update getting started guide`"],
+                  conf="high", cat="decision"),
+                p("兼容性保证是硬约束",
+                  "breaking change 必须在 commit 消息里显式标注。"
+                  "`BREAKING CHANGE:`、`deprecated:`、`Migration guide:`"
+                  "出现频率远高于其他框架。用户稳定性 > 代码优雅性。",
+                  ["`BREAKING CHANGE: rename layer argument`",
+                   "`Deprecate old-style model saving format`"],
+                  conf="medium", cat="decision"),
+            ],
+        ),
+        "rasbt": MentorInsight(
+            mentor_key="rasbt", mentor_name="Sebastian Raschka",
+            mentor_tagline="《从零构建LLM》作者 — 教育优先，代码即教材",
+            repo="rasbt/LLMs-from-scratch", commits_analyzed=0,
+            error="[预置数据] GitHub API 限速，展示基于历史分析的预置模式",
+            patterns=[
+                p("章节驱动的 commit 结构",
+                  "commit 消息对应书籍章节：`ch01`、`ch05`、`appendix-A`。"
+                  "代码库即教材，每个 commit 对应学习进度中的一步。",
+                  ["`ch01: add initial notebook`",
+                   "`ch05: add GPT-2 weight loading`",
+                   "`appendix-A: add exercise solutions`"],
+                  conf="high", cat="style"),
+                p("大量 notebook 和说明性 commit",
+                  "70%+ 的 commit 涉及 Jupyter notebook 或 README 更新。"
+                  "代码只是载体，理解才是目标。"
+                  "每个概念都有对应的可运行示例。",
+                  ["`add notebook for attention mechanism`",
+                   "`update README with chapter overview`"],
+                  conf="high", cat="decision"),
+                p("勘误和精确性 commit 频繁",
+                  "有专门的 `fix typo`、`fix explanation`、`clarify`、`correct` 系列 commit。"
+                  "教育内容要求零错误，发现立即修正，不积压。",
+                  ["`fix typo in ch03 notebook`",
+                   "`clarify explanation of self-attention`",
+                   "`correct formula in equation 4.1`"],
+                  conf="high", cat="workflow"),
+                p("读者反馈驱动迭代",
+                  "commit 里经常提到 `based on reader feedback`、`address issue from`。"
+                  "把 GitHub Issues 当作改进教材的信号，快速响应学习者困惑。",
+                  ["`add clarification based on reader questions`",
+                   "`address confusion raised in issue #42`"],
+                  conf="medium", cat="decision"),
+            ],
+        ),
+        "lucidrains": MentorInsight(
+            mentor_key="lucidrains", mentor_name="Phil Wang (lucidrains)",
+            mentor_tagline="ML 论文复现之王 — 最快将论文变成可用代码",
+            repo="lucidrains/denoising-diffusion-pytorch", commits_analyzed=0,
+            error="[预置数据] GitHub API 限速，展示基于历史分析的预置模式",
+            patterns=[
+                p("论文名/方法名直接作为 commit 消息",
+                  "commit 消息直接是方法或论文名：`add flash attention`、"
+                  "`add classifier free guidance`、`add DDIM sampling`。"
+                  "代码就是论文的实现，消息就是论文的标题。",
+                  ["`add flash attention`", "`add classifier free guidance`",
+                   "`add DDIM sampling`", "`add cross attention conditioning`"],
+                  conf="high", cat="style"),
+                p("极高发布频率，单人维护 100+ 仓库",
+                  "平均每周在多个仓库各有数十个 commit。"
+                  "不追求完美，先实现核心思路，后续再精化。"
+                  "数量和速度是他的护城河。",
+                  [], conf="high", cat="workflow"),
+                p("持续添加论文变体，不重写只扩展",
+                  "同一仓库里会持续添加同类方法的不同变体。"
+                  "如 `add X variant`、`add improved version from paper`。"
+                  "一个仓库演化成该领域的完整参考实现集合。",
+                  ["`add improved denoising from paper`",
+                   "`add variant as described in appendix`"],
+                  conf="high", cat="decision"),
+                p("感谢贡献者的 commit",
+                  "频繁出现 `thanks to @xxx`、`from @xxx`。"
+                  "开放接受社区 PR，把贡献者的名字写进 commit 历史。",
+                  ["`add rotary embeddings, thanks to @lucidrains`",
+                   "`improvements from @contributor`"],
+                  conf="medium", cat="style"),
+            ],
+        ),
+        "simonw": MentorInsight(
+            mentor_key="simonw", mentor_name="Simon Willison",
+            mentor_tagline="Datasette/LLM CLI 作者 — AI 工具化先锋，写作与代码并重",
+            repo="simonw/llm", commits_analyzed=0,
+            error="[预置数据] GitHub API 限速，展示基于历史分析的预置模式",
+            patterns=[
+                p("Issue 驱动，每个 commit 关联 issue",
+                  "几乎每个 commit 末尾都有 `refs #NNN` 或 `closes #NNN`。"
+                  "先开 issue 讨论，再写代码，commit 关闭 issue。"
+                  "代码库是问题空间的解决历史。",
+                  ["`Add --system option, refs #45`",
+                   "`Fix streaming output, closes #123`",
+                   "`Implement plugin system, refs #89`"],
+                  conf="high", cat="workflow"),
+                p("changelog 即 commit history",
+                  "commit 消息写得极其规范，可以直接用于生成 changelog。"
+                  "每个功能 commit 都能让用户看懂发生了什么变化。"
+                  "用户是第一读者，不是开发者。",
+                  ["`Add support for OpenAI function calling`",
+                   "`New: --format option for JSON output`",
+                   "`Plugin: add llm-claude-3 integration`"],
+                  conf="high", cat="style"),
+                p("博客文章驱动开发",
+                  "很多功能的 commit 时间与他的博客文章同步。"
+                  "先写文章想清楚要做什么，再写代码实现，"
+                  "commit 和博文互相印证。",
+                  [], conf="medium", cat="decision"),
+                p("插件生态优先于核心功能膨胀",
+                  "大量 commit 是为 llm 工具添加插件接口或改善插件 API。"
+                  "核心保持小而美，扩展性通过插件实现，"
+                  "避免 core 变成大杂烩。",
+                  ["`Improve plugin API`", "`Add hooks for plugin authors`"],
+                  conf="high", cat="decision"),
+            ],
+        ),
+        "thomwolf": MentorInsight(
+            mentor_key="thomwolf", mentor_name="Thomas Wolf",
+            mentor_tagline="HuggingFace CTO — 开放 AI 生态建设者",
+            repo="huggingface/transformers", commits_analyzed=0,
+            error="[预置数据] GitHub API 限速，展示基于历史分析的预置模式",
+            patterns=[
+                p("新模型/论文上线即 commit",
+                  "每次重要论文发布，transformers 库的对应实现 commit 往往在几天内出现。"
+                  "如 `Add BERT`、`Add GPT-2`、`Add T5`。"
+                  "速度是 HuggingFace 保持生态位的核心武器。",
+                  ["`Add BERT model`", "`Add GPT-2 implementation`",
+                   "`Add T5 model and tokenizer`"],
+                  conf="high", cat="decision"),
+                p("统一 API 标准的持续推进",
+                  "大量 commit 专门做 API 统一化：`unified API`、`consistent interface`。"
+                  "不同模型应该有相同的调用方式，降低用户切换成本。",
+                  ["`Unify model API across architectures`",
+                   "`Add consistent generate() interface`"],
+                  conf="high", cat="decision"),
+                p("社区 PR 快速合并",
+                  "transformers 仓库有大量 `Merge PR`、`from @contributor` 类 commit。"
+                  "HuggingFace 模式：核心团队定方向，社区贡献具体实现，"
+                  "维护者快速 review 合并。",
+                  ["`Merge PR: Add LLaMA support`",
+                   "`Add Mixtral from community contribution`"],
+                  conf="high", cat="workflow"),
+                p("文档和模型卡片同步更新",
+                  "每个模型实现 commit 几乎都配套文档更新。"
+                  "model card 是 AI 生态的关键基础设施，"
+                  "让用户知道模型能做什么、有什么限制。",
+                  ["`Add documentation for new model`",
+                   "`Update model card for BERT`"],
+                  conf="medium", cat="style"),
+            ],
+        ),
+        "jph00": MentorInsight(
+            mentor_key="jph00", mentor_name="Jeremy Howard",
+            mentor_tagline="fast.ai 创始人 — 实用主义 AI 教育，顶向下学习法",
+            repo="fastai/fastai", commits_analyzed=0,
+            error="[预置数据] GitHub API 限速，展示基于历史分析的预置模式",
+            patterns=[
+                p("notebook-first 开发流程",
+                  "fastai 库本身由 notebook 生成，大量 commit 是 `nbdev` 工具链产出。"
+                  "如 `notebook to module`、`update from nb`。"
+                  "打破传统：notebook 不是草稿，而是 source of truth。",
+                  ["`notebook to module`", "`update from nb 01`",
+                   "`nbdev: sync notebooks`"],
+                  conf="high", cat="workflow"),
+                p("用户体验比性能更优先",
+                  "commit 里频繁出现 `simplify`、`easier to use`、`better defaults`。"
+                  "fast.ai 哲学：先让普通人能用，再让专家能调。"
+                  "默认值比参数重要。",
+                  ["`simplify Learner API`", "`better defaults for fit_one_cycle`",
+                   "`easier mixed precision setup`"],
+                  conf="high", cat="decision"),
+                p("教学和生产代码共用一套",
+                  "不为教学写简化版，直接用生产代码教学。"
+                  "commit 里的功能往往同时出现在课程 notebook 和正式 API 里。",
+                  [], conf="medium", cat="decision"),
+                p("频繁 breaking change，快速演进",
+                  "fast.ai v1 到 v2 是完全重写。"
+                  "不怕 breaking change，用户跟得上就好。"
+                  "短期用户痛苦换长期架构正确。",
+                  ["`BREAKING: new learner API`",
+                   "`major refactor of data pipeline`"],
+                  conf="medium", cat="decision"),
             ],
         ),
     }

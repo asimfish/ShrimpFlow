@@ -463,8 +463,17 @@ def _insight_to_dict(insight: MentorInsight) -> dict:
 
 def _render_learned_skill_md(your_name: str, insights: list[MentorInsight]) -> str:
     now = datetime.now().strftime("%Y-%m-%d")
-    valid = [i for i in insights if not i.error and i.patterns]
+    # 有 patterns 的都算有效（包括预置数据）
+    valid = [i for i in insights if i.patterns]
     total_patterns = sum(len(i.patterns) for i in valid)
+    live_count = sum(1 for i in valid if i.commits_analyzed > 0)
+    prefetch_count = len(valid) - live_count
+
+    data_note = "real-time GitHub commit analysis"
+    if prefetch_count > 0 and live_count == 0:
+        data_note = "pre-analyzed patterns based on commit history"
+    elif prefetch_count > 0:
+        data_note = f"real-time analysis ({live_count}) + pre-analyzed patterns ({prefetch_count})"
 
     lines = [
         "---",
@@ -473,12 +482,13 @@ def _render_learned_skill_md(your_name: str, insights: list[MentorInsight]) -> s
         f"distilled_at: {now}",
         f"mentors: {', '.join(i.mentor_name for i in valid)}",
         f"total_patterns: {total_patterns}",
+        f"data_source: {data_note}",
         "---",
         "",
         f"# What {your_name} Learned from Open Source Giants",
         "",
-        f"> **{total_patterns}** behavioral patterns distilled from the real GitHub commit history",
-        f"> of **{len(valid)}** world-class engineers.",
+        f"> **{total_patterns}** behavioral patterns from **{len(valid)}** world-class engineers.",
+        f"> Source: {data_note}.",
         "",
         "_Unlike nuwa-skill (which analyzes writings), every pattern here is backed by actual commit behavior — what they committed, how they wrote messages, how they structured work._",
         "",
@@ -487,12 +497,18 @@ def _render_learned_skill_md(your_name: str, insights: list[MentorInsight]) -> s
     ]
 
     for insight in valid:
+        is_prefetch = insight.commits_analyzed == 0
+        source_note = (
+            f"预置模式（基于历史 commit 分析）"
+            if is_prefetch else
+            f"实时分析 **{insight.commits_analyzed}** 条 commit"
+        )
         lines += [
             f"## 师承 {insight.mentor_name}",
             "",
             f"> _{insight.mentor_tagline}_",
             f"> 来源仓库：[{insight.repo}](https://github.com/{insight.repo})  ",
-            f"> 分析了 **{insight.commits_analyzed}** 条真实 commit",
+            f"> {source_note}",
             "",
         ]
         for p in insight.patterns:
@@ -512,14 +528,11 @@ def _render_learned_skill_md(your_name: str, insights: list[MentorInsight]) -> s
             lines.append("---")
             lines.append("")
 
-    # 错误的 mentor
-    failed = [i for i in insights if i.error]
-    if failed:
-        lines += [
-            "## 未能分析的大牛",
-            "",
-        ]
-        for i in failed:
+    # 完全失败的 mentor（连预置数据也没有）
+    truly_failed = [i for i in insights if not i.patterns and i.error and not i.error.startswith("[预置数据]")]
+    if truly_failed:
+        lines += ["## 未能分析的大牛", ""]
+        for i in truly_failed:
             lines.append(f"- **{i.mentor_name}**: {i.error}")
         lines.append("")
 

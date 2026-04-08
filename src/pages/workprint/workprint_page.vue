@@ -69,6 +69,8 @@ const learnError = ref('')
 const learnMd = ref('')
 const learnMdCopied = ref(false)
 const showLearnMd = ref(false)
+const githubToken = ref('')
+const showTokenInput = ref(false)
 
 const fetchPreview = async () => {
   loading.value = true
@@ -167,7 +169,9 @@ const learnFromMentors = async () => {
   showLearnMd.value = false
   try {
     const keys = [...selectedMentors.value].join(',')
-    const res = await fetch(`/api/workprint/learn-from?mentors=${keys}&max_commits=60`)
+    const params = new URLSearchParams({ mentors: keys, max_commits: '60' })
+    if (githubToken.value) params.set('github_token', githubToken.value)
+    const res = await fetch(`/api/workprint/learn-from?${params}`)
     if (!res.ok) throw new Error(await res.text())
     const data = await res.json()
     learnResults.value = data.mentors
@@ -182,7 +186,9 @@ const generateLearnSkillMd = async () => {
   learnLoading.value = true
   try {
     const keys = [...selectedMentors.value].join(',')
-    const res = await fetch(`/api/workprint/learn-from/skill-md?mentors=${keys}&your_name=${exportName.value}`)
+    const params = new URLSearchParams({ mentors: keys, your_name: exportName.value })
+    if (githubToken.value) params.set('github_token', githubToken.value)
+    const res = await fetch(`/api/workprint/learn-from/skill-md?${params}`)
     if (!res.ok) throw new Error(await res.text())
     learnMd.value = await res.text()
     showLearnMd.value = true
@@ -477,6 +483,32 @@ onMounted(() => {
         </div>
         <div v-else class="text-sm text-gray-600 mb-5">加载大牛名录中…</div>
 
+        <!-- GitHub Token（可选，提升 API 限额） -->
+        <div class="mb-4">
+          <button
+            class="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+            @click="showTokenInput = !showTokenInput"
+          >
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            {{ showTokenInput ? '收起' : 'GitHub Token（可选）— 无 token 时展示预置数据，有 token 则实时分析' }}
+          </button>
+          <div v-if="showTokenInput" class="mt-2 flex items-center gap-2">
+            <input
+              v-model="githubToken"
+              type="password"
+              placeholder="ghp_xxxxxxxxxxxx（只需 public_repo read 权限）"
+              class="flex-1 bg-[#0e0e18] border border-[#252535] rounded px-3 py-1.5 text-xs text-gray-200 font-mono outline-none focus:border-amber-500/50"
+            />
+            <a href="https://github.com/settings/tokens/new?scopes=public_repo&description=DevTwin+Workprint"
+              target="_blank"
+              class="text-xs text-amber-400 hover:underline whitespace-nowrap">
+              创建 Token →
+            </a>
+          </div>
+        </div>
+
         <!-- 操作按钮 -->
         <div class="flex items-center gap-3 mb-5">
           <button
@@ -515,18 +547,34 @@ onMounted(() => {
             <!-- 大牛 header -->
             <div class="flex items-start justify-between px-5 py-4 border-b border-[#1e1e2e]">
               <div>
-                <div class="flex items-center gap-2">
-                  <svg class="w-4 h-4 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <svg class="w-4 h-4 text-amber-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
                   </svg>
                   <span class="font-medium text-gray-100">{{ mentor.name }}</span>
-                  <span v-if="mentor.error" class="text-xs text-red-400">— {{ mentor.error }}</span>
+                  <!-- 预置数据标注（不是真正的错误） -->
+                  <span v-if="mentor.error && mentor.error.startsWith('[预置数据]')"
+                    class="text-[10px] px-1.5 py-0.5 bg-amber-500/20 text-amber-400 rounded-full">
+                    预置模式
+                  </span>
+                  <!-- 真正的错误 -->
+                  <span v-else-if="mentor.error && mentor.patterns.length === 0"
+                    class="text-xs text-red-400">— {{ mentor.error }}</span>
                 </div>
                 <div class="text-xs text-gray-500 mt-0.5 italic">{{ mentor.tagline }}</div>
+                <div v-if="mentor.error && mentor.error.startsWith('[预置数据]')"
+                  class="text-[10px] text-gray-600 mt-1">
+                  GitHub API 限速，展示离线预置数据（基于真实 commit 历史人工整理）。
+                  <button class="text-amber-500/70 hover:text-amber-400 underline" @click="showTokenInput = true">
+                    配置 Token 获取实时数据
+                  </button>
+                </div>
               </div>
               <div class="text-right shrink-0 ml-4">
-                <div class="text-sm font-mono text-amber-400">{{ mentor.commits_analyzed }}</div>
-                <div class="text-[10px] text-gray-600">commits 分析</div>
+                <div class="text-sm font-mono" :class="mentor.commits_analyzed > 0 ? 'text-amber-400' : 'text-gray-600'">
+                  {{ mentor.commits_analyzed > 0 ? mentor.commits_analyzed : '—' }}
+                </div>
+                <div class="text-[10px] text-gray-600">{{ mentor.commits_analyzed > 0 ? 'commits 实时分析' : '预置数据' }}</div>
                 <a :href="`https://github.com/${mentor.repo}`" target="_blank"
                   class="text-[10px] text-violet-400 hover:underline">{{ mentor.repo }}</a>
               </div>

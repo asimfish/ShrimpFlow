@@ -497,7 +497,7 @@ const patternStats = computed(() => ({
     </div>
   </div>
 
-  <!-- Workflow 动画弹窗 -->
+  <!-- Workflow 展示弹窗 -->
   <Teleport to="body">
     <div v-if="showWorkflowDemo" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80" @click.self="showWorkflowDemo = false">
       <div class="relative w-[90vw] h-[85vh] rounded-xl overflow-hidden border border-surface-3 shadow-2xl">

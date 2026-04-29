@@ -20,6 +20,7 @@ const skillsStore = useSkillsStore()
 const openclawStore = useOpenClawStore()
 const digestStore = useDigestStore()
 const patternsStore = usePatternsStore()
+const workflowShowcaseUrl = `${import.meta.env.BASE_URL}devtwin_workflow.html`
 
 const stats = ref<StatsOverview | null>(null)
 const collecting = ref(false)
@@ -388,6 +389,78 @@ const saveAISettings = async () => {
         >
           {{ exportClaudeBusy ? '导出中…' : '导出 CLAUDE.md' }}
         </button>
+      </div>
+    </section>
+    <section class="relative overflow-hidden rounded-2xl border border-emerald-400/25 bg-gradient-to-br from-emerald-500/[0.14] via-cyan-500/[0.08] to-violet-500/[0.12] p-5 md:p-6">
+      <div class="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-emerald-400/10 blur-3xl" />
+      <div class="relative grid gap-5 lg:grid-cols-[1.35fr_0.65fr]">
+        <div class="space-y-4">
+          <div class="inline-flex items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1 text-[11px] font-medium text-emerald-200">
+            核心贡献展示
+          </div>
+          <div>
+            <h2 class="text-xl md:text-2xl font-semibold text-white">一个使用 DevTwin 学到的超长工作流</h2>
+            <p class="mt-2 max-w-2xl text-sm leading-6 text-gray-300">
+              DevTwin 不只是列出零散 pattern，而是把真实开发事件、AI 会话、技能调用和反馈证据串成一条可执行的长链路 workflow：从目标澄清、影响面扫描、实现验证，到发布证据回收，展示“学会你怎么工作”后的完整产物。
+            </p>
+          </div>
+          <div class="grid gap-2 sm:grid-cols-4">
+            <div class="rounded-xl border border-white/10 bg-black/20 p-3">
+              <div class="text-lg font-semibold text-emerald-300">32</div>
+              <div class="mt-1 text-[10px] text-gray-400">行为事件</div>
+            </div>
+            <div class="rounded-xl border border-white/10 bg-black/20 p-3">
+              <div class="text-lg font-semibold text-cyan-300">8</div>
+              <div class="mt-1 text-[10px] text-gray-400">AI 会话</div>
+            </div>
+            <div class="rounded-xl border border-white/10 bg-black/20 p-3">
+              <div class="text-lg font-semibold text-violet-300">10</div>
+              <div class="mt-1 text-[10px] text-gray-400">行为模式</div>
+            </div>
+            <div class="rounded-xl border border-white/10 bg-black/20 p-3">
+              <div class="text-lg font-semibold text-amber-300">1</div>
+              <div class="mt-1 text-[10px] text-gray-400">超长 workflow</div>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <a
+              :href="workflowShowcaseUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-2 rounded-full bg-emerald-400 px-4 py-2 text-xs font-semibold text-black transition-colors hover:bg-emerald-300"
+            >
+              查看超长工作流动画 →
+            </a>
+            <button
+              type="button"
+              class="rounded-full border border-emerald-400/30 px-4 py-2 text-xs font-medium text-emerald-200 transition-colors hover:bg-emerald-400/10"
+              @click="router.push('/patterns')"
+            >
+              看它由哪些 Pattern 组成
+            </button>
+          </div>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-black/25 p-4">
+          <div class="text-xs font-medium text-gray-300">学习到的执行链路</div>
+          <div class="mt-4 space-y-3">
+            <div class="flex items-center gap-3">
+              <div class="h-7 w-7 rounded-full bg-emerald-400/20 text-center text-xs leading-7 text-emerald-200">1</div>
+              <div class="text-xs text-gray-300">从行为和 AI 会话抽取证据</div>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="h-7 w-7 rounded-full bg-cyan-400/20 text-center text-xs leading-7 text-cyan-200">2</div>
+              <div class="text-xs text-gray-300">把重复策略聚合为 pattern</div>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="h-7 w-7 rounded-full bg-violet-400/20 text-center text-xs leading-7 text-violet-200">3</div>
+              <div class="text-xs text-gray-300">组合成可复用超长 workflow</div>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="h-7 w-7 rounded-full bg-amber-400/20 text-center text-xs leading-7 text-amber-200">4</div>
+              <div class="text-xs text-gray-300">导出为 ClawProfile / Claude Code 技能</div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
     <!-- Header -->

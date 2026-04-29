@@ -23,6 +23,7 @@ const categoryFilter = ref<'all' | 'git' | 'coding' | 'review' | 'devops' | 'col
 const searchQuery = ref('')
 
 const showWorkflowDemo = ref(false)
+const workflowShowcaseUrl = `${import.meta.env.BASE_URL}devtwin_workflow.html`
 
 onMounted(async () => {
   await Promise.all([store.ensurePatternsLoaded(), store.ensureWorkflowsLoaded()])
@@ -503,7 +504,7 @@ const patternStats = computed(() => ({
         <button class="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-surface-2/90 border border-surface-3 flex items-center justify-center text-gray-400 hover:text-white transition-colors" @click="showWorkflowDemo = false">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
         </button>
-        <iframe src="/devtwin_workflow.html" class="w-full h-full border-0" />
+        <iframe :src="workflowShowcaseUrl" class="w-full h-full border-0" />
       </div>
     </div>
   </Teleport>

@@ -8,6 +8,7 @@ export default defineConfig({
   plugins: [vue(), tailwindcss()],
   build: {
     outDir: 'docs',
+    emptyOutDir: false,
   },
   resolve: {
     alias: {

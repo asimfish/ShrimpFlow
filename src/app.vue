@@ -4,6 +4,7 @@ import { KeepAlive, onMounted, onUnmounted, ref } from 'vue'
 import AppSidebar from '@/components/layout/app_sidebar.vue'
 import GlobalSearch from '@/components/global_search.vue'
 import PatternConfirmToast from '@/components/pattern_confirm_toast.vue'
+import ToastStack from '@/components/shared/toast_stack.vue'
 import { useEventsStore } from '@/stores/events'
 import { useSkillsStore } from '@/stores/skills'
 
@@ -13,6 +14,7 @@ const skillsStore = useSkillsStore()
 const demoMode = ref(false)
 const showDeploy = ref(false)
 const copied = ref(false)
+const bilibiliUrl = 'https://www.bilibili.com/video/BV1UBAVzyErU/?vd_source=082c9486c13eeaf225d08c23aeccd98c#reply116256560646936'
 
 const checkBackend = async () => {
   try {
@@ -46,6 +48,12 @@ onUnmounted(() => {
     <!-- 演示模式 Banner -->
     <div v-if="demoMode" class="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-violet-600/90 to-cyan-600/90 backdrop-blur-sm text-white text-center py-2 px-4 text-sm flex items-center justify-center gap-3">
       <span>🎯 演示模式 — 数据来自真实开发者快照</span>
+      <a
+        :href="bilibiliUrl"
+        target="_blank"
+        rel="noreferrer"
+        class="px-3 py-0.5 bg-white/20 hover:bg-white/30 rounded-full text-xs font-medium transition-colors"
+      >B 站演示 →</a>
       <button
         class="px-3 py-0.5 bg-white/20 hover:bg-white/30 rounded-full text-xs font-medium transition-colors"
         @click="showDeploy = true"
@@ -90,6 +98,13 @@ onUnmounted(() => {
               <div>• 后端: http://localhost:7891</div>
               <div>• 系统会自动采集你的 AI 使用数据并开始学习</div>
             </div>
+
+            <a
+              :href="bilibiliUrl"
+              target="_blank"
+              rel="noreferrer"
+              class="block text-center text-xs text-violet-400 hover:text-violet-300 hover:underline"
+            >查看 B 站宣传演示</a>
           </div>
         </div>
       </div>
@@ -108,6 +123,7 @@ onUnmounted(() => {
     </main>
     <GlobalSearch />
     <PatternConfirmToast />
+    <ToastStack />
   </div>
 </template>
 

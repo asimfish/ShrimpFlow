@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
+    "build:pages": "GITHUB_PAGES=1 pnpm run build && cp docs/index.html docs/404.html && touch docs/.nojekyll",
     "preview": "vite preview"
   },
   "dependencies": {

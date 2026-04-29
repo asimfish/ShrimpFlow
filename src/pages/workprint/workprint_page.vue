@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 
+import snapshotData from '@/http_api/_snapshot.json'
+
 interface TopPattern {
   id: number
   name: string
@@ -47,6 +49,21 @@ interface MentorResult {
   patterns: MentorPattern[]
 }
 
+type SnapshotPattern = TopPattern & {
+  category?: string
+  description?: string
+  body?: string
+  trigger?: string | Record<string, unknown>
+  status?: string
+  created_at?: number
+}
+
+type SnapshotWorkflow = {
+  name?: string
+  description?: string
+  steps?: unknown
+}
+
 const preview = ref<Preview | null>(null)
 const loading = ref(false)
 const exporting = ref(false)
@@ -73,6 +90,296 @@ const showLearnMd = ref(false)
 const githubToken = ref('')
 const showTokenInput = ref(false)
 
+const snapshot = snapshotData as Record<string, unknown>
+
+const snapshotValue = <T,>(url: string): T | undefined => {
+  const cleanUrl = url.replace(/^\/api/, '').split('?')[0]
+  if (snapshot[cleanUrl] !== undefined) return snapshot[cleanUrl] as T
+  return workprintSnapshotValue(cleanUrl) as T | undefined
+}
+
+const snapshotPatterns = () =>
+  ((snapshot['/patterns'] as SnapshotPattern[] | undefined) ?? [])
+    .filter((p) => p.status !== 'rejected' && (p.confidence ?? 0) >= 30 && ['active', 'warm'].includes(p.lifecycle_state || 'active'))
+    .sort((a, b) => (b.heat_score ?? 0) - (a.heat_score ?? 0))
+
+const snapshotWorkflows = () => (snapshot['/workflows'] as SnapshotWorkflow[] | undefined) ?? []
+
+const workprintSnapshotValue = (cleanUrl: string) => {
+  if (cleanUrl === '/workprint/preview') return buildWorkprintPreview()
+  if (cleanUrl === '/workprint/export') return buildWorkprintMarkdown()
+  if (cleanUrl === '/workprint/mentors') return mentorSnapshotCatalog()
+  if (cleanUrl === '/workprint/learn-from') {
+    const mentors = mentorSnapshotResults()
+    return { mentors, total: mentors.length }
+  }
+  if (cleanUrl === '/workprint/learn-from/skill-md') return buildMentorSkillMarkdown()
+  return undefined
+}
+
+const buildWorkprintPreview = (): Preview => {
+  const patterns = snapshotPatterns()
+  const byCategory: Record<string, number> = {}
+  const byLifecycle: Record<string, number> = {}
+  const byConfidence = { high: 0, medium: 0, low: 0 }
+
+  for (const pattern of patterns) {
+    const category = pattern.category || 'other'
+    const lifecycleState = pattern.lifecycle_state || 'active'
+    const level = pattern.confidence_level || 'low'
+    byCategory[category] = (byCategory[category] ?? 0) + 1
+    byLifecycle[lifecycleState] = (byLifecycle[lifecycleState] ?? 0) + 1
+    if (level === 'very_high' || level === 'high') byConfidence.high += 1
+    else if (level === 'medium') byConfidence.medium += 1
+    else byConfidence.low += 1
+  }
+
+  return {
+    total_patterns: patterns.length,
+    by_category: byCategory,
+    by_confidence: byConfidence,
+    by_lifecycle: byLifecycle,
+    top_patterns: patterns.slice(0, 10).map((pattern) => ({
+      id: pattern.id,
+      name: pattern.name,
+      heat_score: Math.round((pattern.heat_score ?? 0) * 10) / 10,
+      confidence: pattern.confidence,
+      confidence_level: pattern.confidence_level,
+      lifecycle_state: pattern.lifecycle_state || 'active',
+      evidence_count: pattern.evidence_count ?? 0,
+    })),
+  }
+}
+
+const triggerText = (trigger: SnapshotPattern['trigger']) => {
+  if (!trigger) return ''
+  if (typeof trigger === 'object') return String(trigger.when ?? JSON.stringify(trigger))
+  try {
+    const parsed = JSON.parse(trigger)
+    return typeof parsed === 'object' && parsed ? String(parsed.when ?? JSON.stringify(parsed)) : trigger
+  } catch {
+    return trigger
+  }
+}
+
+const buildWorkprintMarkdown = () => {
+  const patterns = snapshotPatterns()
+  const workflows = snapshotWorkflows()
+  const totalEvidence = patterns.reduce((sum, pattern) => sum + (pattern.evidence_count ?? 0), 0)
+  const avgConfidence = Math.round(patterns.reduce((sum, pattern) => sum + (pattern.confidence ?? 0), 0) / Math.max(1, patterns.length))
+  const avgHeat = Math.round((patterns.reduce((sum, pattern) => sum + (pattern.heat_score ?? 0), 0) / Math.max(1, patterns.length)) * 10) / 10
+  const categories = Object.entries(buildWorkprintPreview().by_category)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([name, count]) => `\`${name}\` (${count})`)
+    .join(', ')
+  const icon = (level: string) => (level === 'very_high' || level === 'high' ? '●' : level === 'medium' ? '◑' : '○')
+  const lines = [
+    '---',
+    'name: workprint/me',
+    `description: Behavioral skill distilled from ${patterns.length} DevTwin demo patterns`,
+    'version: 0.1.0-demo',
+    'source: DevTwin synthetic public demo snapshot',
+    '---',
+    '',
+    '# Workprint: me',
+    '',
+    `> **${patterns.length}** active behavioral patterns distilled from DevTwin synthetic demo traces.`,
+    '',
+    'This public preview demonstrates how DevTwin turns behavior evidence into an executable Claude Code skill without exposing private traces.',
+    '',
+    '## Usage',
+    '',
+    '```',
+    '/workprint me review this PR for me',
+    '/workprint me plan the safest implementation path',
+    '/workprint me generate deployment evidence',
+    '```',
+    '',
+    '## Behavioral DNA',
+    '',
+    '| Metric | Value |',
+    '|--------|-------|',
+    `| Active patterns | ${patterns.length} |`,
+    `| Total evidence collected | ${totalEvidence} |`,
+    `| Average confidence | ${avgConfidence}% |`,
+    `| Average heat score | ${avgHeat}/100 |`,
+    `| Top categories | ${categories} |`,
+    '',
+    '## Core Behavioral Patterns',
+    '',
+    '_Legend: ● High confidence | ◑ Medium | ○ Low | Heat = recency × access frequency_',
+    '',
+  ]
+
+  for (const pattern of patterns.slice(0, 10)) {
+    const level = pattern.confidence_level || 'low'
+    lines.push(
+      `### ${icon(level)} ${pattern.name}`,
+      `**Category**: \`${pattern.category || 'other'}\` | **Confidence**: ${pattern.confidence}% (${level}) | **Evidence**: ${pattern.evidence_count ?? 0} | **Heat**: ${Math.round((pattern.heat_score ?? 0) * 10) / 10}`,
+      '',
+      pattern.description || '',
+    )
+    const trigger = triggerText(pattern.trigger)
+    if (trigger) lines.push('', `**Triggers when**: ${trigger}`)
+    if (pattern.body) lines.push('', '**Behavioral rule**:', '', pattern.body.slice(0, 700))
+    lines.push('', '---', '')
+  }
+
+  if (workflows.length) {
+    lines.push('## Workflow Patterns', '')
+    for (const workflow of workflows.slice(0, 4)) {
+      const rawSteps = Array.isArray(workflow.steps) ? workflow.steps : []
+      const steps = rawSteps
+        .slice(0, 6)
+        .map((step) => typeof step === 'object' && step ? String((step as Record<string, unknown>).pattern ?? (step as Record<string, unknown>).name ?? (step as Record<string, unknown>).action ?? '') : String(step))
+        .filter(Boolean)
+      lines.push(
+        `### ${workflow.name || 'Workflow'}`,
+        `**Sequence**: ${steps.length ? steps.map((step) => `\`${step}\``).join(' → ') : '_see description_'}`,
+        '',
+        workflow.description || '',
+        '',
+        '---',
+        '',
+      )
+    }
+  }
+
+  lines.push(
+    '## Honest Limits',
+    '',
+    '- This is a public synthetic demo snapshot, not private production telemetry.',
+    '- Patterns demonstrate product value and schema coverage, not a complete real user model.',
+    '- Live GitHub analysis may require a token; the Pages demo falls back to offline mentor samples.',
+    '',
+    '_Generated by DevTwin Workprint export._',
+  )
+  return lines.join('\n')
+}
+
+const mentorSnapshotCatalog = (): MentorInfo[] => [
+  { key: 'yyx990803', name: 'Evan You', repo: 'vuejs/core', tagline: 'Vue / Vite 作者 — 渐进式设计，开发体验与性能并重', focus: ['vue', 'vite', 'javascript'], domain: '前端框架', cached: true },
+  { key: 'antirez', name: 'Salvatore Sanfilippo (antirez)', repo: 'redis/redis', tagline: 'Redis / Kilo 作者 — 1000 行代码能做的事，不用 1001 行', focus: ['redis', 'c', 'database'], domain: '数据库/系统', cached: true },
+  { key: 'sindresorhus', name: 'Sindre Sorhus', repo: 'sindresorhus/got', tagline: 'npm 之王 — 单一职责，模块化极致，TypeScript-first', focus: ['npm', 'typescript', 'open-source'], domain: '开源工具', cached: true },
+  { key: 'torvalds', name: 'Linus Torvalds', repo: 'torvalds/linux', tagline: 'Linux 内核创始人 — 极度简洁、直接、不妥协的工程哲学', focus: ['kernel', 'c', 'os'], domain: '系统工程', cached: true },
+  { key: 'gvanrossum', name: 'Guido van Rossum', repo: 'python/cpython', tagline: 'Python 之父 — 可读性优先，明确优于隐晦', focus: ['python', 'language-design'], domain: '编程语言', cached: true },
+  { key: 'dhh', name: 'David Heinemeier Hansson (DHH)', repo: 'rails/rails', tagline: 'Ruby on Rails 作者 — 约定优于配置，开发者幸福感优先', focus: ['rails', 'ruby', 'web'], domain: 'Web 框架', cached: true },
+]
+
+const mentorSnapshotResults = (): MentorResult[] => [
+  {
+    key: 'yyx990803',
+    name: 'Evan You',
+    tagline: 'Vue / Vite 作者 — 渐进式设计，开发体验与性能并重',
+    repo: 'vuejs/core',
+    commits_analyzed: 0,
+    error: '[预置数据] GitHub API 限速，展示基于历史 commit 行为整理的公开演示模式',
+    patterns: [
+      { name: '渐进式 API 演进', description: '先保持核心 API 简洁，再通过插件、组合式 API 与工具链逐步释放高级能力。', evidence: ['`refactor runtime-core typing`', '`improve DX for script setup`', '`make hydration warning more actionable`'], confidence: 'high', category: 'decision' },
+      { name: '开发体验优先的错误信息', description: '把复杂框架内部状态转化成开发者能直接行动的提示。', evidence: ['`improve warning for invalid vnode type`', '`better error message for compiler edge case`'], confidence: 'high', category: 'style' },
+      { name: '性能与可维护性双约束', description: '优化路径通常同时考虑 bundle、runtime hot path 与长期维护成本。', evidence: ['`avoid unnecessary effect trigger`', '`tree-shake compiler helpers`'], confidence: 'medium', category: 'workflow' },
+    ],
+  },
+  {
+    key: 'antirez',
+    name: 'Salvatore Sanfilippo (antirez)',
+    tagline: 'Redis / Kilo 作者 — 1000 行代码能做的事，不用 1001 行',
+    repo: 'redis/redis',
+    commits_analyzed: 0,
+    error: '[预置数据] GitHub API 限速，展示基于历史 commit 行为整理的公开演示模式',
+    patterns: [
+      { name: '用最小抽象解决真实问题', description: '优先删除间接层，保留用户能感知的简单行为。', evidence: ['`simplify replication state machine`', '`remove unused abstraction`'], confidence: 'high', category: 'decision' },
+      { name: '先让系统可解释，再追求复杂功能', description: '设计数据结构时保留可调试性与命令层面的可观察性。', evidence: ['`add latency monitor output`', '`make protocol error clearer`'], confidence: 'high', category: 'tool' },
+      { name: '小步提交实验性功能', description: '围绕一个核心机制持续提交小而可回滚的改动。', evidence: ['`initial streams implementation`', '`fix stream trimming corner case`'], confidence: 'medium', category: 'workflow' },
+    ],
+  },
+  {
+    key: 'sindresorhus',
+    name: 'Sindre Sorhus',
+    tagline: 'npm 之王 — 单一职责，模块化极致，TypeScript-first',
+    repo: 'sindresorhus/got',
+    commits_analyzed: 0,
+    error: '[预置数据] GitHub API 限速，展示基于历史 commit 行为整理的公开演示模式',
+    patterns: [
+      { name: '单一职责包边界', description: '把可复用能力拆成小包，并用严格 README 与类型定义降低组合成本。', evidence: ['`extract shared utility`', '`improve TypeScript definitions`'], confidence: 'high', category: 'decision' },
+      { name: '文档即 API 合同', description: '每次行为变化都同步更新示例、边界条件和迁移说明。', evidence: ['`document retry hooks`', '`add examples for streams`'], confidence: 'high', category: 'style' },
+      { name: '自动化质量门禁', description: '通过 lint、types、CI、semantic release 让维护规模可持续。', evidence: ['`enable stricter tsconfig`', '`add failing regression test`'], confidence: 'medium', category: 'workflow' },
+    ],
+  },
+]
+
+const buildMentorSkillMarkdown = () => {
+  const lines = [
+    '---',
+    'name: workprint/me/learned-from-giants',
+    'description: Behavioral patterns learned from open-source engineers',
+    'source: DevTwin synthetic public demo snapshot',
+    '---',
+    '',
+    '# What me Learned from Open Source Giants',
+    '',
+    '> **9** behavioral patterns from **3** world-class engineers.',
+    '> Source: offline public demo patterns; configure a GitHub token in local/dev mode for live commit analysis.',
+    '',
+  ]
+  for (const mentor of mentorSnapshotResults()) {
+    lines.push(`## 师承 ${mentor.name}`, '', `> _${mentor.tagline}_`, `> 来源仓库：[${mentor.repo}](https://github.com/${mentor.repo})`, '')
+    for (const pattern of mentor.patterns) {
+      const icon = pattern.confidence === 'high' ? '●' : pattern.confidence === 'medium' ? '◑' : '○'
+      lines.push(`### ${icon} ${pattern.name}`, `**类型**: \`${pattern.category}\` | **置信度**: ${pattern.confidence}`, '', pattern.description, '', '**行为证据（公开 commit 风格样例）**:')
+      lines.push(...pattern.evidence.slice(0, 3).map((item) => `- ${item}`), '', '---', '')
+    }
+  }
+  lines.push('_Generated by DevTwin Workprint mentor learning demo._')
+  return lines.join('\n')
+}
+
+const formatFetchError = (status: number, statusText: string, text: string) => {
+  if (/^\s*<!doctype html/i.test(text) || /^\s*<html/i.test(text)) return `${status} ${statusText}`.trim()
+  return text || `${status} ${statusText}`.trim()
+}
+
+const requestJson = async <T,>(url: string): Promise<T> => {
+  const fallback = snapshotValue<T>(url)
+  try {
+    const res = await fetch(url)
+    const text = await res.text()
+    if (!res.ok) {
+      if (fallback !== undefined) return fallback
+      throw new Error(formatFetchError(res.status, res.statusText, text))
+    }
+    try {
+      return JSON.parse(text) as T
+    } catch {
+      if (fallback !== undefined) return fallback
+      throw new Error(formatFetchError(res.status, res.statusText, text))
+    }
+  } catch (e) {
+    if (fallback !== undefined) return fallback
+    throw e
+  }
+}
+
+const requestText = async (url: string): Promise<string> => {
+  const fallback = snapshotValue<string>(url)
+  try {
+    const res = await fetch(url)
+    const text = await res.text()
+    if (!res.ok) {
+      if (fallback !== undefined) return fallback
+      throw new Error(formatFetchError(res.status, res.statusText, text))
+    }
+    if (/^\s*<!doctype html/i.test(text) || /^\s*<html/i.test(text)) {
+      if (fallback !== undefined) return fallback
+    }
+    return text
+  } catch (e) {
+    if (fallback !== undefined) return fallback
+    throw e
+  }
+}
+
 const fetchPreview = async () => {
   loading.value = true
   error.value = ''
@@ -81,9 +388,7 @@ const fetchPreview = async () => {
       min_confidence: String(minConfidence.value),
       lifecycle: lifecycle.value,
     })
-    const res = await fetch(`/api/workprint/preview?${params}`)
-    if (!res.ok) throw new Error(await res.text())
-    preview.value = await res.json()
+    preview.value = await requestJson<Preview>(`/api/workprint/preview?${params}`)
   } catch (e: any) {
     error.value = e.message
   } finally {
@@ -101,9 +406,7 @@ const exportSkill = async () => {
       lifecycle: lifecycle.value,
       include_body: String(includeBody.value),
     })
-    const res = await fetch(`/api/workprint/export?${params}`)
-    if (!res.ok) throw new Error(await res.text())
-    exportedMd.value = await res.text()
+    exportedMd.value = await requestText(`/api/workprint/export?${params}`)
     showMd.value = true
   } catch (e: any) {
     error.value = e.message
@@ -160,8 +463,7 @@ const topCategories = computed(() => {
 
 const fetchMentorCatalog = async () => {
   try {
-    const res = await fetch('/api/workprint/mentors')
-    if (res.ok) mentorCatalog.value = await res.json()
+    mentorCatalog.value = await requestJson<MentorInfo[]>('/api/workprint/mentors')
   } catch {}
 }
 
@@ -190,9 +492,7 @@ const learnFromMentors = async () => {
     const keys = [...selectedMentors.value].join(',')
     const params = new URLSearchParams({ mentors: keys, max_commits: '60' })
     if (githubToken.value) params.set('github_token', githubToken.value)
-    const res = await fetch(`/api/workprint/learn-from?${params}`)
-    if (!res.ok) throw new Error(await res.text())
-    const data = await res.json()
+    const data = await requestJson<{ mentors: MentorResult[] }>(`/api/workprint/learn-from?${params}`)
     learnResults.value = data.mentors
   } catch (e: any) {
     learnError.value = e.message
@@ -207,9 +507,7 @@ const generateLearnSkillMd = async () => {
     const keys = [...selectedMentors.value].join(',')
     const params = new URLSearchParams({ mentors: keys, your_name: exportName.value })
     if (githubToken.value) params.set('github_token', githubToken.value)
-    const res = await fetch(`/api/workprint/learn-from/skill-md?${params}`)
-    if (!res.ok) throw new Error(await res.text())
-    learnMd.value = await res.text()
+    learnMd.value = await requestText(`/api/workprint/learn-from/skill-md?${params}`)
     showLearnMd.value = true
   } catch (e: any) {
     learnError.value = e.message

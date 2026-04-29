@@ -1,1 +1,0 @@
-import{i as e,r as t}from"./client-DgcAaGjd.js";var n=()=>t(`/stats`),r=()=>t(`/memory/health`),i=()=>e(`/memory/full-cycle`,{}),a=()=>t(`/stats/flywheel-trend`);export{i,r as n,n as r,a as t};

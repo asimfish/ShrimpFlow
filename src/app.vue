@@ -65,12 +65,12 @@ onUnmounted(() => {
       <div v-if="showDeploy" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" @click.self="showDeploy = false">
         <div class="bg-[#12121a] border border-[#252535] rounded-2xl p-8 max-w-lg w-full mx-4 shadow-2xl">
           <div class="flex items-center justify-between mb-6">
-            <h2 class="text-xl font-semibold">一键部署 DevTwin</h2>
+            <h2 class="text-xl font-semibold">一键部署 ShrimpFlow</h2>
             <button class="text-gray-500 hover:text-white text-xl" @click="showDeploy = false">✕</button>
           </div>
 
           <div class="space-y-4 text-sm">
-            <div class="text-gray-400">只需一条命令，在你的电脑上运行完整的 DevTwin 系统：</div>
+            <div class="text-gray-400">只需一条命令，在你的电脑上运行完整的 ShrimpFlow 系统：</div>
 
             <div class="bg-[#0a0a0f] rounded-xl p-4 font-mono text-xs leading-relaxed">
               <span class="text-emerald-400">$</span>

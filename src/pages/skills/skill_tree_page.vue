@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 
+import EmptyState from '@/components/shared/empty_state.vue'
 import { useSkillsStore } from '@/stores/skills'
 import type {
   LearningPlan,
@@ -407,7 +408,15 @@ const generatePlan = async () => {
               <div v-if="recommendations.length > 0" class="text-xs text-gray-500">
                 系统根据你的技能图谱和行为模式推荐 {{ recommendations.length }} 项
               </div>
-              <div v-else class="text-sm text-gray-500">暂无推荐</div>
+              <EmptyState
+                v-else
+                icon="sparkle"
+                compact
+                title="暂无匹配的 Skill 推荐"
+                description="推荐基于你的技能图谱和 taste profile 计算。在 Patterns 页确认几个规范，或在 OpenClaw 多做些对话后，推荐会自动出现。"
+                action-label="去 Patterns 确认规范"
+                action-to="/patterns"
+              />
               <div
                 v-for="rec in recommendations"
                 :key="rec.name"
@@ -450,7 +459,15 @@ const generatePlan = async () => {
 
             <div class="space-y-3 pt-2 border-t border-surface-3">
               <div class="text-xs font-semibold text-gray-200 tracking-wide">Skill Workflow 挖掘</div>
-              <div v-if="minedWorkflows.length === 0" class="text-sm text-gray-500">暂无挖掘数据</div>
+              <EmptyState
+                v-if="minedWorkflows.length === 0"
+                icon="chart"
+                compact
+                title="还没有可挖掘的工作流"
+                description="ShrimpFlow 从 Claude Code / OpenClaw 的 invocation log 里提炼 skill 序列。等你在 AI 工具里自然工作几个会话后，这里会自动出现候选 workflow。"
+                action-label="查看采集进度"
+                action-to="/dashboard"
+              />
               <div
                 v-for="wf in minedWorkflows"
                 :key="wf.id"

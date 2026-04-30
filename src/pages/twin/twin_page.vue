@@ -43,6 +43,7 @@ import { getMemoryHealthApi, getFlywheelTrendApi } from '@/http_api/stats'
 import type { FlywheelPoint } from '@/http_api/stats'
 import type { MemoryHealth } from '@/types'
 import { usePatternsStore } from '@/stores/patterns'
+import EmptyState from '@/components/shared/empty_state.vue'
 
 const router = useRouter()
 const patternsStore = usePatternsStore()
@@ -379,11 +380,23 @@ onMounted(async () => {
     <div class="grid grid-cols-2 gap-4">
       <!-- 雷达图 -->
       <div class="bg-surface-1 rounded-xl border border-surface-3 p-5">
-        <div class="text-sm font-medium text-gray-200 mb-1">研究品味雷达</div>
+        <div class="flex items-center justify-between mb-1">
+          <div class="text-sm font-medium text-gray-200">研究品味雷达</div>
+          <span
+            v-if="cotProfile?._confidence && cotProfile._confidence !== 'high'"
+            class="text-[9px] px-1.5 py-0.5 rounded-full"
+            :class="cotProfile._confidence === 'low' ? 'bg-amber-500/20 text-amber-300' : 'bg-sky-500/20 text-sky-300'"
+            :title="`样本可信度：${cotProfile._confidence}（消息数 ${cotProfile._message_count ?? 0}）`"
+          >{{ cotProfile._confidence === 'low' ? '样本不足 · 试用期估计' : '中置信' }}</span>
+        </div>
         <p class="text-[10px] text-gray-500 mb-4">基于 {{ cotProfile?.session_count ?? 0 }} 次 AI 对话分析</p>
         <div class="flex items-center gap-4">
           <!-- SVG 雷达 -->
-          <svg viewBox="0 0 300 300" class="w-44 h-44 shrink-0">
+          <svg
+            viewBox="0 0 300 300"
+            class="w-44 h-44 shrink-0"
+            :class="cotProfile?._confidence === 'low' ? 'opacity-60' : ''"
+          >
             <!-- 网格 -->
             <polygon v-for="level in radarLevels" :key="level" :points="radarGridPolygon(level)" fill="none" stroke="#374151" stroke-width="1" />
             <!-- 轴线 -->
@@ -399,6 +412,7 @@ onMounted(async () => {
               fill="var(--color-chart-1)"
               fill-opacity="0.22"
               stroke="var(--color-chart-1)"
+              :stroke-dasharray="cotProfile?._confidence === 'low' ? '4 3' : '0'"
               stroke-width="2"
               stroke-linejoin="round"
             />
@@ -417,6 +431,16 @@ onMounted(async () => {
               font-size="11" fill="#9ca3af">
               {{ dim.label }}
             </text>
+            <!-- 样本不足水印 -->
+            <text
+              v-if="cotProfile?._confidence === 'low'"
+              x="150" y="150"
+              text-anchor="middle"
+              dominant-baseline="middle"
+              font-size="11"
+              fill="#f59e0b"
+              opacity="0.8"
+            >占位 · 需更多对话</text>
           </svg>
           <!-- 维度列表 -->
           <div class="flex-1 space-y-2.5">
@@ -470,7 +494,15 @@ onMounted(async () => {
               <div class="text-[10px] text-gray-600 mt-0.5">会话</div>
             </div>
           </div>
-          <div v-else class="text-xs text-gray-500 py-3 text-center">暂无足够对话数据</div>
+          <EmptyState
+            v-else
+            icon="compass"
+            compact
+            title="雷达还在等你的对话"
+            description="ShrimpFlow 需要从你和 AI 的真实对话里提炼思维风格。推荐先和 OpenClaw / Claude Code 交互几轮，或用 claude-code CLI 连 Profile。"
+            action-label="打开 OpenClaw"
+            action-to="/openclaw"
+          />
         </div>
 
         <!-- V2: 认知对齐分数 -->

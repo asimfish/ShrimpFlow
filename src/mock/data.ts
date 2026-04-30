@@ -67,7 +67,7 @@ const claudeCodeActions = [
 ]
 
 const codexActions = [
-  { action: 'codex session: refine devtwin realtime collector', semantic: 'Codex 辅助完善实时采集链路', tags: ['codex', 'edit'] },
+  { action: 'codex session: refine shrimpflow realtime collector', semantic: 'Codex 辅助完善实时采集链路', tags: ['codex', 'edit'] },
   { action: 'codex session: inspect clawprofile export/import path', semantic: 'Codex 审查 ClawProfile 导入导出', tags: ['codex', 'analysis'] },
   { action: 'codex session: patch openclaw runtime selector', semantic: 'Codex 调整 OpenClaw runtime', tags: ['codex', 'runtime'] },
 ]
@@ -104,7 +104,7 @@ const generateEventData = (source: DevEvent['source']): GeneratedEventData => {
     case 'cursor':
       return { ...base, action: 'cursor: edited src/components/pattern_panel.vue', semantic: 'Cursor 编辑前端组件', tags: ['cursor', 'file_edit'], exit_code: 0, duration_ms: 800 + Math.floor(Math.random() * 3000) }
     case 'vscode':
-      return { ...base, action: 'vscode: workspace /Users/liyufeng/Desktop/比赛/devtwin', semantic: 'VS Code 打开工作区', tags: ['vscode', 'workspace'], exit_code: 0, duration_ms: 500 + Math.floor(Math.random() * 2000) }
+      return { ...base, action: 'vscode: workspace /Users/liyufeng/Desktop/比赛/ShrimpFlow', semantic: 'VS Code 打开工作区', tags: ['vscode', 'workspace'], exit_code: 0, duration_ms: 500 + Math.floor(Math.random() * 2000) }
     case 'env':
       return { ...base, action: 'env snapshot: CUDA 12.4 / PyTorch 2.3 / ROS2 Humble', semantic: '环境变更检测', tags: ['env'], exit_code: 0, duration_ms: 0 }
     default:

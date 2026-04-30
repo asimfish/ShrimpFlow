@@ -116,9 +116,9 @@ def export_patterns(ids: str = Query(...), db: Session = Depends(get_db)):
     return {
         'schema': 'clawprofile/v1',
         'profile': {
-            'name': profile_row.name if profile_row else 'local-devtwin-profile',
+            'name': profile_row.name if profile_row else 'local-shrimpflow-profile',
             'display': profile_row.display if profile_row else '本地行为模式库',
-            'description': profile_row.description if profile_row else f'从 DevTwin 中导出的 {len(rows)} 个行为模式',
+            'description': profile_row.description if profile_row else f'从 ShrimpFlow 中导出的 {len(rows)} 个行为模式',
             'author': profile_row.author if profile_row else 'liyufeng',
             'tags': json.loads(profile_row.tags) if profile_row and profile_row.tags else list(set(r.category for r in rows)),
             'license': profile_row.license if profile_row else 'public',
@@ -384,7 +384,7 @@ def recall_patterns_api(
     return recall_patterns(db, query, max_hops=max_hops)
 
 
-@router.get("/patterns/{pattern_id}")
+@router.get("/patterns/{pattern_id:int}")
 def get_pattern(pattern_id: int, db: Session = Depends(get_db)):
     row = db.query(BehaviorPattern).filter(BehaviorPattern.id == pattern_id).first()
     if not row:
@@ -395,7 +395,7 @@ def get_pattern(pattern_id: int, db: Session = Depends(get_db)):
     return _row_to_dict(row)
 
 
-@router.get("/patterns/{pattern_id}/relations")
+@router.get("/patterns/{pattern_id:int}/relations")
 def get_pattern_relations_api(pattern_id: int, db: Session = Depends(get_db)):
     from services.relation_discovery import get_pattern_relations
     return get_pattern_relations(db, pattern_id)
@@ -407,7 +407,7 @@ def discover_relations_api(db: Session = Depends(get_db)):
     return run_relation_discovery(db)
 
 
-@router.put("/patterns/{pattern_id}")
+@router.put("/patterns/{pattern_id:int}")
 def update_pattern(pattern_id: int, req: PatternUpdateRequest, db: Session = Depends(get_db)):
     row = db.query(BehaviorPattern).filter(BehaviorPattern.id == pattern_id).first()
     if not row:
@@ -459,7 +459,7 @@ def update_pattern(pattern_id: int, req: PatternUpdateRequest, db: Session = Dep
     return _row_to_dict(row)
 
 
-@router.delete("/patterns/{pattern_id}")
+@router.delete("/patterns/{pattern_id:int}")
 def delete_pattern(pattern_id: int, db: Session = Depends(get_db)):
     row = db.query(BehaviorPattern).filter(BehaviorPattern.id == pattern_id).first()
     if not row:
@@ -581,7 +581,7 @@ def _run_mine_background(task_id: str):
         db.close()
 
 
-@router.post("/patterns/{pattern_id}/confirm")
+@router.post("/patterns/{pattern_id:int}/confirm")
 def confirm_pattern_api(pattern_id: int, db: Session = Depends(get_db)):
     return confirm_pattern(db, pattern_id)
 
@@ -590,7 +590,7 @@ class PatternRejectRequest(BaseModel):
     reason: str = ''
 
 
-@router.post("/patterns/{pattern_id}/reject")
+@router.post("/patterns/{pattern_id:int}/reject")
 def reject_pattern_api(pattern_id: int, req: PatternRejectRequest, db: Session = Depends(get_db)):
     return reject_pattern(db, pattern_id, reason=req.reason)
 

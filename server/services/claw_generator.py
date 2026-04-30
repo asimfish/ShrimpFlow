@@ -1,7 +1,7 @@
 """
 Claw Generator (M3)
 将 CoT 挖掘 + Workflow 重建的结果，统一转换为 ClawProfile 格式的 BehaviorPattern。
-核心差异点: DevTwin 输出可执行的 AI 指令规范，而不只是统计摘要。
+核心差异点: ShrimpFlow 输出可执行的 AI 指令规范，而不只是统计摘要。
 
 输出物: BehaviorPattern.body 可以直接注入 AI 上下文（CLAUDE.md / OpenClaw Profile）
 """
@@ -18,6 +18,7 @@ from services.cot_miner import mine_cot_skills
 from services.workflow_inferrer import infer_workflows_from_episodes
 from services.pattern_mining import bayesian_update, _confidence_to_level, _name_to_slug
 from services.evidence_ledger import record_evidence
+from services.pattern_quota import can_create_pattern
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,18 @@ def _save_candidate_as_pattern(
         record_evidence(db, existing.id, 'support',
                         f'重挖掘: {candidate.get("type", "unknown")}', source='claw_generator')
         return existing
+
+    # Admission gate: daily cap + global quota before we create a new row.
+    admission = can_create_pattern(db, source='auto')
+    if not admission.allowed:
+        logger.info(
+            'claw_generator: skipping new pattern %r (reason=%s, total=%s, auto_today=%s)',
+            name,
+            admission.reason,
+            admission.total_active,
+            admission.auto_created_last_day,
+        )
+        return None
 
     pattern = BehaviorPattern(
         name=name,
@@ -265,7 +278,7 @@ def _source_badge(source: str | None) -> str:
 def export_clawprofile_markdown(db: Session, pattern_ids: list[int] | None = None) -> str:
     """
     将 confirmed 模式导出为可直接粘贴到 CLAUDE.md 的 Markdown 格式。
-    这是 DevTwin 的终极产出: 个人化 AI 工作规范文档。
+    这是 ShrimpFlow 的终极产出: 个人化 AI 工作规范文档。
     """
     from models.episode import Episode
     from models.openclaw import OpenClawSession
@@ -302,7 +315,7 @@ def export_clawprofile_markdown(db: Session, pattern_ids: list[int] | None = Non
     lines = [
         '# 个人开发规范',
         '',
-        '> 由 **DevTwin** 从真实开发行为数据中自动提炼，可直接作为 CLAUDE.md 使用。',
+        '> 由 **ShrimpFlow** 从真实开发行为数据中自动提炼，可直接作为 CLAUDE.md 使用。',
         '',
         '## 文档信息',
         '',
@@ -400,7 +413,7 @@ def export_clawprofile_markdown(db: Session, pattern_ids: list[int] | None = Non
     lines += [
         '## 使用说明',
         '',
-        '本文件由 DevTwin 自动生成，基于你的真实开发会话提炼。',
+        '本文件由 ShrimpFlow 自动生成，基于你的真实开发会话提炼。',
         '',
         '**使用方式**:',
         '',
@@ -410,11 +423,11 @@ def export_clawprofile_markdown(db: Session, pattern_ids: list[int] | None = Non
         '',
         '**更新规范**:',
         '',
-        '- 前往 DevTwin 的 Brain 页面，确认/拒绝新的候选模式',
+        '- 前往 ShrimpFlow 的 Brain 页面，确认/拒绝新的候选模式',
         '- 拒绝时填写原因，系统会学习你的隐性偏好',
         '- 每隔一段时间重新导出以获得最新版本',
         '',
-        f'> 此文件由 DevTwin 在 {gen_date} 自动生成，请勿手动编辑。',
+        f'> 此文件由 ShrimpFlow 在 {gen_date} 自动生成，请勿手动编辑。',
     ]
 
     return '\n'.join(lines)

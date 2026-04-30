@@ -1,1 +1,0 @@
-import{i as e,r as t}from"./client-Cirh_Apb.js";var n=()=>e(`/claw/generate`,{}),r=(e=168)=>t(`/claw/cot-profile?lookback_hours=${e}`),i=()=>t(`/claw/alignment-score`),a=e=>t(`/claw/export-markdown${e&&e.length?`?ids=${e.join(`,`)}`:``}`);export{r as i,n,i as r,a as t};

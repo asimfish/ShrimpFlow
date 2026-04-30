@@ -104,7 +104,7 @@
     ],
     "decision_excerpts": [
       "选择 GitHub Pages 作为公开演示兜底，而不是暴露本地后端密钥",
-      "构建路径用 /ShrimpFlow/，同时保留 devtwin_workflow.html",
+      "构建路径用 /ShrimpFlow/，同时保留 shrimpflow_workflow.html",
       "独立部署工具失败时切换到已验证的 Pages URL",
       "将 skill 使用作为行为锚点，而非只从噪声事件猜模式"
     ],
@@ -216,8 +216,8 @@
     ]
   },
   "/claw/export-markdown": {
-    "markdown": "# CLAUDE.md — DevTwin Demo Profile\n\n> Synthetic public demo. No private keys, local paths, or real user secrets.\n\n## Core behavior\n\n- Clarify objective, impact surface, and verification before editing shared code.\n- Prefer small, reviewable diffs and atomic commits.\n- Treat skill invocations as strong behavioral anchors.\n- Convert user rejections into taste guardrails.\n- Always provide deployment evidence: build result, asset path, fallback page, and final URL.\n",
-    "char_count": 480
+    "markdown": "# CLAUDE.md — ShrimpFlow Demo Profile\n\n> Synthetic public demo. No private keys, local paths, or real user secrets.\n\n## Core behavior\n\n- Clarify objective, impact surface, and verification before editing shared code.\n- Prefer small, reviewable diffs and atomic commits.\n- Treat skill invocations as strong behavioral anchors.\n- Convert user rejections into taste guardrails.\n- Always provide deployment evidence: build result, asset path, fallback page, and final URL.\n",
+    "char_count": 469
   },
   "/patterns": [
     {
@@ -335,7 +335,7 @@
       "user_feedback": [
         {
           "decision": "confirmed",
-          "reason": "演示数据：体现 DevTwin 的认知对齐闭环",
+          "reason": "演示数据：体现 ShrimpFlow 的认知对齐闭环",
           "ts": 1777296600
         }
       ],
@@ -460,7 +460,7 @@
       "user_feedback": [
         {
           "decision": "confirmed",
-          "reason": "演示数据：体现 DevTwin 的认知对齐闭环",
+          "reason": "演示数据：体现 ShrimpFlow 的认知对齐闭环",
           "ts": 1777296600
         }
       ],
@@ -585,7 +585,7 @@
       "user_feedback": [
         {
           "decision": "confirmed",
-          "reason": "演示数据：体现 DevTwin 的认知对齐闭环",
+          "reason": "演示数据：体现 ShrimpFlow 的认知对齐闭环",
           "ts": 1777296600
         }
       ],
@@ -710,7 +710,7 @@
       "user_feedback": [
         {
           "decision": "confirmed",
-          "reason": "演示数据：体现 DevTwin 的认知对齐闭环",
+          "reason": "演示数据：体现 ShrimpFlow 的认知对齐闭环",
           "ts": 1777296600
         }
       ],
@@ -835,7 +835,7 @@
       "user_feedback": [
         {
           "decision": "confirmed",
-          "reason": "演示数据：体现 DevTwin 的认知对齐闭环",
+          "reason": "演示数据：体现 ShrimpFlow 的认知对齐闭环",
           "ts": 1777296600
         }
       ],
@@ -960,7 +960,7 @@
       "user_feedback": [
         {
           "decision": "confirmed",
-          "reason": "演示数据：体现 DevTwin 的认知对齐闭环",
+          "reason": "演示数据：体现 ShrimpFlow 的认知对齐闭环",
           "ts": 1777296600
         }
       ],
@@ -1085,7 +1085,7 @@
       "user_feedback": [
         {
           "decision": "confirmed",
-          "reason": "演示数据：体现 DevTwin 的认知对齐闭环",
+          "reason": "演示数据：体现 ShrimpFlow 的认知对齐闭环",
           "ts": 1777296600
         }
       ],
@@ -1210,7 +1210,7 @@
       "user_feedback": [
         {
           "decision": "pending",
-          "reason": "演示数据：体现 DevTwin 的认知对齐闭环",
+          "reason": "演示数据：体现 ShrimpFlow 的认知对齐闭环",
           "ts": 1777296600
         }
       ],
@@ -1335,7 +1335,7 @@
       "user_feedback": [
         {
           "decision": "pending",
-          "reason": "演示数据：体现 DevTwin 的认知对齐闭环",
+          "reason": "演示数据：体现 ShrimpFlow 的认知对齐闭环",
           "ts": 1777296600
         }
       ],
@@ -1460,7 +1460,7 @@
       "user_feedback": [
         {
           "decision": "confirmed",
-          "reason": "演示数据：体现 DevTwin 的认知对齐闭环",
+          "reason": "演示数据：体现 ShrimpFlow 的认知对齐闭环",
           "ts": 1777296600
         }
       ],
@@ -1587,7 +1587,7 @@
       "user_feedback": [
         {
           "decision": "pending",
-          "reason": "演示数据：体现 DevTwin 的认知对齐闭环",
+          "reason": "演示数据：体现 ShrimpFlow 的认知对齐闭环",
           "ts": 1777296600
         }
       ],
@@ -1712,7 +1712,7 @@
       "user_feedback": [
         {
           "decision": "pending",
-          "reason": "演示数据：体现 DevTwin 的认知对齐闭环",
+          "reason": "演示数据：体现 ShrimpFlow 的认知对齐闭环",
           "ts": 1777296600
         }
       ],
@@ -1769,12 +1769,12 @@
     "profile": {
       "id": 1,
       "schema": "clawprofile/v1",
-      "name": "liyufeng-devtwin-demo",
-      "display": "李宇峰 · DevTwin 行为画像（演示）",
+      "name": "liyufeng-shrimpflow-demo",
+      "display": "李宇峰 · ShrimpFlow 行为画像（演示）",
       "description": "Synthetic but product-faithful ClawProfile for public demo.",
       "author": "demo-user",
       "tags": [
-        "devtwin",
+        "shrimpflow",
         "openclaw",
         "demo",
         "behavior-patterns"
@@ -2810,7 +2810,7 @@
       "branch": "main",
       "exit_code": 0,
       "duration_ms": 0,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "taste",
         "guardrail",
@@ -2828,7 +2828,7 @@
       "branch": "main",
       "exit_code": 0,
       "duration_ms": 0,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "git",
         "safety",
@@ -2845,7 +2845,7 @@
       "branch": "main",
       "exit_code": 0,
       "duration_ms": 0,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "deployment",
         "debug",
@@ -2863,7 +2863,7 @@
       "branch": "feat/stats-v2",
       "exit_code": 0,
       "duration_ms": 0,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "impact",
         "api",
@@ -2880,7 +2880,7 @@
       "branch": "main",
       "exit_code": 0,
       "duration_ms": 0,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "skill-workflow",
         "demo"
@@ -2897,7 +2897,7 @@
       "branch": "main",
       "exit_code": 0,
       "duration_ms": 1066,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "build",
         "verification",
@@ -2914,7 +2914,7 @@
       "branch": "main",
       "exit_code": 0,
       "duration_ms": 3058,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "build",
         "pages",
@@ -2931,7 +2931,7 @@
       "branch": "main",
       "exit_code": 0,
       "duration_ms": 0,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "taste",
         "writing",
@@ -2948,7 +2948,7 @@
       "branch": "main",
       "exit_code": 0,
       "duration_ms": 0,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "atomic-commit",
         "demo"
@@ -2964,7 +2964,7 @@
       "branch": "main",
       "exit_code": 0,
       "duration_ms": 0,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "safety",
         "demo"
@@ -2980,7 +2980,7 @@
       "branch": "main",
       "exit_code": 0,
       "duration_ms": 0,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "security",
         "deploy",
@@ -2997,7 +2997,7 @@
       "branch": "main",
       "exit_code": 0,
       "duration_ms": 2228,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "typecheck",
         "demo"
@@ -3013,7 +3013,7 @@
       "branch": "feat/demo-data",
       "exit_code": 0,
       "duration_ms": 0,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "frontend",
         "fallback",
@@ -3030,7 +3030,7 @@
       "branch": "main",
       "exit_code": 0,
       "duration_ms": 0,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "recommendation",
         "demo"
@@ -3047,7 +3047,7 @@
       "branch": "main",
       "exit_code": 0,
       "duration_ms": 0,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "publish",
         "demo"
@@ -3063,7 +3063,7 @@
       "branch": "feat/demo-data",
       "exit_code": 0,
       "duration_ms": 0,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "contract",
         "review",
@@ -3080,7 +3080,7 @@
       "branch": "main",
       "exit_code": 0,
       "duration_ms": 0,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "export",
         "demo"
@@ -3096,7 +3096,7 @@
       "branch": "autopilot/run-32",
       "exit_code": 0,
       "duration_ms": 0,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "autopilot",
         "proof",
@@ -3114,7 +3114,7 @@
       "branch": "main",
       "exit_code": 0,
       "duration_ms": 0,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "skill",
         "workflow",
@@ -3131,7 +3131,7 @@
       "branch": "main",
       "exit_code": 0,
       "duration_ms": 3390,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "remote-check",
         "demo"
@@ -3147,7 +3147,7 @@
       "branch": "main",
       "exit_code": 0,
       "duration_ms": 2477,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "mining",
         "cot",
@@ -3164,7 +3164,7 @@
       "branch": "main",
       "exit_code": 0,
       "duration_ms": 1481,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "test",
         "backend",
@@ -3181,7 +3181,7 @@
       "branch": "main",
       "exit_code": 0,
       "duration_ms": 0,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "publish",
         "demo"
@@ -3197,7 +3197,7 @@
       "branch": "main",
       "exit_code": 0,
       "duration_ms": 0,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "safety",
         "demo"
@@ -3213,7 +3213,7 @@
       "branch": "main",
       "exit_code": 0,
       "duration_ms": 0,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "security",
         "demo"
@@ -3229,7 +3229,7 @@
       "branch": "main",
       "exit_code": 0,
       "duration_ms": 0,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "skill",
         "impact",
@@ -3246,7 +3246,7 @@
       "branch": "main",
       "exit_code": 0,
       "duration_ms": 0,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "runtime",
         "profile",
@@ -3264,7 +3264,7 @@
       "branch": "main",
       "exit_code": 0,
       "duration_ms": 0,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "clawprofile",
         "demo"
@@ -3280,7 +3280,7 @@
       "branch": "feat/demo-data",
       "exit_code": 0,
       "duration_ms": 0,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "demo",
         "data",
@@ -3297,7 +3297,7 @@
       "branch": "main",
       "exit_code": 0,
       "duration_ms": 2726,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "seed",
         "demo",
@@ -3314,7 +3314,7 @@
       "branch": "main",
       "exit_code": 0,
       "duration_ms": 1813,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "deployment",
         "evidence",
@@ -3331,7 +3331,7 @@
       "branch": "main",
       "exit_code": 0,
       "duration_ms": 0,
-      "semantic": "synthetic demo event: illustrates DevTwin behavior-learning flywheel",
+      "semantic": "synthetic demo event: illustrates ShrimpFlow behavior-learning flywheel",
       "tags": [
         "evidence",
         "application",
@@ -3876,14 +3876,14 @@
       "title": "demo-doc-1.md",
       "display_title": "AI 工具周报：从对话到行为规范",
       "type": "daily_summary",
-      "content": "# AI 工具周报：从对话到行为规范\n\nAI 工具周报：从对话到行为规范：synthetic public demo document, showing DevTwin evidence chain and no private credentials.\n\n> Synthetic public demo snapshot.",
+      "content": "# AI 工具周报：从对话到行为规范\n\nAI 工具周报：从对话到行为规范：synthetic public demo document, showing ShrimpFlow evidence chain and no private credentials.\n\n> Synthetic public demo snapshot.",
       "tags": [
         "demo"
       ],
       "origin": "openclaw",
       "origin_label": "OpenClaw",
       "index_label": "K-0001",
-      "preview_excerpt": "AI 工具周报：从对话到行为规范：synthetic public demo document, showing DevTwin evidence chain and no pri…",
+      "preview_excerpt": "AI 工具周报：从对话到行为规范：synthetic public demo document, showing ShrimpFlow evidence chain and no pri…",
       "created_at": 1777386600,
       "source_session_id": 1
     },
@@ -3892,14 +3892,14 @@
       "title": "demo-doc-2.md",
       "display_title": "GitHub Pages 修复证据链",
       "type": "daily_summary",
-      "content": "# GitHub Pages 修复证据链\n\nGitHub Pages 修复证据链：synthetic public demo document, showing DevTwin evidence chain and no private credentials.\n\n> Synthetic public demo snapshot.",
+      "content": "# GitHub Pages 修复证据链\n\nGitHub Pages 修复证据链：synthetic public demo document, showing ShrimpFlow evidence chain and no private credentials.\n\n> Synthetic public demo snapshot.",
       "tags": [
         "demo"
       ],
       "origin": "openclaw",
       "origin_label": "OpenClaw",
       "index_label": "K-0002",
-      "preview_excerpt": "GitHub Pages 修复证据链：synthetic public demo document, showing DevTwin evidence chain and no p…",
+      "preview_excerpt": "GitHub Pages 修复证据链：synthetic public demo document, showing ShrimpFlow evidence chain and no p…",
       "created_at": 1777303800,
       "source_session_id": 2
     },
@@ -3908,14 +3908,14 @@
       "title": "demo-doc-3.md",
       "display_title": "用户品味 Guardrail",
       "type": "daily_summary",
-      "content": "# 用户品味 Guardrail\n\n用户品味 Guardrail：synthetic public demo document, showing DevTwin evidence chain and no private credentials.\n\n> Synthetic public demo snapshot.",
+      "content": "# 用户品味 Guardrail\n\n用户品味 Guardrail：synthetic public demo document, showing ShrimpFlow evidence chain and no private credentials.\n\n> Synthetic public demo snapshot.",
       "tags": [
         "demo"
       ],
       "origin": "openclaw",
       "origin_label": "OpenClaw",
       "index_label": "K-0003",
-      "preview_excerpt": "用户品味 Guardrail：synthetic public demo document, showing DevTwin evidence chain and no priva…",
+      "preview_excerpt": "用户品味 Guardrail：synthetic public demo document, showing ShrimpFlow evidence chain and no priva…",
       "created_at": 1777221000,
       "source_session_id": 3
     },
@@ -3924,14 +3924,14 @@
       "title": "demo-doc-4.md",
       "display_title": "Skill Workflow 挖掘报告",
       "type": "experiment_log",
-      "content": "# Skill Workflow 挖掘报告\n\nSkill Workflow 挖掘报告：synthetic public demo document, showing DevTwin evidence chain and no private credentials.\n\n> Synthetic public demo snapshot.",
+      "content": "# Skill Workflow 挖掘报告\n\nSkill Workflow 挖掘报告：synthetic public demo document, showing ShrimpFlow evidence chain and no private credentials.\n\n> Synthetic public demo snapshot.",
       "tags": [
         "demo"
       ],
       "origin": "openclaw",
       "origin_label": "OpenClaw",
       "index_label": "K-0004",
-      "preview_excerpt": "Skill Workflow 挖掘报告：synthetic public demo document, showing DevTwin evidence chain and no …",
+      "preview_excerpt": "Skill Workflow 挖掘报告：synthetic public demo document, showing ShrimpFlow evidence chain and no …",
       "created_at": 1777138200,
       "source_session_id": 4
     },
@@ -3940,14 +3940,14 @@
       "title": "demo-doc-5.md",
       "display_title": "CLAUDE.md 导出预览",
       "type": "daily_summary",
-      "content": "# CLAUDE.md 导出预览\n\nCLAUDE.md 导出预览：synthetic public demo document, showing DevTwin evidence chain and no private credentials.\n\n> Synthetic public demo snapshot.",
+      "content": "# CLAUDE.md 导出预览\n\nCLAUDE.md 导出预览：synthetic public demo document, showing ShrimpFlow evidence chain and no private credentials.\n\n> Synthetic public demo snapshot.",
       "tags": [
         "demo"
       ],
       "origin": "openclaw",
       "origin_label": "OpenClaw",
       "index_label": "K-0005",
-      "preview_excerpt": "CLAUDE.md 导出预览：synthetic public demo document, showing DevTwin evidence chain and no priva…",
+      "preview_excerpt": "CLAUDE.md 导出预览：synthetic public demo document, showing ShrimpFlow evidence chain and no priva…",
       "created_at": 1777055400,
       "source_session_id": 5
     },
@@ -3956,14 +3956,14 @@
       "title": "demo-doc-6.md",
       "display_title": "OmniStack 自主工作流证明",
       "type": "experiment_log",
-      "content": "# OmniStack 自主工作流证明\n\nOmniStack 自主工作流证明：synthetic public demo document, showing DevTwin evidence chain and no private credentials.\n\n> Synthetic public demo snapshot.",
+      "content": "# OmniStack 自主工作流证明\n\nOmniStack 自主工作流证明：synthetic public demo document, showing ShrimpFlow evidence chain and no private credentials.\n\n> Synthetic public demo snapshot.",
       "tags": [
         "demo"
       ],
       "origin": "openclaw",
       "origin_label": "OpenClaw",
       "index_label": "K-0006",
-      "preview_excerpt": "OmniStack 自主工作流证明：synthetic public demo document, showing DevTwin evidence chain and no pr…",
+      "preview_excerpt": "OmniStack 自主工作流证明：synthetic public demo document, showing ShrimpFlow evidence chain and no pr…",
       "created_at": 1776972600,
       "source_session_id": 6
     },
@@ -3972,14 +3972,14 @@
       "title": "demo-doc-7.md",
       "display_title": "小米 token 额度申请证据包",
       "type": "daily_summary",
-      "content": "# 小米 token 额度申请证据包\n\n小米 token 额度申请证据包：synthetic public demo document, showing DevTwin evidence chain and no private credentials.\n\n> Synthetic public demo snapshot.",
+      "content": "# 小米 token 额度申请证据包\n\n小米 token 额度申请证据包：synthetic public demo document, showing ShrimpFlow evidence chain and no private credentials.\n\n> Synthetic public demo snapshot.",
       "tags": [
         "demo"
       ],
       "origin": "openclaw",
       "origin_label": "OpenClaw",
       "index_label": "K-0007",
-      "preview_excerpt": "小米 token 额度申请证据包：synthetic public demo document, showing DevTwin evidence chain and no pri…",
+      "preview_excerpt": "小米 token 额度申请证据包：synthetic public demo document, showing ShrimpFlow evidence chain and no pri…",
       "created_at": 1777494600,
       "source_session_id": 7
     },
@@ -3988,14 +3988,14 @@
       "title": "demo-doc-8.md",
       "display_title": "B 站宣传入口",
       "type": "daily_summary",
-      "content": "# B 站宣传入口\n\nB 站宣传入口：synthetic public demo document, showing DevTwin evidence chain and no private credentials.\n\n> Synthetic public demo snapshot.",
+      "content": "# B 站宣传入口\n\nB 站宣传入口：synthetic public demo document, showing ShrimpFlow evidence chain and no private credentials.\n\n> Synthetic public demo snapshot.",
       "tags": [
         "demo"
       ],
       "origin": "openclaw",
       "origin_label": "OpenClaw",
       "index_label": "K-0008",
-      "preview_excerpt": "B 站宣传入口：synthetic public demo document, showing DevTwin evidence chain and no private cred…",
+      "preview_excerpt": "B 站宣传入口：synthetic public demo document, showing ShrimpFlow evidence chain and no private cred…",
       "created_at": 1777411800,
       "source_session_id": 8
     }
@@ -4194,7 +4194,7 @@
           "user_feedback": [
             {
               "decision": "confirmed",
-              "reason": "演示数据：体现 DevTwin 的认知对齐闭环",
+              "reason": "演示数据：体现 ShrimpFlow 的认知对齐闭环",
               "ts": 1777296600
             }
           ],
@@ -4319,7 +4319,7 @@
           "user_feedback": [
             {
               "decision": "confirmed",
-              "reason": "演示数据：体现 DevTwin 的认知对齐闭环",
+              "reason": "演示数据：体现 ShrimpFlow 的认知对齐闭环",
               "ts": 1777296600
             }
           ],
@@ -4444,7 +4444,7 @@
           "user_feedback": [
             {
               "decision": "confirmed",
-              "reason": "演示数据：体现 DevTwin 的认知对齐闭环",
+              "reason": "演示数据：体现 ShrimpFlow 的认知对齐闭环",
               "ts": 1777296600
             }
           ],
@@ -4847,12 +4847,12 @@
     {
       "id": 1,
       "schema": "clawprofile/v1",
-      "name": "liyufeng-devtwin-demo",
-      "display": "李宇峰 · DevTwin 行为画像（演示）",
+      "name": "liyufeng-shrimpflow-demo",
+      "display": "李宇峰 · ShrimpFlow 行为画像（演示）",
       "description": "Synthetic but product-faithful ClawProfile for public demo.",
       "author": "demo-user",
       "tags": [
-        "devtwin",
+        "shrimpflow",
         "openclaw",
         "demo",
         "behavior-patterns"
@@ -4874,12 +4874,12 @@
   "/profiles/active": {
     "id": 1,
     "schema": "clawprofile/v1",
-    "name": "liyufeng-devtwin-demo",
-    "display": "李宇峰 · DevTwin 行为画像（演示）",
+    "name": "liyufeng-shrimpflow-demo",
+    "display": "李宇峰 · ShrimpFlow 行为画像（演示）",
     "description": "Synthetic but product-faithful ClawProfile for public demo.",
     "author": "demo-user",
     "tags": [
-      "devtwin",
+      "shrimpflow",
       "openclaw",
       "demo",
       "behavior-patterns"
@@ -5407,7 +5407,7 @@
     "user_feedback": [
       {
         "decision": "confirmed",
-        "reason": "演示数据：体现 DevTwin 的认知对齐闭环",
+        "reason": "演示数据：体现 ShrimpFlow 的认知对齐闭环",
         "ts": 1777296600
       }
     ],
@@ -5532,7 +5532,7 @@
     "user_feedback": [
       {
         "decision": "confirmed",
-        "reason": "演示数据：体现 DevTwin 的认知对齐闭环",
+        "reason": "演示数据：体现 ShrimpFlow 的认知对齐闭环",
         "ts": 1777296600
       }
     ],
@@ -5657,7 +5657,7 @@
     "user_feedback": [
       {
         "decision": "confirmed",
-        "reason": "演示数据：体现 DevTwin 的认知对齐闭环",
+        "reason": "演示数据：体现 ShrimpFlow 的认知对齐闭环",
         "ts": 1777296600
       }
     ],
@@ -5782,7 +5782,7 @@
     "user_feedback": [
       {
         "decision": "confirmed",
-        "reason": "演示数据：体现 DevTwin 的认知对齐闭环",
+        "reason": "演示数据：体现 ShrimpFlow 的认知对齐闭环",
         "ts": 1777296600
       }
     ],
@@ -5907,7 +5907,7 @@
     "user_feedback": [
       {
         "decision": "confirmed",
-        "reason": "演示数据：体现 DevTwin 的认知对齐闭环",
+        "reason": "演示数据：体现 ShrimpFlow 的认知对齐闭环",
         "ts": 1777296600
       }
     ],
@@ -6032,7 +6032,7 @@
     "user_feedback": [
       {
         "decision": "confirmed",
-        "reason": "演示数据：体现 DevTwin 的认知对齐闭环",
+        "reason": "演示数据：体现 ShrimpFlow 的认知对齐闭环",
         "ts": 1777296600
       }
     ],
@@ -6157,7 +6157,7 @@
     "user_feedback": [
       {
         "decision": "confirmed",
-        "reason": "演示数据：体现 DevTwin 的认知对齐闭环",
+        "reason": "演示数据：体现 ShrimpFlow 的认知对齐闭环",
         "ts": 1777296600
       }
     ],
@@ -6282,7 +6282,7 @@
     "user_feedback": [
       {
         "decision": "pending",
-        "reason": "演示数据：体现 DevTwin 的认知对齐闭环",
+        "reason": "演示数据：体现 ShrimpFlow 的认知对齐闭环",
         "ts": 1777296600
       }
     ],
@@ -6407,7 +6407,7 @@
     "user_feedback": [
       {
         "decision": "pending",
-        "reason": "演示数据：体现 DevTwin 的认知对齐闭环",
+        "reason": "演示数据：体现 ShrimpFlow 的认知对齐闭环",
         "ts": 1777296600
       }
     ],
@@ -6532,7 +6532,7 @@
     "user_feedback": [
       {
         "decision": "confirmed",
-        "reason": "演示数据：体现 DevTwin 的认知对齐闭环",
+        "reason": "演示数据：体现 ShrimpFlow 的认知对齐闭环",
         "ts": 1777296600
       }
     ],
@@ -6661,7 +6661,7 @@
   ],
   "/openclaw/sessions/8/analyze": {
     "profile_id": 1,
-    "profile_name": "liyufeng-devtwin-demo",
+    "profile_name": "liyufeng-shrimpflow-demo",
     "matched_patterns": [
       {
         "id": 8,
@@ -6701,7 +6701,7 @@
   ],
   "/openclaw/sessions/7/analyze": {
     "profile_id": 1,
-    "profile_name": "liyufeng-devtwin-demo",
+    "profile_name": "liyufeng-shrimpflow-demo",
     "matched_patterns": [
       {
         "id": 7,
@@ -6741,7 +6741,7 @@
   ],
   "/openclaw/sessions/6/analyze": {
     "profile_id": 1,
-    "profile_name": "liyufeng-devtwin-demo",
+    "profile_name": "liyufeng-shrimpflow-demo",
     "matched_patterns": [
       {
         "id": 6,
@@ -6782,7 +6782,7 @@
   ],
   "/openclaw/sessions/5/analyze": {
     "profile_id": 1,
-    "profile_name": "liyufeng-devtwin-demo",
+    "profile_name": "liyufeng-shrimpflow-demo",
     "matched_patterns": [
       {
         "id": 5,
@@ -6835,7 +6835,7 @@
   ],
   "/openclaw/sessions/4/analyze": {
     "profile_id": 1,
-    "profile_name": "liyufeng-devtwin-demo",
+    "profile_name": "liyufeng-shrimpflow-demo",
     "matched_patterns": [
       {
         "id": 4,
@@ -6875,7 +6875,7 @@
   ],
   "/openclaw/sessions/3/analyze": {
     "profile_id": 1,
-    "profile_name": "liyufeng-devtwin-demo",
+    "profile_name": "liyufeng-shrimpflow-demo",
     "matched_patterns": [
       {
         "id": 1,
@@ -6915,7 +6915,7 @@
   ],
   "/openclaw/sessions/2/analyze": {
     "profile_id": 1,
-    "profile_name": "liyufeng-devtwin-demo",
+    "profile_name": "liyufeng-shrimpflow-demo",
     "matched_patterns": [
       {
         "id": 5,
@@ -6956,7 +6956,7 @@
   ],
   "/openclaw/sessions/1/analyze": {
     "profile_id": 1,
-    "profile_name": "liyufeng-devtwin-demo",
+    "profile_name": "liyufeng-shrimpflow-demo",
     "matched_patterns": [
       {
         "id": 1,

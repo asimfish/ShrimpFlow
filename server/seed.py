@@ -1131,7 +1131,16 @@ def seed_database():
             print("Database already seeded, skipping.")
             return
 
-        print("Seeding database...")
+        # Deterministic seed for reproducibility of the demo snapshot.
+        # Can be overridden with DEVTWIN_SEED_RNG for intentional reshuffles.
+        import os as _os
+        seed_val = _os.getenv("DEVTWIN_SEED_RNG", "2026")
+        try:
+            random.seed(int(seed_val))
+        except ValueError:
+            random.seed(seed_val)
+
+        print(f"Seeding database (rng seed={seed_val})...")
         events = _seed_events(db)
         _seed_skills(db)
         _seed_summaries(db, events)
@@ -1267,7 +1276,7 @@ def ensure_runtime_records(run_session_analysis: bool = False) -> None:
                 schema='clawprofile/v1',
                 name='liyufeng-local-profile',
                 display='李宇峰本地 ClawProfile',
-                description='当前 DevTwin 的本地活跃行为模式档案',
+                description='当前 ShrimpFlow 的本地活跃行为模式档案',
                 author='liyufeng',
                 tags=json.dumps(['local', 'openclaw', 'claude-code', 'behavior'], ensure_ascii=False),
                 license='public',

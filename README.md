@@ -1,10 +1,12 @@
-# DevTwin（ShrimpFlow）— 让 AI 认识你这个人
+# ShrimpFlow — 让 AI 认识你这个人
 
 **一句话**：第一个将用户认知风格编码为可执行 AI 规范的系统。
 
+> **命名约定**：对外产品名是 **ShrimpFlow**；内部代号与引擎是 **ShrimpFlow**（见目录、包名、DB 文件）；协作协议与注入格式是 **OpenClaw / ClawProfile**。三者分工明确，不是三个产品。
+
 ## 核心叙事
 
-不是「AI 记得你做过什么」，而是 **AI 知道你怎么思考**（how you think, not what you did）。DevTwin 观察行为、建模认知、对齐偏好，并输出可粘贴到各工具中的行为规范（ClawProfile / `CLAUDE.md`），形成持续进化的闭环。
+不是「AI 记得你做过什么」，而是 **AI 知道你怎么思考**（how you think, not what you did）。ShrimpFlow 观察行为、建模认知、对齐偏好，并输出可粘贴到各工具中的行为规范（ClawProfile / `CLAUDE.md`），形成持续进化的闭环。
 
 ## 功能概览
 
@@ -23,8 +25,8 @@
 前置：macOS 或 Linux；`setup.sh` 会引导安装 **uv**；需本机已有 **Node.js**（无则按脚本提示用 brew / NodeSource 安装），并安装 **pnpm**。
 
 ```bash
-git clone <YOUR_REPO_URL> devtwin
-cd devtwin
+git clone <YOUR_REPO_URL> shrimpflow
+cd shrimpflow
 bash setup.sh    # 安装依赖、uv sync、初始化 server/.env（请配置 ANTHROPIC_API_KEY）
 bash start.sh    # 同时启动后端与前端开发服务
 ```
@@ -33,6 +35,27 @@ bash start.sh    # 同时启动后端与前端开发服务
 
 - 后端 API：**http://localhost:7891**
 - OpenAPI 文档：**http://localhost:7891/docs**
+- Liveness 探针：**http://localhost:7891/api/health**
+
+### 验证安装 / 开发者入口
+
+```bash
+make smoke          # 一键冒烟：依赖 → import → 57 个测试 → vue-tsc → /api/health
+make test           # 仅跑后端测试
+make lint           # 仅跑前端 type-check
+make dev            # 同时启动前后端开发服务
+```
+
+### 运行时环境变量
+
+| 变量 | 默认 | 含义 |
+|---|---|---|
+| `DEVTWIN_DATABASE_URL` | `sqlite:///shrimpflow.db` | SQLAlchemy URL，测试/多租户可覆盖 |
+| `DEVTWIN_CORS_ORIGINS` | `http://localhost:5173` | CORS 允许源，逗号分隔 |
+| `DEVTWIN_PORT` | `7891` | 后端监听端口 |
+| `DEVTWIN_HOST` | `127.0.0.1` | 后端监听地址 |
+| `DEVTWIN_RELOAD` | `1` | 1=开启 uvicorn reload |
+| `DEVTWIN_SEED_RNG` | `2026` | Demo 数据 RNG 种子（保证可复现） |
 
 ## 技术栈
 
@@ -64,9 +87,19 @@ Browser (Vue 3)
 
 ## 文档与规范
 
-- **[VISION.md](./VISION.md)** — 产品愿景与迭代目标  
-- **[CLAWPROFILE_SPEC.md](./CLAWPROFILE_SPEC.md)** — ClawProfile 格式说明  
+- **[VISION.md](./VISION.md)** — 产品愿景与迭代目标
+- **[CLAWPROFILE_SPEC.md](./CLAWPROFILE_SPEC.md)** — ClawProfile Stable Spec v1.0（冻结合同）
+- **[docs/spec/CHANGELOG.md](./docs/spec/CHANGELOG.md)** — 规范演进与 Extension Proposal 流程
+- **[docs/spec/CLAWPROFILE_SPEC_v53_rolling_draft.md](./docs/spec/CLAWPROFILE_SPEC_v53_rolling_draft.md)** — 未冻结研究草案（仅参考）
+- **[docs/development-history/](./docs/development-history/)** — 十代迭代报告（Gen 1–10）
+
+## 质量保障（2026-Q2 冻结版本）
+
+- **57 个单元/契约/冒烟测试** 覆盖 AI provider 级联、贝叶斯证据账本、pattern 挖掘 primitives、配额闸门、taste 鲁棒化、日志脱敏、FastAPI 生命周期。`make test` 全绿是提 PR 的前置条件。
+- **Pattern 爆炸防护**：全局 500 条上限 + 每日 30 条 auto 新增上限；超限时 hard-prune archived/compressed & 低价值模式，永不误删 confirmed。
+- **Taste 维度鲁棒化**：empirical-Bayes 平滑 + 样本量门槛 + 类别加分上限，防止小样本 / 关键词刷分 / 长尾类别推到 100 分。
+- **日志脱敏**：monkey-patch `LogRecord.getMessage`，任何 handler / 第三方库产生的日志都会过滤 `sk-*` / `Bearer` / `api_key=` 等 6 种形状。
 
 ## 许可证
 
-本项目采用 **MIT License**（仓库将补充 `LICENSE` 文件；在此之前以 MIT 意图为准）。
+本项目采用 **MIT License**。

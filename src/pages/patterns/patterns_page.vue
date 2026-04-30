@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 
 import { usePatternsStore } from '@/stores/patterns'
 import { exportPatternsApi, importPatternsApi, minePatternsApi } from '@/http_api/patterns'
+import EmptyState from '@/components/shared/empty_state.vue'
 
 const router = useRouter()
 const store = usePatternsStore()
@@ -23,7 +24,7 @@ const categoryFilter = ref<'all' | 'git' | 'coding' | 'review' | 'devops' | 'col
 const searchQuery = ref('')
 
 const showWorkflowDemo = ref(false)
-const workflowShowcaseUrl = `${import.meta.env.BASE_URL}devtwin_workflow.html`
+const workflowShowcaseUrl = `${import.meta.env.BASE_URL}shrimpflow_workflow.html`
 
 onMounted(async () => {
   await Promise.all([store.ensurePatternsLoaded(), store.ensureWorkflowsLoaded()])
@@ -465,7 +466,14 @@ const patternStats = computed(() => ({
             <button class="text-[10px] text-red-400 hover:text-red-300 transition-colors" @click.stop="handleDelete(pattern.id)">删除</button>
           </div>
         </div>
-        <div v-if="filteredPatterns.length === 0" class="text-center py-12 text-gray-600 text-sm">暂无匹配模式</div>
+        <EmptyState
+          v-if="filteredPatterns.length === 0"
+          icon="inbox"
+          title="这里还没有匹配的行为模式"
+          description="ShrimpFlow 会从你和 AI 的真实对话、Git 历史、Shell 操作中自动挖掘模式。先去 OpenClaw 或 Claude Code 用一会儿，或在终端多做一些操作，这里会自动出现候选模式。"
+          action-label="去 OpenClaw 开始对话"
+          action-to="/openclaw"
+        />
       </template>
     </div>
 

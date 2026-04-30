@@ -116,7 +116,7 @@ const dtPoints = [
   <div class="p-6 space-y-8 overflow-y-auto h-full">
     <!-- 标题 -->
     <div>
-      <h1 class="text-2xl font-bold text-white">ShrimpFlow 系统架构</h1>
+      <h1 class="text-2xl font-bold text-white">ShrimpFlow 系统架构 <span class="text-sm text-gray-500 font-normal">· ShrimpFlow engine</span></h1>
       <p class="text-sm text-gray-400 mt-1">数据流与四层处理管线</p>
     </div>
 

@@ -4,7 +4,7 @@ Workflow 重建 (M2)
 → 推断完整可重用的 Workflow 模板
 
 CatchMe 只能回答"昨天做了什么"
-DevTwin 能输出"下次做类似任务的最优步骤清单"
+ShrimpFlow 能输出"下次做类似任务的最优步骤清单"
 """
 import json
 import logging

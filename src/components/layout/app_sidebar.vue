@@ -82,7 +82,7 @@ const realtimeLabel = computed(() => {
         </div>
         <div>
           <div class="font-semibold text-sm">ShrimpFlow</div>
-          <div class="text-[11px] text-openclaw">Powered by OpenClaw</div>
+          <div class="text-[11px] text-openclaw">ShrimpFlow engine · OpenClaw</div>
         </div>
       </div>
     </div>

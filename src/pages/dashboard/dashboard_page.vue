@@ -20,7 +20,7 @@ const skillsStore = useSkillsStore()
 const openclawStore = useOpenClawStore()
 const digestStore = useDigestStore()
 const patternsStore = usePatternsStore()
-const workflowShowcaseUrl = `${import.meta.env.BASE_URL}devtwin_workflow.html`
+const workflowShowcaseUrl = `${import.meta.env.BASE_URL}shrimpflow_workflow.html`
 
 const stats = ref<StatsOverview | null>(null)
 const collecting = ref(false)
@@ -367,7 +367,7 @@ const saveAISettings = async () => {
   <div class="p-6 space-y-6 overflow-y-auto h-full">
     <section class="glass-card rounded-2xl p-6 md:p-8 space-y-4 border border-white/[0.08]">
       <div>
-        <h2 class="text-2xl md:text-3xl font-semibold heading-tight text-gray-100">DevTwin — 你的 AI 认知副驾</h2>
+        <h2 class="text-2xl md:text-3xl font-semibold heading-tight text-gray-100">ShrimpFlow — 你的 AI 认知副驾</h2>
         <p class="text-sm md:text-base text-gray-400 mt-2">不是记住你做过什么，而是理解你怎么思考</p>
       </div>
       <p class="text-xs md:text-sm text-gray-500">
@@ -399,9 +399,9 @@ const saveAISettings = async () => {
             核心贡献展示
           </div>
           <div>
-            <h2 class="text-xl md:text-2xl font-semibold text-white">一个使用 DevTwin 学到的超长工作流</h2>
+            <h2 class="text-xl md:text-2xl font-semibold text-white">一个使用 ShrimpFlow 学到的超长工作流</h2>
             <p class="mt-2 max-w-2xl text-sm leading-6 text-gray-300">
-              DevTwin 不只是列出零散 pattern，而是把真实开发事件、AI 会话、技能调用和反馈证据串成一条可执行的长链路 workflow：从目标澄清、影响面扫描、实现验证，到发布证据回收，展示“学会你怎么工作”后的完整产物。
+              ShrimpFlow 不只是列出零散 pattern，而是把真实开发事件、AI 会话、技能调用和反馈证据串成一条可执行的长链路 workflow：从目标澄清、影响面扫描、实现验证，到发布证据回收，展示“学会你怎么工作”后的完整产物。
             </p>
           </div>
           <div class="grid gap-2 sm:grid-cols-4">
@@ -463,6 +463,22 @@ const saveAISettings = async () => {
         </div>
       </div>
     </section>
+    <!-- 演示数据提示 banner（仅当 stats.is_demo_data 为真） -->
+    <div
+      v-if="stats?.is_demo_data"
+      class="bg-violet-500/10 border border-violet-500/25 rounded-xl px-4 py-3 flex items-start gap-3"
+    >
+      <div class="w-6 h-6 rounded-full bg-violet-500/25 flex items-center justify-center text-violet-300 text-xs font-semibold shrink-0 mt-0.5">i</div>
+      <div class="flex-1 text-xs">
+        <div class="font-medium text-violet-200">你正在看演示数据（{{ stats.demo_event_count }} 条事件 · {{ stats.demo_session_count }} 次对话）</div>
+        <div class="mt-1 text-violet-200/70">这些是 seed 数据用来让你看懂界面。开始用 Claude Code / Cursor / 终端后，你自己的事件会把演示数据比下去，界面会自动反映真实使用。</div>
+        <div class="mt-2 flex items-center gap-3">
+          <button class="text-[11px] text-violet-300 hover:text-violet-200 underline" @click="router.push('/openclaw')">打开 OpenClaw 开始对话 →</button>
+          <router-link to="/architecture" class="text-[11px] text-violet-300/70 hover:text-violet-200 underline">看看系统怎么跑 →</router-link>
+        </div>
+      </div>
+    </div>
+
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>

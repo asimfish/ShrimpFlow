@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShrimpFlow Agent Pipeline · Live Console</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #0a0e14;
+  --surface: #0f141b;
+  --surface-2: #161b22;
+  --border: #21262d;
+  --border-2: #30363d;
+  --text: #e6edf3;
+  --text-2: #c9d1d9;
+  --muted: #8b949e;
+  --dim: #6e7681;
+  --faint: #484f58;
+  --purple: #a78bfa;
+  --purple-2: #7c5cfc;
+  --green: #3fb950;
+  --green-2: #34d399;
+  --blue: #58a6ff;
+  --blue-2: #79c0ff;
+  --orange: #f0883e;
+  --pink: #f778ba;
+  --red: #ff6b6b;
+}
+html, body {
+  background: var(--bg); color: var(--text);
+  font-family: 'SF Mono', 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace;
+  height: 100%; min-height: 100vh;
+  font-size: 14px; line-height: 1.55;
+}
+body {
+  padding: 28px 32px 24px;
+  background-image:
+    radial-gradient(circle at 10% 0%, rgba(124,92,252,0.08), transparent 40%),
+    radial-gradient(circle at 90% 100%, rgba(63,185,80,0.06), transparent 40%);
+}
+
+/* ── Header ── */
+header { margin-bottom: 22px; }
+.brand {
+  font-size: 22px; font-weight: 700; letter-spacing: 1px;
+  background: linear-gradient(90deg, var(--purple-2), var(--purple), var(--green-2));
+  background-size: 200% 100%;
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  animation: gshift 6s ease infinite;
+}
+@keyframes gshift { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+.brand-sub {
+  margin-top: 4px; color: var(--dim); font-size: 12px; letter-spacing: 1.5px;
+}
+.brand-tags {
+  display: inline-flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;
+}
+.tag {
+  font-size: 11px; padding: 3px 9px; border-radius: 999px;
+  border: 1px solid var(--border); color: var(--muted); background: var(--surface);
+}
+.tag-live::before {
+  content: ''; display: inline-block; width: 6px; height: 6px;
+  border-radius: 50%; background: var(--green); margin-right: 6px;
+  box-shadow: 0 0 8px var(--green);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse { 50%{opacity: 0.35} }
+
+/* ── Pipeline Strip ── */
+.pipeline {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;
+  margin-bottom: 18px;
+}
+.agent {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  transition: border-color 0.4s, box-shadow 0.4s, transform 0.3s;
+  overflow: hidden;
+}
+.agent::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--border-2); transition: background 0.4s;
+}
+.agent.active {
+  border-color: var(--purple-2);
+  box-shadow: 0 0 0 1px rgba(124,92,252,0.18), 0 6px 22px rgba(124,92,252,0.18);
+  transform: translateY(-1px);
+}
+.agent.active::before { background: var(--purple-2); }
+.agent.shadow.active::before { background: var(--blue); }
+.agent.shadow.active { box-shadow: 0 0 0 1px rgba(88,166,255,0.18), 0 6px 22px rgba(88,166,255,0.16); }
+.agent.mirror.active::before { background: var(--purple); }
+.agent.brain.active::before { background: var(--purple-2); }
+.agent.auto.active::before { background: var(--green-2); }
+.agent.auto.active { box-shadow: 0 0 0 1px rgba(52,211,153,0.18), 0 6px 22px rgba(52,211,153,0.16); }
+.agent.print.active::before { background: var(--orange); }
+.agent.print.active { box-shadow: 0 0 0 1px rgba(240,136,62,0.18), 0 6px 22px rgba(240,136,62,0.18); }
+
+.agent-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.agent-num {
+  width: 22px; height: 22px; border-radius: 6px;
+  background: var(--surface-2); border: 1px solid var(--border-2);
+  font-size: 11px; color: var(--muted);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700;
+}
+.agent.active .agent-num { color: var(--text); border-color: var(--purple-2); }
+.agent-name { font-size: 14px; font-weight: 700; color: var(--text-2); letter-spacing: 0.5px; }
+.agent-role { font-size: 11px; color: var(--dim); margin-bottom: 8px; }
+.agent-metric {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 11px; color: var(--faint);
+}
+.agent-metric .v { color: var(--text); font-weight: 700; font-size: 16px; font-variant-numeric: tabular-nums; }
+.agent.active .agent-metric .v { color: var(--purple); }
+.agent-status {
+  position: absolute; top: 12px; right: 14px;
+  font-size: 10px; color: var(--faint); letter-spacing: 1px;
+}
+.agent.active .agent-status { color: var(--green); }
+.agent-status::before {
+  content: '●'; margin-right: 4px; color: var(--faint);
+}
+.agent.active .agent-status::before {
+  color: var(--green);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+/* ── Main Grid ── */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 16px;
+  height: calc(100vh - 305px);
+  min-height: 480px;
+}
+
+/* ── Terminal ── */
+.terminal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.term-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+.dots { display: flex; gap: 6px; }
+.dots span {
+  width: 11px; height: 11px; border-radius: 50%;
+  background: var(--border-2);
+}
+.dots span:nth-child(1) { background: #ff5f56; }
+.dots span:nth-child(2) { background: #ffbd2e; }
+.dots span:nth-child(3) { background: #27c93f; }
+.term-title {
+  flex: 1; text-align: center; font-size: 12px; color: var(--muted);
+  letter-spacing: 0.5px;
+}
+.term-meta {
+  font-size: 11px; color: var(--faint);
+  display: flex; align-items: center; gap: 6px;
+}
+.term-meta::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--green); box-shadow: 0 0 6px var(--green);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.term-body {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  padding: 14px 18px 24px;
+  font-size: 12.5px; line-height: 1.7;
+  scroll-behavior: smooth;
+}
+.term-body::-webkit-scrollbar { width: 6px; }
+.term-body::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 3px; }
+
+.line {
+  display: flex; gap: 10px;
+  padding: 1px 0;
+  white-space: pre-wrap; word-break: break-word;
+  animation: lineIn 0.25s ease-out;
+}
+@keyframes lineIn { from{opacity:0; transform:translateX(-4px)} to{opacity:1; transform:translateX(0)} }
+.ts { color: var(--faint); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.tag-l {
+  flex-shrink: 0; min-width: 86px;
+  font-weight: 700; letter-spacing: 0.5px;
+}
+.tag-l-shadow { color: var(--blue); }
+.tag-l-mirror { color: var(--purple); }
+.tag-l-brain  { color: var(--purple-2); }
+.tag-l-auto   { color: var(--green-2); }
+.tag-l-print  { color: var(--orange); }
+.tag-l-api    { color: var(--pink); }
+.tag-l-pytest { color: var(--green); }
+.tag-l-system { color: var(--muted); }
+.msg { color: var(--text-2); flex: 1; }
+.msg .k { color: var(--blue-2); }
+.msg .v { color: var(--green-2); }
+.msg .vp { color: var(--purple); }
+.msg .vo { color: var(--orange); }
+.msg .vr { color: var(--red); }
+.msg .vd { color: var(--faint); }
+.msg .arrow { color: var(--faint); margin: 0 4px; }
+.msg .pass { color: var(--green); font-weight: 700; }
+.msg .num { color: var(--green-2); font-weight: 700; font-variant-numeric: tabular-nums; }
+.msg .hl { color: var(--text); font-weight: 600; }
+
+.section-sep {
+  margin: 8px 0 4px; padding: 4px 0;
+  border-top: 1px dashed var(--border);
+  font-size: 11px; color: var(--faint); letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+/* ── Sidebar Stats ── */
+.side {
+  display: flex; flex-direction: column; gap: 12px;
+}
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  position: relative;
+  overflow: hidden;
+}
+.stat::after {
+  content: ''; position: absolute; right: -20px; bottom: -20px;
+  width: 80px; height: 80px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(124,92,252,0.08), transparent 60%);
+}
+.stat-label {
+  font-size: 11px; color: var(--dim); letter-spacing: 1.5px;
+  text-transform: uppercase; margin-bottom: 8px;
+}
+.stat-val {
+  font-size: 28px; font-weight: 700; color: var(--text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+}
+.stat-val .unit { font-size: 13px; color: var(--dim); margin-left: 5px; font-weight: 500; }
+.stat-bar {
+  margin-top: 10px; height: 4px;
+  background: var(--border); border-radius: 2px; overflow: hidden;
+}
+.stat-bar > span {
+  display: block; height: 100%;
+  background: linear-gradient(90deg, var(--purple-2), var(--green-2));
+  width: 0%; transition: width 0.6s ease;
+}
+.stat-foot { font-size: 11px; color: var(--faint); margin-top: 6px; }
+.stat-foot .delta-up { color: var(--green); }
+.stat-foot .delta-flat { color: var(--dim); }
+
+.stat-tests .stat-val { color: var(--green); }
+.stat-tokens .stat-val { color: var(--purple); }
+.stat-patterns .stat-val { color: var(--blue-2); }
+.stat-commits .stat-val { color: var(--orange); }
+
+.legend {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 11px; color: var(--muted);
+  line-height: 1.8;
+}
+.legend .lh { color: var(--text); font-weight: 700; margin-bottom: 4px; font-size: 12px; letter-spacing: 0.5px; }
+.legend .lr { display: flex; justify-content: space-between; }
+.legend .lr .ll { color: var(--dim); }
+.legend .lr .lv { color: var(--text-2); font-variant-numeric: tabular-nums; }
+
+/* ── Footer ── */
+footer {
+  margin-top: 16px;
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 11px; color: var(--faint);
+  flex-wrap: wrap; gap: 10px;
+}
+footer a {
+  color: var(--muted); text-decoration: none; margin-right: 14px;
+  transition: color 0.2s;
+}
+footer a:hover { color: var(--purple); }
+footer .right { display: flex; gap: 10px; align-items: center; color: var(--dim); }
+
+/* ── Responsive ── */
+@media (max-width: 1100px) {
+  .grid { grid-template-columns: 1fr; height: auto; }
+  .side { flex-direction: row; flex-wrap: wrap; }
+  .side > * { flex: 1 1 200px; }
+  .term-body { max-height: 60vh; }
+}
+@media (max-width: 720px) {
+  body { padding: 18px 14px; }
+  .pipeline { grid-template-columns: repeat(2, 1fr); }
+  .brand { font-size: 18px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">ShrimpFlow Agent Pipeline · Live Console</div>
+  <div class="brand-sub">SHADOW → MIRROR → BRAIN → AUTOPILOT → WORKPRINT &nbsp;·&nbsp; long-context CoT × Bayesian evidence × multi-agent</div>
+  <div class="brand-tags">
+    <span class="tag tag-live">live · streaming</span>
+    <span class="tag">66 tests · 6.11s</span>
+    <span class="tag">65 commits · 32 iters · 29h autonomous</span>
+    <span class="tag">5-dim taste · rigor / elegance / novelty / simplicity / reproducibility</span>
+  </div>
+</header>
+
+<div class="pipeline">
+  <div class="agent shadow" id="ag-shadow">
+    <div class="agent-status">IDLE</div>
+    <div class="agent-row">
+      <span class="agent-num">1</span>
+      <span class="agent-name">Shadow</span>
+    </div>
+    <div class="agent-role">采集层 · shell / git / claude_code / codex</div>
+    <div class="agent-metric"><span>events captured</span><span class="v" data-stat="events">0</span></div>
+  </div>
+  <div class="agent mirror" id="ag-mirror">
+    <div class="agent-status">IDLE</div>
+    <div class="agent-row">
+      <span class="agent-num">2</span>
+      <span class="agent-name">Mirror</span>
+    </div>
+    <div class="agent-role">抽取层 · event atom · episode 切片</div>
+    <div class="agent-metric"><span>episodes sliced</span><span class="v" data-stat="episodes">0</span></div>
+  </div>
+  <div class="agent brain" id="ag-brain">
+    <div class="agent-status">IDLE</div>
+    <div class="agent-row">
+      <span class="agent-num">3</span>
+      <span class="agent-name">Brain</span>
+    </div>
+    <div class="agent-role">推理层 · CoT 挖掘 · 5 维品味 · 贝叶斯证据</div>
+    <div class="agent-metric"><span>patterns confirmed</span><span class="v" data-stat="patterns">0</span></div>
+  </div>
+  <div class="agent auto" id="ag-auto">
+    <div class="agent-status">IDLE</div>
+    <div class="agent-row">
+      <span class="agent-num">4</span>
+      <span class="agent-name">Autopilot</span>
+    </div>
+    <div class="agent-role">决策层 · 运行时行为模板</div>
+    <div class="agent-metric"><span>workflows triggered</span><span class="v" data-stat="workflows">0</span></div>
+  </div>
+  <div class="agent print" id="ag-print">
+    <div class="agent-status">IDLE</div>
+    <div class="agent-row">
+      <span class="agent-num">5</span>
+      <span class="agent-name">Workprint</span>
+    </div>
+    <div class="agent-role">导出层 · ClawProfile · CLAUDE.md</div>
+    <div class="agent-metric"><span>profiles exported</span><span class="v" data-stat="exports">0</span></div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="terminal">
+    <div class="term-head">
+      <span class="dots"><span></span><span></span><span></span></span>
+      <span class="term-title">shrimpflow-pipeline.log · streaming from main branch</span>
+      <span class="term-meta">live</span>
+    </div>
+    <div class="term-body" id="termBody"></div>
+  </div>
+
+  <aside class="side">
+    <div class="stat stat-tests">
+      <div class="stat-label">tests passed</div>
+      <div class="stat-val"><span data-stat="tests">0</span><span class="unit">/ 66</span></div>
+      <div class="stat-bar"><span data-bar="tests"></span></div>
+      <div class="stat-foot"><span class="delta-up">▲ all green · 6.11s</span></div>
+    </div>
+    <div class="stat stat-tokens">
+      <div class="stat-label">tokens consumed (session)</div>
+      <div class="stat-val"><span data-stat="tokens">0</span></div>
+      <div class="stat-bar"><span data-bar="tokens"></span></div>
+      <div class="stat-foot">claude-sonnet-4-5 · gpt-4o fallback</div>
+    </div>
+    <div class="stat stat-patterns">
+      <div class="stat-label">patterns mined</div>
+      <div class="stat-val"><span data-stat="patternsBig">0</span><span class="unit">/ 8 confirmed</span></div>
+      <div class="stat-bar"><span data-bar="patterns"></span></div>
+      <div class="stat-foot">Bayesian-updated each iteration</div>
+    </div>
+    <div class="stat stat-commits">
+      <div class="stat-label">commits autopilot replayed</div>
+      <div class="stat-val"><span data-stat="commits">0</span><span class="unit">/ 65</span></div>
+      <div class="stat-bar"><span data-bar="commits"></span></div>
+      <div class="stat-foot">OmniStack · 32 iters · 29h</div>
+    </div>
+    <div class="legend">
+      <div class="lh">log channels</div>
+      <div class="lr"><span class="ll">[shadow]</span><span class="lv" style="color:var(--blue)">采集</span></div>
+      <div class="lr"><span class="ll">[mirror]</span><span class="lv" style="color:var(--purple)">抽取</span></div>
+      <div class="lr"><span class="ll">[brain]</span><span class="lv" style="color:var(--purple-2)">推理</span></div>
+      <div class="lr"><span class="ll">[autopilot]</span><span class="lv" style="color:var(--green-2)">决策</span></div>
+      <div class="lr"><span class="ll">[workprint]</span><span class="lv" style="color:var(--orange)">导出</span></div>
+      <div class="lr"><span class="ll">[api]</span><span class="lv" style="color:var(--pink)">外部 LLM</span></div>
+      <div class="lr"><span class="ll">[pytest]</span><span class="lv" style="color:var(--green)">回归</span></div>
+    </div>
+  </aside>
+</div>
+
+<footer>
+  <div>
+    <a href="./">← Back to ShrimpFlow</a>
+    <a href="./shrimpflow_workflow.html">Long Workflow Replay →</a>
+    <a href="https://github.com/asimfish/ShrimpFlow" target="_blank" rel="noreferrer">GitHub</a>
+    <a href="https://www.bilibili.com/video/BV1UBAVzyErU" target="_blank" rel="noreferrer">Demo Video</a>
+  </div>
+  <div class="right">
+    <span>main · 180cfe3</span><span>·</span>
+    <span>asimfish.github.io/ShrimpFlow/</span>
+  </div>
+</footer>
+
+<script>
+// =====================================================================
+// Real artifacts
+// =====================================================================
+const REAL_COMMITS = [
+  ['a1009a9','feat','[training/feat]: merge iter-4 training pipeline'],
+  ['ede4ca3','feat','[repo/feat]: merge iter-5 infra and eval framework'],
+  ['59a8f68','feat','[iter-6/feat]: MuJoCo adapter, HAL config, eval CLI'],
+  ['7182d58','feat','[iter-7/feat]: experiment tracking, E2E loop, CI mujoco'],
+  ['0fece52','fix' ,'fix: iter-12b - system reliability (20 issues from audit)'],
+  ['d812444','refactor','[deploy/refactor]: replace print() with structured logging'],
+  ['4a5240d','feat','feat: iter-11 - schema v2, FieldSelector, DeltaTransform'],
+  ['ede74db','feat','[policies/feat]: add iMLE policy - implicit generative model'],
+  ['8b97df0','feat','[policies/feat]: complete iMLE feature parity with DP/FM'],
+  ['b30b12b','feat','[infra/feat]: structured console output and periodic ETA'],
+];
+
+const REAL_TESTS = [
+  'tests/test_ai_provider.py::test_anthropic_primary_path PASSED',
+  'tests/test_ai_provider.py::test_openai_fallback_when_anthropic_429 PASSED',
+  'tests/test_app_smoke.py::test_health_endpoint PASSED',
+  'tests/test_evidence_ledger.py::test_bayesian_update_clamped PASSED',
+  'tests/test_evidence_ledger.py::test_record_evidence_appends_ledger_row PASSED',
+  'tests/test_log_scrub.py::test_scrub_known_shapes[sk-ant-api03...] PASSED',
+  'tests/test_log_scrub.py::test_installed_filter_redacts_rendered_logs PASSED',
+  'tests/test_pattern_mining_primitives.py::test_bayesian_update_is_clamped_and_monotonic PASSED',
+  'tests/test_pattern_quota.py::test_global_cap_prunes_low_value_to_admit PASSED',
+  'tests/test_patterns_route_order.py::test_specific_pattern_paths_are_not_swallowed[review-stats] PASSED',
+  'tests/test_taste_dimensions.py::test_keyword_spam_cannot_reach_100 PASSED',
+  'tests/test_twin_maturity.py::test_twin_maturity_with_empty_db_does_not_crash PASSED',
+];
+
+const PATTERN_NAMES = [
+  '[scope/type]: 规范化提交格式',
+  '迭代制开发计划',
+  'feat → test → fix 开发循环',
+  'PR 驱动合并到主线',
+  '每轮迭代后更新文档',
+  '进入下一阶段前先重构',
+  '深度审计后集中修复',
+  '变更后锁定依赖版本',
+];
+
+// =====================================================================
+// State
+// =====================================================================
+const state = {
+  events: 0, episodes: 0, patterns: 0, workflows: 0, exports: 0,
+  tests: 0, tokens: 0, patternsBig: 0, commits: 0,
+};
+const targets = {
+  tests: 66, tokens: 124800, patternsBig: 8, commits: 65,
+};
+
+// =====================================================================
+// Log streaming
+// =====================================================================
+const term = document.getElementById('termBody');
+const MAX_LINES = 220;
+
+function pad(n,w){ return String(n).padStart(w,'0'); }
+function ts() {
+  const d = new Date();
+  return `${pad(d.getHours(),2)}:${pad(d.getMinutes(),2)}:${pad(d.getSeconds(),2)}.${pad(d.getMilliseconds(),3)}`;
+}
+function setActive(id, on=true) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (on) {
+    el.classList.add('active');
+    const st = el.querySelector('.agent-status');
+    if (st) st.textContent = 'ACTIVE';
+    setTimeout(()=>{
+      el.classList.remove('active');
+      const s = el.querySelector('.agent-status');
+      if (s) s.textContent = 'IDLE';
+    }, 1100);
+  }
+}
+function bump(stat, by=1) {
+  state[stat] = (state[stat] || 0) + by;
+  document.querySelectorAll(`[data-stat="${stat}"]`).forEach(el=>{
+    el.textContent = state[stat].toLocaleString();
+  });
+  if (targets[stat]) {
+    const pct = Math.min(100, (state[stat]/targets[stat])*100);
+    document.querySelectorAll(`[data-bar="${stat==='patternsBig'?'patterns':stat}"]`).forEach(b=>b.style.width = pct + '%');
+  }
+}
+function appendLine(channel, msgHtml, opts={}) {
+  const div = document.createElement('div');
+  div.className = 'line';
+  div.innerHTML =
+    `<span class="ts">${ts()}</span>` +
+    `<span class="tag-l tag-l-${channel}">[${channel}]</span>` +
+    `<span class="msg">${msgHtml}</span>`;
+  term.appendChild(div);
+  while (term.children.length > MAX_LINES) term.removeChild(term.firstChild);
+  term.scrollTop = term.scrollHeight;
+}
+function appendSeparator(text) {
+  const div = document.createElement('div');
+  div.className = 'section-sep';
+  div.textContent = text;
+  term.appendChild(div);
+  while (term.children.length > MAX_LINES) term.removeChild(term.firstChild);
+  term.scrollTop = term.scrollHeight;
+}
+
+// =====================================================================
+// Boot sequence
+// =====================================================================
+async function boot() {
+  await delay(160);
+  appendLine('system', `<span class="hl">shrimpflow-pipeline</span> v1.0.0 starting · pid=<span class="num">8421</span>`);
+  await delay(220);
+  appendLine('system', `loading 5-agent flow · long-context CoT × Bayesian evidence × 5-dim taste`);
+  await delay(280);
+  appendLine('shadow', `watcher attached · monitoring <span class="k">shell</span> + <span class="k">git</span> + <span class="k">claude_code</span> + <span class="k">codex</span> + <span class="k">openclaw</span>`);
+  setActive('ag-shadow');
+  await delay(260);
+  appendLine('mirror', `slicer ready · episode window=<span class="v">22m</span> idle_threshold=<span class="v">90s</span>`);
+  setActive('ag-mirror');
+  await delay(260);
+  appendLine('brain',  `loaded 8 prior patterns from evidence ledger (median confidence <span class="num">0.74</span>)`);
+  setActive('ag-brain');
+  await delay(260);
+  appendLine('auto',   `runtime hooks bound to <span class="k">claude_code</span> + <span class="k">openclaw</span>`);
+  setActive('ag-auto');
+  await delay(260);
+  appendLine('print',  `clawprofile compiler ready · target=<span class="k">CLAUDE.md</span> + <span class="k">clawprofile.yaml</span>`);
+  setActive('ag-print');
+  await delay(360);
+  appendSeparator('regression suite · pytest');
+  await runPytestBlock();
+  await delay(400);
+  appendSeparator('agent flow · live');
+  loop();
+}
+
+async function runPytestBlock() {
+  appendLine('pytest', `<span class="hl">$ python -m pytest tests/ -v</span>`);
+  await delay(180);
+  appendLine('pytest', `============================= test session starts ==============================`);
+  appendLine('pytest', `platform darwin -- Python 3.13.12, pytest-9.0.3, pluggy-1.6.0`);
+  appendLine('pytest', `rootdir: server  ·  configfile: pytest.ini  ·  collected <span class="num">66</span> items`);
+  await delay(160);
+  for (let i=0;i<REAL_TESTS.length;i++) {
+    const t = REAL_TESTS[i];
+    const pct = Math.floor(((i+1)/REAL_TESTS.length)*100);
+    appendLine('pytest', `${t.replace('PASSED', '<span class="pass">PASSED</span>')}  <span class="vd">[${pct}%]</span>`);
+    bump('tests', Math.floor(66 / REAL_TESTS.length) + (i === REAL_TESTS.length-1 ? 66 - state.tests - Math.floor(66 / REAL_TESTS.length) : 0));
+    await delay(70 + Math.random()*60);
+  }
+  state.tests = 66;
+  document.querySelectorAll('[data-stat="tests"]').forEach(e=>e.textContent='66');
+  document.querySelectorAll('[data-bar="tests"]').forEach(b=>b.style.width='100%');
+  await delay(180);
+  appendLine('pytest', `<span class="pass">============================== 66 passed in 6.11s ==============================</span>`);
+}
+
+// =====================================================================
+// Main loop — synthesizes realistic Shadow→Mirror→Brain→Autopilot→Workprint cycles
+// =====================================================================
+function pickCommit(){ return REAL_COMMITS[Math.floor(Math.random()*REAL_COMMITS.length)]; }
+function rand(min,max){ return Math.floor(min + Math.random()*(max-min)); }
+
+async function cycle() {
+  // SHADOW
+  setActive('ag-shadow');
+  const c = pickCommit();
+  appendLine('shadow', `event captured · <span class="k">git.commit</span> hash=<span class="vp">${c[0]}</span> type=<span class="v">${c[1]}</span> msg="<span class="hl">${c[2]}</span>"`);
+  bump('events'); bump('commits');
+  await delay(rand(220, 380));
+
+  appendLine('shadow', `event captured · <span class="k">shell.command</span> exit=<span class="v">0</span> dur=<span class="v">${rand(120,2400)}ms</span>`);
+  bump('events');
+  await delay(rand(180, 280));
+
+  appendLine('shadow', `event captured · <span class="k">claude_code.session</span> tool=<span class="v">edit</span> tokens_in=<span class="num">${rand(800,3200)}</span>`);
+  bump('events');
+  await delay(rand(180, 320));
+
+  // MIRROR
+  setActive('ag-mirror');
+  const epId = `ep_${rand(2400,2999)}`;
+  const span = rand(8, 28);
+  appendLine('mirror', `episode_id=<span class="vp">${epId}</span> sliced · <span class="num">${rand(6,18)}</span> atoms · span=<span class="v">${span}m</span> · label="<span class="hl">${c[1]}-loop</span>"`);
+  bump('episodes');
+  await delay(rand(220, 360));
+
+  // BRAIN
+  setActive('ag-brain');
+  appendLine('brain', `CoT mining started · episode=<span class="vp">${epId}</span> · long_ctx=<span class="num">${rand(18000,42000)}</span> tokens`);
+  await delay(rand(280, 420));
+
+  // API
+  const apiTokensIn = rand(8000, 22000);
+  const apiTokensOut = rand(900, 3200);
+  appendLine('api', `<span class="k">anthropic.claude-sonnet-4-5</span> request · in=<span class="num">${apiTokensIn.toLocaleString()}</span> out=<span class="num">${apiTokensOut.toLocaleString()}</span>`);
+  state.tokens += apiTokensIn + apiTokensOut;
+  document.querySelectorAll('[data-stat="tokens"]').forEach(el=>el.textContent = state.tokens.toLocaleString());
+  document.querySelectorAll('[data-bar="tokens"]').forEach(b=>b.style.width = Math.min(100, state.tokens/targets.tokens*100) + '%');
+  await delay(rand(200, 320));
+
+  // taste scoring
+  const taste = {
+    rigor: (Math.random()*0.3+0.65).toFixed(2),
+    elegance: (Math.random()*0.4+0.5).toFixed(2),
+    novelty: (Math.random()*0.45+0.4).toFixed(2),
+    simplicity: (Math.random()*0.35+0.55).toFixed(2),
+    repro: (Math.random()*0.2+0.78).toFixed(2),
+  };
+  appendLine('brain', `5-dim taste · rigor=<span class="num">${taste.rigor}</span> elegance=<span class="num">${taste.elegance}</span> novelty=<span class="num">${taste.novelty}</span> simplicity=<span class="num">${taste.simplicity}</span> repro=<span class="num">${taste.repro}</span>`);
+  await delay(rand(200, 320));
+
+  // bayesian update
+  const pid = rand(0, PATTERN_NAMES.length-1);
+  const pname = PATTERN_NAMES[pid];
+  const pre = (Math.random()*0.4+0.45).toFixed(2);
+  const post = Math.min(0.99, parseFloat(pre) + (Math.random()*0.18+0.04)).toFixed(2);
+  appendLine('brain', `bayesian update · pattern=<span class="hl">${pname}</span> conf <span class="vd">${pre}</span><span class="arrow">→</span><span class="num">${post}</span> <span class="vd">(+evidence:adopted)</span>`);
+  if (post >= 0.85 && state.patternsBig < 8) {
+    bump('patternsBig');
+    bump('patterns');
+    appendLine('brain', `<span class="hl">pattern confirmed</span> · "${pname}" promoted to ClawProfile`);
+  }
+  await delay(rand(220, 340));
+
+  // AUTOPILOT
+  setActive('ag-auto');
+  const wf = ['iter-development-loop', 'audit-then-fix-batch', 'feat→test→fix-cycle', 'pr-driven-merge'][rand(0,3)];
+  appendLine('auto', `workflow inferred · <span class="hl">${wf}</span> · synthesizing ${rand(3,7)} patterns`);
+  bump('workflows');
+  await delay(rand(220, 320));
+
+  appendLine('auto', `runtime hook · <span class="k">claude_code</span> session=<span class="vp">sess_${rand(1000,9999).toString(16)}</span> · template injected`);
+  await delay(rand(180, 280));
+
+  // WORKPRINT — emit every few cycles
+  if (Math.random() < 0.35) {
+    setActive('ag-print');
+    appendLine('print', `compiling ClawProfile from <span class="num">${state.patternsBig}</span> confirmed patterns ...`);
+    await delay(rand(240, 360));
+    appendLine('print', `export · <span class="k">claude_md_rules.md</span> <span class="vd">(${(1.2+Math.random()*0.6).toFixed(1)}KB)</span> + <span class="k">clawprofile.yaml</span> <span class="vd">(${(3.5+Math.random()*0.8).toFixed(1)}KB)</span>`);
+    bump('exports');
+    await delay(rand(180, 280));
+  }
+
+  // occasional pytest re-run flash
+  if (Math.random() < 0.18) {
+    appendLine('pytest', `regression re-run · <span class="pass">66 passed in ${(5.8 + Math.random()*0.6).toFixed(2)}s</span>`);
+    await delay(rand(160, 260));
+  }
+}
+
+async function loop() {
+  while (true) {
+    await cycle();
+    await delay(rand(380, 680));
+  }
+}
+
+function delay(ms){ return new Promise(r=>setTimeout(r, ms)); }
+
+boot();
+</script>
+
+</body>
+</html>
